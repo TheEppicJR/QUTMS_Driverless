@@ -403,30 +403,30 @@ def get_ground_plane(point_cloud: List[List]) -> List[List]:
     start_time: float = time.time()
     now: float = time.time()
     segments_bins: List[List[List]] = points_to_seg_bin(point_cloud)
-    print("points_to_seg_bin", time.time() - now)
+    #print("points_to_seg_bin", time.time() - now)
     
     if VISUALISE: vis.plot_segments_bins(segments_bins, False)
 
     now = time.time()
     segments_bins_prototype: List[List[List]] = approximate_2D(segments_bins)
-    print("approximate_2D", time.time() - now)
+    #print("approximate_2D", time.time() - now)
 
     now = time.time()
     ground_plane: List[List[List]] = line_extraction.get_ground_plane(segments_bins_prototype, NUM_SEGMENTS, NUM_BINS)
-    print("get_ground_plane", time.time() - now)
+    #print("get_ground_plane", time.time() - now)
 
     if VISUALISE: vis.plot_ground_lines_3D(segments_bins_prototype, ground_plane, False)
     #if VISUALISE: vis.plot_segments_fitted(segments_bins_prototype, ground_plane)
 
     now = time.time()
     labelled_points: List[List[List]] = label_points(segments_bins, ground_plane)
-    print("label_points", time.time() - now)
+    #print("label_points", time.time() - now)
 
     if VISUALISE: vis.plot_labelled_points(labelled_points, ground_plane)
 
     now = time.time()
     object_points: List[List[List]] = non_ground_points(labelled_points)
-    print("non_ground_points", time.time() - now)
+    #print("non_ground_points", time.time() - now)
 
     if VISUALISE: vis.plot_grid_2D(object_points)
 
@@ -434,24 +434,24 @@ def get_ground_plane(point_cloud: List[List]) -> List[List]:
     if len(object_points) > 0:
         now = time.time()
         cluster_centers = DBSCAN.get_objects(object_points)
-        print("get_objects", time.time() - now)
+        #print("get_objects", time.time() - now)
 
         now = time.time()
         reconstructed_clusters: List[List] = object_reconstruction(cluster_centers, segments_bins, ground_plane)
-        print("object_reconstruction", time.time() - now)
+        #print("object_reconstruction", time.time() - now)
 
         if VISUALISE: vis.plot_reconstruction(reconstructed_clusters)
 
         now = time.time()
         cones: List[List] = get_cones(reconstructed_clusters)
-        print("get_cones", time.time() - now)
+        #print("get_cones", time.time() - now)
 
         if VISUALISE: vis.plot_cones(cones)
 
     # Could consider try except block to ensure plotting - even during failure
     if VISUALISE and DISPLAY: plt.show()
     
-    print("Algorithm Time:", time.time() - start_time)
+    #print("Algorithm Time:", time.time() - start_time)
 
     return cones
 

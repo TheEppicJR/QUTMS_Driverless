@@ -198,8 +198,8 @@ class ConePipeline(Node):
                 robot_pt_to_img_pt(cone.location.x + 1.2, cone.location.y).to_tuple(),
                 colour,
                 markerType=cv2.MARKER_SQUARE,
-                markerSize=5,
-                thickness=5
+                markerSize=3,
+                thickness=3
             )
 
         for cone in lidar_cones:
@@ -209,8 +209,8 @@ class ConePipeline(Node):
                 robot_pt_to_img_pt(cone.location.x + 1.2, cone.location.y).to_tuple(),
                 colour,
                 markerType=cv2.MARKER_SQUARE,
-                markerSize=5,
-                thickness=5
+                markerSize=3,
+                thickness=3
             )
 
         text_vel = f"Lidar N: {len(lidar_cones)}"
@@ -218,12 +218,12 @@ class ConePipeline(Node):
             debug_img, text_vel, (10, HEIGHT-10),
             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2
         )
-        timedelta = lidar_cone_msg.header.stamp-cone_msg.header.stamp
-        text_time = f"dT: {timedelta}"
-        cv2.putText(
-            debug_img, text_time, (10, HEIGHT-25),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2
-        )
+        # timedelta = lidar_cone_msg.header.stamp-cone_msg.header.stamp
+        # text_time = f"dT: {timedelta}"
+        # cv2.putText(
+        #     debug_img, text_time, (10, HEIGHT-25),
+        #     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2
+        # )
         
         self.debug_img_publisher.publish(cv_bridge.cv2_to_imgmsg(debug_img, encoding="bgr8"))
 

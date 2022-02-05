@@ -89,7 +89,7 @@ class LidarProcessing(Node):
             self.callback,
             10)
 
-        lidar_init(visualise, display, "/home/developer/datasets/figures/", max_range)
+        lidar_init(visualise, display, "/datasets/figures/", max_range)
 
         self.detection_publisher: Publisher = self.create_publisher(
             ConeDetectionStamped, 
