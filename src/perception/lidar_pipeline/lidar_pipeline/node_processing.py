@@ -2,6 +2,7 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.publisher import Publisher
+import rclpy.logging
 # import ROS2 message libraries
 from std_msgs.msg import Header
 from sensor_msgs.msg import PointCloud2
@@ -80,6 +81,8 @@ class LidarProcessing(Node):
     def __init__(self, pc2_topic: str, visualise: bool, display: bool, max_range: int):
         super().__init__('lidar_processor')
 
+        self.logger = self.get_logger()
+
         self.pcl_subscription = self.create_subscription(
             PointCloud2,
             pc2_topic,
@@ -99,6 +102,7 @@ class LidarProcessing(Node):
             1)
 
         LOGGER.info('---LiDAR processing node initialised---')
+        self.logger.debug('---LiDAR processing node initialised---')
 
 
     def callback(self, pc2_msg: PointCloud2):
@@ -114,11 +118,13 @@ class LidarProcessing(Node):
         point_array: List(List) = read_points_list(pc2_msg)
 
         LOGGER.info("\nRead Time:" + str(time.time()-start))
+        self.logger.debug("\nRead Time:" + str(time.time()-start))
 
         # calls main module from ground estimation algorithm
         cones: List[List] = lidar_main(point_array) 
 
         LOGGER.info("\nDetected cones:" + str(len(cones)))
+        self.logger.debug("\nDetected cones:" + str(len(cones)))
         
         # define message component - list of Cone type messages
         detected_cones: List[Cone] = []
@@ -147,6 +153,7 @@ class LidarProcessing(Node):
         self.marker_publisher.publish(markers_msg) # publish marker points data
 
         LOGGER.info("Total Time:" + str(time.time()-start))
+        self.logger.debug("Total Time:" + str(time.time()-start))
 
 
 def main(args=sys.argv[1:]):
