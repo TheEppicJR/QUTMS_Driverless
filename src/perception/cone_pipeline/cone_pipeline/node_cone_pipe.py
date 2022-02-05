@@ -151,7 +151,7 @@ class ConePipeline(Node):
             self, ConeDetectionStamped, "/detector/cone_detection"
         )
         lidar_cones_sub = message_filters.Subscriber(
-            self, ConeDetectionStamped, "/lidar/cone_detection"
+            self, ConeDetectionStamped, "/cone_sensing/cones"
         )
         
 
