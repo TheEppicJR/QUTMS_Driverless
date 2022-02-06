@@ -1,25 +1,20 @@
 # import ROS2 libraries
-from turtle import st
 import rclpy
 from rclpy.node import Node
 from rclpy.publisher import Publisher
 from cv_bridge import CvBridge
 # import ROS2 message libraries
-from sensor_msgs.msg import Image
-from std_msgs.msg import Header
 from nav_msgs.msg import Odometry
-from visualization_msgs.msg import Marker, MarkerArray
-from builtin_interfaces.msg import Duration
 # import custom message libraries
-from fs_msgs.msg import Track, Cone
+from driverless_msgs.msg import SplinePoint, SplineStamped
+from fs_msgs.msg import ControlCommand
 
 # other python modules
-from math import sqrt
+from math import sqrt, atan2, pi, sin, cos, atan
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt # plotting splines
 import scipy.interpolate as scipy_interpolate # for spline calcs
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 import time
 import sys
 import os
@@ -28,8 +23,10 @@ import logging
 import datetime
 import pathlib
 
+from transforms3d.euler import quat2euler
+
 # import required sub modules
-from .point import Point
+from driverless_common.point import Point
 
 # initialise logger
 LOGGER = logging.getLogger(__name__)
@@ -120,148 +117,30 @@ def midpoint(p1: list, p2: list):
     return (p1[0]+p2[0])/2, (p1[1]+p2[1])/2
 
 
-def marker_msg(
-    x_coord: float, 
-    y_coord: float, 
-    ID: int, 
-    header: Header,
-) -> Marker: 
-    """
-    Creates a Marker object for cones or a car.
-    * param x_coord: x position relative to parent frame
-    * param y_coord: y position relative to parent frame
-    * param ID: Unique for markers in the same frame
-    * param header: passed in because creating time is dumb
-    * return: Marker
-    """
-
-    marker = Marker()
-    marker.header = header
-    marker.ns = "current_path"
-    marker.id = ID
-    marker.type = Marker.SPHERE
-    marker.action = Marker.ADD
-
-    marker.pose.position.x = x_coord
-    marker.pose.position.y = y_coord
-    marker.pose.position.z = 0.0
-    marker.pose.orientation.x = 0.0
-    marker.pose.orientation.y = 0.0
-    marker.pose.orientation.z = 0.0
-    marker.pose.orientation.w = 1.0
-
-    # scale out of 1x1x1m
-    marker.scale.x = 0.1
-    marker.scale.y = 0.1
-    marker.scale.z = 0.1
-
-    marker.color.a = 1.0 # alpha
-    marker.color.r = 1.0
-    marker.color.g = 0.0
-    marker.color.b = 0.0
-
-    marker.lifetime = Duration(sec=10, nanosec=100000)
-
-    return marker
-
-
-class SplinePlanner(Node):
+class SplinePursuit(Node):
     def __init__(self, spline_len: int):
         super().__init__("spline_planner")
 
         # sub to track for all cone locations relative to car start point
-        self.create_subscription(Track, "/testing_only/track", self.map_callback, 10)
+        self.create_subscription(SplineStamped, "/spline_mapper/path", self.map_callback, 10)
         # sub to odometry for car pose + velocity
-        self.create_subscription(Odometry, "/testing_only/odom", self.odom_callback, 10)
-
-        # publishers
-        self.plot_img_publisher: Publisher = self.create_publisher(Image, "/spline_map/plot_img", 1)
-        self.path_publisher: Publisher = self.create_publisher(MarkerArray, "/spline_map/target_array", 1)
-
-        self.spline_len: int = spline_len
-        self.odom_header: Header = None
-        # instance var so plot figure isn't recreated each loop
-        self.fig = plt.figure()
+        self.create_subscription(Odometry, "/testing_only/odom", self.callback, 10)
 
         LOGGER.info("---Spline Controller Node Initalised---")
 
 
-    def odom_callback(self, odom_msg: Odometry):
-        # header used to create markers
-        self.odom_header = odom_msg.header
+    def map_callback(self, spline_path: SplineStamped):
+        None
 
-
-    def map_callback(self, track_msg: Track):
-        LOGGER.info("Received map")
-        
-        start: float = time.time()
-        # track cone list is taken as coords relative to the initial car position
-        track = track_msg.track
-        
-        tx: List[float] = []
-        ty: List[float] = []
-        yellow_x: List[float] = []
-        yellow_y: List[float] = []
-        blue_x: List[float] = []
-        blue_y: List[float] = []
-        for cone in track:
-            if cone.color == Cone.YELLOW:
-                yellow_x.append(cone.location.x)
-                yellow_y.append(cone.location.y)
-            elif cone.color == Cone.BLUE:
-                blue_x.append(cone.location.x)
-                blue_y.append(cone.location.y)
-            
-        # retrieves spline lists (x,y)
-        yx, yy = approximate_b_spline_path(yellow_x, yellow_y, self.spline_len)
-        bx, by = approximate_b_spline_path(blue_x, blue_y, self.spline_len)
-
-        path_markers: List[Marker] = []
-
-        # find midpoint between splines at each point to make target path
-        for i in range(self.spline_len):
-            mid_x, mid_y = midpoint([yx[i], yy[i]], [bx[i], by[i]])
-            tx.append(mid_x)
-            ty.append(mid_y)
-
-            path_markers.append(marker_msg(
-                tx[i],
-                ty[i],
-                i, 
-                self.odom_header,
-            ))
-
-        LOGGER.info("Time taken: "+ str(time.time()-start))
-
-        # show results
-        plt.clf()
-        plt.plot(yellow_x, yellow_y, '-oy')
-        plt.plot(blue_x, blue_y, '-ob')
-        plt.plot(yx, yy, '-y')
-        plt.plot(bx, by, '-b')
-        plt.plot(tx, ty, '-r')
-        plt.grid(True)
-        plt.axis("equal")
-
-        self.fig.canvas.draw()
-
-        plot_img = np.fromstring(self.fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-        plot_img = plot_img.reshape(self.fig.canvas.get_width_height()[::-1] + (3,))
-        plot_img = cv2.cvtColor(plot_img, cv2.COLOR_RGB2BGR)
-
-        self.plot_img_publisher.publish(cv_bridge.cv2_to_imgmsg(plot_img, encoding="bgr8"))
-        
-        # create message for all cones on the track
-        path_markers_msg = MarkerArray(markers=path_markers)
-        self.path_publisher.publish(path_markers_msg)
-        # plt.show()
+    def callback(self, msg: Odometry):
+        None
 
 
 def main(args=sys.argv[1:]):
     # defaults args
     loglevel = 'info'
     print_logs = False
-    spline_len = 4000
+    spline_len = 200
 
     # processing args
     opts, arg = getopt.getopt(args, str(), ['log=', 'print_logs', 'length='])

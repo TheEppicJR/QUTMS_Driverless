@@ -1,6 +1,6 @@
 from setuptools import setup
 
-package_name = "spline_map"
+package_name = "sim_planning"
 
 setup(
     name=package_name,
@@ -12,14 +12,15 @@ setup(
     ],
     install_requires=["setuptools"],
     zip_safe=True,
-    maintainer="Alistair English",
+    maintainer="Alastair Bradford",
     maintainer_email="team@qutmotorsport.com",
-    description="Driverless Controllers",
+    description="Plans and follows an ideal path through the track",
     license="MIT",
     tests_require=["pytest"],
     entry_points={
         "console_scripts": [
-            "plan = spline_map.node_spline:main",
+            "mapper = sim_planning.node_map:main",
+            "pursuit = sim_planning.node_pursuit:main"
         ],
     },
 )
