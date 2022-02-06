@@ -138,6 +138,7 @@ def label_points(segments_bins: List[List[List]], ground_lines: List[List[List]]
         num_lines = len(ground_lines[i])
         seg_idx = i
         # If there is no ground line in current segment, find the closest one
+        now = time.time()
         if num_lines == 0:
             left_counter = i-1
             right_counter = i+1
@@ -157,6 +158,8 @@ def label_points(segments_bins: List[List[List]], ground_lines: List[List[List]]
             if left_idx == right_idx:
                 raise AssertionError("No ground lines found")
         ground_line = ground_lines[seg_idx][0]
+        print("while", time.time() - now)
+        now = time.time()
         for j in range(NUM_BINS):
             for k in range(len(segments_bins[i][j])):
                 point = segments_bins[i][j][k]
@@ -175,7 +178,39 @@ def label_points(segments_bins: List[List[List]], ground_lines: List[List[List]]
                     if (closest_dist < T_D_MAX and closest_dist < dynamic_T_D_GROUND):
                         is_ground = True
                 segments_bins[i][j][k].append(is_ground)
+        print("for", time.time() - now)
     return segments_bins
+
+#http://sayef.tech/post/ground-detection-and-removal-from-point-clouds/
+# Following this dudes guide
+def label_points_np(segments_bins: List[List[List]], ground_lines: List[List[List]]):
+    z_idx = 2
+    uppertol = 1
+    data = make_np(segments_bins)
+    data = np.append(data, np.arange(data.shape[0]).reshape(-1, 1), axis=1)
+    data_z = data[:,z_idx]
+    mean = np.mean(data_z)
+    sd = np.std(data_z)
+    data_ground = data[(data_z < mean + uppertol * sd) & (data_z > mean - 1.5 * sd)]
+    data_wo_ground = data[(data_z > mean + uppertol * sd)]
+    #dgb = np.array(data_ground)
+    #print(f"ground points: {data_ground.shape} obj points: {data_wo_ground.shape}")
+    #max_z, min_z = np.max(data_ground[:, z_idx]), np.min(data_ground[:, z_idx])
+    #data_ground[:, z_idx] = (data_ground[:, z_idx] - min_z)/(max_z - min_z)
+    #covariance = np.cov(data_ground[:, :3].T)
+    #eigen_values, eigen_vectors =  np.linalg.eig(np.matrix(covariance))
+    #normal_vector = eigen_vectors[np.argmin(eigen_values)]
+    #projection = normal_vector.dot(data_ground[:, :3].T)
+    #ground_mask = np.abs(projection) < 0.4
+    #data_ground = np.asarray([data_ground[index[1]] for index, a in np.ndenumerate(ground_mask) if a == False])
+    try:
+        #data_ground[:, z_idx] = data_ground[:, z_idx] * (max_z - min_z) + min_z
+        #world = np.delete(data, data_ground[:,3].astype(int), axis=0)[:,:3]
+        if VISUALISE: vis.plot_labelled_points_np(data_wo_ground, data_ground)
+        return data_wo_ground[:,:3]#world
+    except:
+        #if VISUALISE: vis.plot_labelled_points_np(dgb, data_wo_ground)
+        return data_wo_ground[:,:3]#dgb
 
 def make_np_arr(labelled_points: List[List[List]]):
     # Flatten parent array (remove bins)
@@ -184,6 +219,15 @@ def make_np_arr(labelled_points: List[List[List]]):
     labelled_points = [points for sublist in labelled_points for points in sublist]
     # Return all objects that are NOT flagged as ground
     pointlist =  [point for point in labelled_points if point[3] == True]
+    return np.array(pointlist).T
+
+def make_np(labelled_points: List[List[List]]):
+    # Flatten parent array (remove bins)
+    labelled_points = [points for sublist in labelled_points for points in sublist]
+    # Flatten parent array (remove segements)
+    labelled_points = [points for sublist in labelled_points for points in sublist]
+    # Return all objects that are NOT flagged as ground
+    pointlist =  [point for point in labelled_points]
     return np.array(pointlist)
 
 def non_ground_points(labelled_points: List[List[List]]) -> List[List[List]]:
@@ -382,41 +426,49 @@ def get_ground_plane(point_cloud: List[List]) -> List[List]:
     start_time: float = time.time()
     now: float = time.time()
     segments_bins: List[List[List]] = points_to_seg_bin(point_cloud)
-    #print("points_to_seg_bin", time.time() - now)
+    print("points_to_seg_bin", time.time() - now)
     
     #if VISUALISE: vis.plot_segments_bins(segments_bins, False)
 
-    #now = time.time()
+    now = time.time()
     segments_bins_prototype: List[List[List]] = approximate_2D(segments_bins)
-    #print("approximate_2D", time.time() - now)
+    print("approximate_2D", time.time() - now)
 
-    #now = time.time()
+    now = time.time()
     ground_plane: List[List[List]] = line_extraction.get_ground_plane(segments_bins_prototype, NUM_SEGMENTS, NUM_BINS)
-    #print("get_ground_plane", time.time() - now)
+    print("get_ground_plane", time.time() - now)
     
 
     #if VISUALISE: vis.plot_ground_lines_3D(segments_bins_prototype, ground_plane, False)
     #if VISUALISE: vis.plot_segments_fitted(segments_bins_prototype, ground_plane)
 
-    #now = time.time()
+    now = time.time()
+    cluster_centers = DBSCAN.get_objects(label_points_np(segments_bins, ground_plane))
+    print("my_ground_plane_removal", time.time() - now)
+    return cluster_centers #lol
+
+    now = time.time()
     labelled_points: List[List[List]] = label_points(segments_bins, ground_plane)
-    #print("label_points", time.time() - now)
-    ground_plane_vector, point = make_ground_plane(make_np_arr(labelled_points).T)
+    print("label_points", time.time() - now)
+
+    now = time.time()
+    ground_plane_vector, point = make_ground_plane(make_np_arr(labelled_points))
+    print("svd_ground_points", time.time() - now)
 
     if VISUALISE: vis.plot_labelled_points(labelled_points, ground_plane)
 
-    #now = time.time()
+    now = time.time()
     object_points: List[List[List]] = non_ground_points(labelled_points)
-    #print("non_ground_points", time.time() - now)
-    #print(f"Number of object points: {len(object_points)}")
+    print("non_ground_points", time.time() - now)
+    print(f"Number of object points: {len(object_points)}")
 
     if VISUALISE: vis.plot_grid_2D(object_points)
 
     cones: List = []
     if len(object_points) > 0:
-        now = time.time()
-        cluster_centers = DBSCAN.get_objects(object_points)
-        return cluster_centers #lol
+        #now = time.time()
+        # cluster_centers = DBSCAN.get_objects(object_points)
+        # return cluster_centers #lol
         #print("get_objects", time.time() - now)
         print(f"Number of cluster points: {len(cluster_centers)}")
 

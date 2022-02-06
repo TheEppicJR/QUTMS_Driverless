@@ -283,6 +283,27 @@ def plot_labelled_points(labelled_points: List[List[List]], ground_lines: List[L
          plt.savefig(FIGURES_DIR + "10_Point_Cloud_Labelled")
     plt.close()
 
+def plot_labelled_points_np(labelled_points: np.array, ground_point: np.array):
+    ax = init_plot_3D("Point Cloud Labelled", "x", "y", "Height", 45, 45)
+    
+    
+
+    x_ground = labelled_points[:,0]
+    y_ground = labelled_points[:,1]
+    z_ground = labelled_points[:,2]
+
+    ax.scatter3D(x_ground, y_ground, z_ground, color='green')
+    
+    x_non_ground = ground_point[:,0]
+    y_non_ground = ground_point[:,1]
+    z_non_ground = ground_point[:,2]
+
+    ax.scatter3D(x_non_ground, y_non_ground, z_non_ground, color='red')
+
+    if SAVE_FIGURES:
+         plt.savefig(FIGURES_DIR + "ground_filter")
+    plt.close()
+
 def plot_grid_2D(object_points: List[List[List]]):
     init_plot_2D("Non-ground Points", "x", "y")
 

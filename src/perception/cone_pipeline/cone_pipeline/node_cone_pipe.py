@@ -10,12 +10,14 @@ import message_filters
 # import ROS2 message libraries
 from sensor_msgs.msg import Image
 from ackermann_msgs.msg import AckermannDrive
+from sklearn import cluster
 from std_msgs.msg import Header
 from visualization_msgs.msg import Marker, MarkerArray
 from builtin_interfaces.msg import Duration
 from nav_msgs.msg import Odometry
 # import custom message libraries
-from driverless_msgs.msg import Cone, ConeDetectionStamped
+from driverless_msgs.msg import Cone as QUTCone
+from driverless_msgs.msg import ConeDetectionStamped
 from fs_msgs.msg import ControlCommand
 
 # other python modules
@@ -35,6 +37,7 @@ from transforms3d.euler import quat2euler
 
 # import required sub modules
 from .point import Point
+from . import kmeans_clustering as km
 
 # initialise logger
 LOGGER = logging.getLogger(__name__)
@@ -54,9 +57,10 @@ Colour = Tuple[int, int, int]
 YELLOW_DISP_COLOUR: Colour = (0, 255, 255) # bgr - yellow
 BLUE_DISP_COLOUR: Colour = (255, 0, 0) # bgr - blue
 ORANGE_DISP_COLOUR: Colour = (0, 165, 255) # bgr - orange
+PURP_DISP_COLOUR: Colour = (230, 230, 250) # bgr - orange
 
-LEFT_CONE_COLOUR = Cone.BLUE
-RIGHT_CONE_COLOUR = Cone.YELLOW
+LEFT_CONE_COLOUR = QUTCone.BLUE
+RIGHT_CONE_COLOUR = QUTCone.YELLOW
 
 
 
@@ -77,7 +81,7 @@ def dist(a: Point, b: Point) -> float:
     return sqrt((a.x-b.x)**2 + (a.y-b.y)**2)
 
 
-def cone_to_point(cone: Cone) -> Point:
+def cone_to_point(cone: QUTCone) -> Point:
     return Point(
         cone.location.x,
         cone.location.y,
@@ -154,6 +158,11 @@ class ConePipeline(Node):
             self, ConeDetectionStamped, "/lidar/cone_detection"
         )
         lidar_cones_sub.registerCallback(self.callback)
+        odom_sub = message_filters.Subscriber(self, Odometry, "/testing_only/odom")
+        self.actualodom = message_filters.Cache(odom_sub, 100)
+
+        self.cones = []
+        self.num_cones = 1
 
         
 
@@ -165,6 +174,81 @@ class ConePipeline(Node):
         self.logger.debug("---Cone Pipeline Node Initalised---")
 
 
+    def update_kmeans(self, new_cones, odom_msg: Odometry):
+        self.odom_header = odom_msg.header
+
+        w = odom_msg.pose.pose.orientation.w
+        i = odom_msg.pose.pose.orientation.x
+        j = odom_msg.pose.pose.orientation.y
+        k = odom_msg.pose.pose.orientation.z
+
+        # i, j, k angles in rad
+        ai, aj, ak = quat2euler([w, i, j, k])
+
+        x = odom_msg.pose.pose.position.x
+        y = odom_msg.pose.pose.position.y
+
+        for cone in new_cones:
+            x_dist = cone.location.x
+            y_dist = cone.location.x
+            a = cos(ak)
+            b = sin(ak)
+            c = y_dist + y*a - x*b
+            d = x_dist + x*a + y*b
+            nx = (d*a-c)/(a*a+b)
+
+            ref_cone = QUTCone()
+            # reference frame displacement with rotation 
+            # uses k angle (z axis)
+            ref_cone.location.x = nx
+            ref_cone.location.y = (d - nx*a)/b
+            ref_cone.location.z = 0.0
+            ref_cone.color = 3
+            self.cones.append(ref_cone)
+        raw_x, raw_y = [], []
+        for cone in self.cones:
+            raw_x.append(cone.location.x)
+            raw_y.append(cone.location.y)
+        
+        kms = km.kmeans_clustering(raw_x, raw_y, self.num_cones)
+        self.clusters = kms.plot_cluster()
+
+    def get_km_cones(self, odom_msg: Odometry):
+        
+        # header used to create markers
+        self.odom_header = odom_msg.header
+
+        w = odom_msg.pose.pose.orientation.w
+        i = odom_msg.pose.pose.orientation.x
+        j = odom_msg.pose.pose.orientation.y
+        k = odom_msg.pose.pose.orientation.z
+
+        # i, j, k angles in rad
+        ai, aj, ak = quat2euler([w, i, j, k])
+
+        x = odom_msg.pose.pose.position.x
+        y = odom_msg.pose.pose.position.y
+
+        ref_cones: List[QUTCone] = []
+        for cone in self.clusters:
+            # displacement from car to cone
+            x_dist = cone[0][0] - x
+            y_dist = cone[0][1] - y
+
+            ref_cone = QUTCone()
+            # reference frame displacement with rotation 
+            # uses k angle (z axis)
+            ref_cone.location.x = x_dist*cos(ak) + y_dist*sin(ak)
+            ref_cone.location.y = y_dist*cos(ak) - x_dist*sin(ak)
+            ref_cone.location.z = 0.0
+            ref_cone.color = 3
+
+            if ref_cone.location.x > 0 and ref_cone.location.x < self.max_range \
+                and ref_cone.location.y > -9 and ref_cone.location.y < 9:
+                ref_cones.append(ref_cone)
+        return ref_cones
+
+
     def callback(self, lidar_cone_msg: ConeDetectionStamped):
         LOGGER.info("Received detection")
         self.logger.debug("Received detection")
@@ -172,57 +256,73 @@ class ConePipeline(Node):
 
         lidar_scan_time: Time = Time.from_msg(lidar_cone_msg.header.stamp)
 
-        a = self.actualcone.getElemAfterTime(lidar_scan_time)
-        b = self.actualcone.getElemBeforeTime(lidar_scan_time)
+        a: ConeDetectionStamped = self.actualcone.getElemAfterTime(lidar_scan_time)
+        o: Odometry = self.actualodom.getElemAfterTime(lidar_scan_time)
+        self.num_cones = len(a.cones)
+        print("it does something")
+        #b = self.actualcone.getElemBeforeTime(lidar_scan_time)
+        try:
+            cones: List[QUTCone] = a.cones
+            lidar_cones: List[QUTCone] = lidar_cone_msg.cones
+            # create black image
+            debug_img = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
 
-        cones: List[Cone] = a.cones
-        lidar_cones: List[Cone] = lidar_cone_msg.cones
-        # create black image
-        debug_img = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
+            self.update_kmeans(lidar_cones, o)
 
+            for cone in cones:
+                if cone.color == QUTCone.YELLOW:
+                    colour = YELLOW_DISP_COLOUR
+                elif cone.color == QUTCone.BLUE:
+                    colour = BLUE_DISP_COLOUR
+                else:
+                    colour = (255, 255, 255)
 
-        for cone in cones:
-            if cone.color == Cone.YELLOW:
-                colour = YELLOW_DISP_COLOUR
-            elif cone.color == Cone.BLUE:
-                colour = BLUE_DISP_COLOUR
-            else:
-                colour = (255, 255, 255)
-            
-            # draws location of cone w/ colour
-            cv2.drawMarker(
-                debug_img, 
-                robot_pt_to_img_pt((cone.location.x - 1.2), cone.location.y).to_tuple(),
-                colour,
-                markerType=cv2.MARKER_SQUARE,
-                markerSize=3,
-                thickness=3
+                # draws location of cone w/ colour
+                cv2.drawMarker(
+                    debug_img, 
+                    robot_pt_to_img_pt((cone.location.x - 1.2), cone.location.y).to_tuple(),
+                    colour,
+                    markerType=cv2.MARKER_SQUARE,
+                    markerSize=3,
+                    thickness=3
+                )
+
+            for cone in self.get_km_cones(o):
+                colour = PURP_DISP_COLOUR
+                cv2.drawMarker(
+                    debug_img, 
+                    robot_pt_to_img_pt(cone.location.x, cone.location.y).to_tuple(),
+                    colour,
+                    markerType=cv2.MARKER_SQUARE,
+                    markerSize=3,
+                    thickness=3
+                )
+
+            for cone in lidar_cones:
+                colour = ORANGE_DISP_COLOUR
+                cv2.drawMarker(
+                    debug_img, 
+                    robot_pt_to_img_pt(cone.location.x, cone.location.y).to_tuple(),
+                    colour,
+                    markerType=cv2.MARKER_SQUARE,
+                    markerSize=3,
+                    thickness=3
+                )
+
+            text_vel = f"Lidar N: {len(lidar_cones)}"
+            cv2.putText(
+                debug_img, text_vel, (10, HEIGHT-10),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2
             )
+            # timedelta = lidar_cone_msg.header.stamp-cone_msg.header.stamp
+            # text_time = f"dT: {timedelta}"
+            # cv2.putText(
+            #     debug_img, text_time, (10, HEIGHT-25),
+            #     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2
+            # )
 
-        for cone in lidar_cones:
-            colour = ORANGE_DISP_COLOUR
-            cv2.drawMarker(
-                debug_img, 
-                robot_pt_to_img_pt(cone.location.x, cone.location.y).to_tuple(),
-                colour,
-                markerType=cv2.MARKER_SQUARE,
-                markerSize=3,
-                thickness=3
-            )
-
-        text_vel = f"Lidar N: {len(lidar_cones)}"
-        cv2.putText(
-            debug_img, text_vel, (10, HEIGHT-10),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2
-        )
-        # timedelta = lidar_cone_msg.header.stamp-cone_msg.header.stamp
-        # text_time = f"dT: {timedelta}"
-        # cv2.putText(
-        #     debug_img, text_time, (10, HEIGHT-25),
-        #     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2
-        # )
-        
-        self.debug_img_publisher.publish(cv_bridge.cv2_to_imgmsg(debug_img, encoding="bgr8"))
+            self.debug_img_publisher.publish(cv_bridge.cv2_to_imgmsg(debug_img, encoding="bgr8"))
+        except Exception as e: print(e)
 
 
 
