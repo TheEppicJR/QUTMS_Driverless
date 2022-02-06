@@ -49,9 +49,16 @@ class Clusters:
         labs = []
         for label in set(self.labels):
             x, y = self._get_labeled_x_y(label)
+
             labs.append([x,y])
         return labs
-            
+    
+    def get_cent(self):
+        cents = []
+        for label in set(self.labels):
+            if abs(self.center_x[label]) < 250 and abs(self.center_y[label]) < 250:
+                cents.append([self.center_x[label], self.center_y[label]])
+        return cents
 
     def calc_centroid(self):
         for label in set(self.labels):
