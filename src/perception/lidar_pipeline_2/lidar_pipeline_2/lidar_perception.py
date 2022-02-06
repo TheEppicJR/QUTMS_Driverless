@@ -12,7 +12,7 @@ import ros2_numpy as rnp
 from driverless_msgs.msg import ConeDetectionStamped
 
 # Import Custom Modules
-from .library import lidar_manager
+from .library.lidar_manager import detect_cones
 
 # Import Helper Modules
 import numpy as np
@@ -75,7 +75,8 @@ class ConeSensingNode(Node):
         global bin_size
 
         # Identify cones within the received point cloud
-        pc_cones = lidar_manager.detect_cones(pc_matrix, print_logs, lidar_range, delta_alpha, bin_size, POINT_COUNT, stdout_handler)
+        #pc_cones = lidar_manager.detect_cones(pc_matrix, print_logs, lidar_range, delta_alpha, bin_size, POINT_COUNT, stdout_handler)
+        pc_cones = detect_cones(pc_matrix, print_logs, lidar_range, delta_alpha, bin_size, POINT_COUNT, stdout_handler)
 
         self.count += 1
 

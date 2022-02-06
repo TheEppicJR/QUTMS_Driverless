@@ -1,6 +1,7 @@
 from setuptools import setup
 
 package_name = 'lidar_pipeline_2'
+submodule_name = 'lidar_pipeline_2/library'
 
 setup(
     name=package_name,

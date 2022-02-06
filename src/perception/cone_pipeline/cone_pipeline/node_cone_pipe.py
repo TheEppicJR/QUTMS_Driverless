@@ -3,6 +3,7 @@ import imp
 import rclpy
 from rclpy.node import Node
 from rclpy.publisher import Publisher
+from rclpy.time import Time
 import rclpy.logging
 from cv_bridge import CvBridge
 import message_filters
@@ -11,7 +12,7 @@ from sensor_msgs.msg import Image
 from ackermann_msgs.msg import AckermannDrive
 from std_msgs.msg import Header
 from visualization_msgs.msg import Marker, MarkerArray
-from builtin_interfaces.msg import Duration, Time
+from builtin_interfaces.msg import Duration
 from nav_msgs.msg import Odometry
 # import custom message libraries
 from driverless_msgs.msg import Cone, ConeDetectionStamped
@@ -24,12 +25,10 @@ import numpy as np
 import matplotlib.pyplot as plt # plotting splines
 import scipy.interpolate as scipy_interpolate # for spline calcs
 from typing import Tuple, List, Optional
-import time
 import sys
 import os
 import getopt
 import logging
-import datetime
 import pathlib
 
 from transforms3d.euler import quat2euler
@@ -150,21 +149,13 @@ class ConePipeline(Node):
         cones_sub = message_filters.Subscriber(
             self, ConeDetectionStamped, "/detector/cone_detection"
         )
+        self.actualcone = message_filters.Cache(cones_sub, 100)
         lidar_cones_sub = message_filters.Subscriber(
-            self, ConeDetectionStamped, "/cone_sensing/cones"
+            self, ConeDetectionStamped, "/lidar/cone_detection"
         )
-        
+        lidar_cones_sub.registerCallback(self.callback)
 
-        # synchronizer = message_filters.TimeSynchronizer(
-        #     fs=[cones_sub, lidar_cones_sub],
-        #     queue_size=100,
-        # )
-        synchronizer = message_filters.ApproximateTimeSynchronizer(
-            fs=[cones_sub, lidar_cones_sub],
-            queue_size=60,
-            slop=0.4
-        )
-        synchronizer.registerCallback(self.callback)
+        
 
         # publishers
         self.debug_img_publisher: Publisher = self.create_publisher(Image, "/cone_pipeline/debug_img", 1)
@@ -174,11 +165,17 @@ class ConePipeline(Node):
         self.logger.debug("---Cone Pipeline Node Initalised---")
 
 
-    def callback(self, cone_msg: ConeDetectionStamped, lidar_cone_msg: ConeDetectionStamped):
+    def callback(self, lidar_cone_msg: ConeDetectionStamped):
         LOGGER.info("Received detection")
         self.logger.debug("Received detection")
 
-        cones: List[Cone] = cone_msg.cones
+
+        lidar_scan_time: Time = Time.from_msg(lidar_cone_msg.header.stamp)
+
+        a = self.actualcone.getElemAfterTime(lidar_scan_time)
+        b = self.actualcone.getElemBeforeTime(lidar_scan_time)
+
+        cones: List[Cone] = a.cones
         lidar_cones: List[Cone] = lidar_cone_msg.cones
         # create black image
         debug_img = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
@@ -195,7 +192,7 @@ class ConePipeline(Node):
             # draws location of cone w/ colour
             cv2.drawMarker(
                 debug_img, 
-                robot_pt_to_img_pt(cone.location.x + 1.2, cone.location.y).to_tuple(),
+                robot_pt_to_img_pt((cone.location.x - 1.2), cone.location.y).to_tuple(),
                 colour,
                 markerType=cv2.MARKER_SQUARE,
                 markerSize=3,
@@ -206,7 +203,7 @@ class ConePipeline(Node):
             colour = ORANGE_DISP_COLOUR
             cv2.drawMarker(
                 debug_img, 
-                robot_pt_to_img_pt(cone.location.x + 1.2, cone.location.y).to_tuple(),
+                robot_pt_to_img_pt(cone.location.x, cone.location.y).to_tuple(),
                 colour,
                 markerType=cv2.MARKER_SQUARE,
                 markerSize=3,
@@ -255,7 +252,7 @@ def main(args=sys.argv[1:]):
     if not os.path.isdir(path + '/logs'):
         os.mkdir(path + '/logs')
 
-    date = datetime.datetime.now().strftime('%d_%m_%Y_%H_%M_%S')
+    date = "hi"
     logging.basicConfig(
         filename=f'{path}/logs/{date}.log',
         filemode='w',

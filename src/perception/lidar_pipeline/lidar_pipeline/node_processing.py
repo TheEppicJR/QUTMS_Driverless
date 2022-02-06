@@ -88,8 +88,8 @@ class LidarProcessing(Node):
             pc2_topic,
             self.callback,
             10)
-
-        lidar_init(visualise, display, "/datasets/figures/", max_range)
+        path = os.path.join(os.getcwd(), "datasets/figures/")
+        lidar_init(visualise, display, path, max_range)
 
         self.detection_publisher: Publisher = self.create_publisher(
             ConeDetectionStamped, 
