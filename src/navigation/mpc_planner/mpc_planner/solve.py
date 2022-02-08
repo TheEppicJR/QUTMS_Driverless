@@ -40,6 +40,8 @@ class MPCSolver:
 		self.world_space_x_list = []
 		self.world_space_y_list = []
 
+		self.not_running = True
+
 		self.epsilon = 1e-2
 
 		self.mass = 0.041
@@ -66,7 +68,7 @@ class MPCSolver:
 		self.track_constraints = []
 
 		self.mpc_time = 1.2
-		self.mpc_samples = 12
+		self.mpc_samples = 5
 
 		# do even more init i put in another func to mak it more readable
 		self.initconst()
@@ -93,7 +95,7 @@ class MPCSolver:
 
 		self.test_Var = 0
 		self.world_space_x = 0
-		self.world_space_y = 18
+		self.world_space_y = 0
 		self.world_space_phi = 0
 
 		self.m.x = Var(self.m.t, initialize=0.0)
@@ -202,8 +204,8 @@ class MPCSolver:
 
 	def generate_track_polys(self, car_pos, number_of_points, backwards_points, mult):
 		track_elements = self.retrieve_track_segment(car_pos, number_of_points, backwards_points, mult)
-		left_poly = self.fit_track_poly(self.list_of_dict_to_list(track_elements, 'left'), 4)
-		right_poly = self.fit_track_poly(self.list_of_dict_to_list(track_elements, 'right'), 4)
+		left_poly = fit_track_poly(list_of_dict_to_list(track_elements, 'left'), 4)
+		right_poly = fit_track_poly(list_of_dict_to_list(track_elements, 'right'), 4)
 		return left_poly, right_poly, track_elements
 
 	def cost_function_integral(self, m, t):
@@ -243,27 +245,34 @@ class MPCSolver:
 		self.fig, (self.ax1, self.ax2, self.ax3) = plt.subplots(3,1)
 
 		# xy, left_poly, right_poly, left_track, right_track, center, actual_left_Track, actual_right_track
-		lines = [(self.ax1.plot([], [], linestyle='--', marker='x', color='g')[0]), (self.ax1.plot([], [], lw=2)[0]), (self.ax1.plot([], [], lw=2)[0]), (self.ax1.plot([], [], '--bo')[0]), (self.ax1.plot([], [], '--bo')[0]), (self.ax1.plot([], [], linestyle='None', marker='x', color='pink')[0]), (self.ax1.plot([], [], linestyle='--', color = 'silver')[0]), (self.ax1.plot([], [], linestyle='--', color = 'silver')[0]), 
+		self.lines = [(self.ax1.plot([], [], linestyle='--', marker='x', color='g')[0]), (self.ax1.plot([], [], lw=2)[0]), (self.ax1.plot([], [], lw=2)[0]), (self.ax1.plot([], [], '--bo')[0]), (self.ax1.plot([], [], '--bo')[0]), (self.ax1.plot([], [], linestyle='None', marker='x', color='pink')[0]), (self.ax1.plot([], [], linestyle='--', color = 'silver')[0]), (self.ax1.plot([], [], linestyle='--', color = 'silver')[0]), 
 		(self.ax2.plot([], [], linestyle='-', color = 'black')[0]), (self.ax2.plot([], [], linestyle=':', color = 'red')[0]), (self.ax2.plot([], [], linestyle=':', color = 'blue')[0]), (self.ax2.plot([], [], linestyle='-', color = 'limegreen')[0]), (self.ax1.plot([], [], linestyle='--', color = 'red')[0])]
 		#ax1.plot([0,10], [0,0], linestyle='--', color = 'black')
 	
-		lines_len_init =len(lines)-1
+		self.lines_len_init =len(self.lines)-1
 
-		plot_list = {}
-		plot_params = ['delta', 'D', 'v_x', 'v_y']
+		self.plot_list = {}
+		self.plot_params = ['delta', 'D', 'v_x', 'v_y']
 
 		axis_lims_inner = 8
-		axis_lims_outer = 22
+		axis_lims_outer = 100
+		axis_lims_outeru = 20
+		axis_lims_outerx = 60
 		self.ax1.set_xlim(-axis_lims_inner, axis_lims_inner)
 		self.ax1.set_ylim(-axis_lims_inner, axis_lims_inner)
 		self.ax1.set_aspect('equal', 'box')
-		self.ax2.set_xlim(-axis_lims_outer, axis_lims_outer)
-		self.ax2.set_ylim(-axis_lims_outer, axis_lims_outer)
+		self.ax2.set_xlim(-axis_lims_outerx, axis_lims_outerx)
+		self.ax2.set_ylim(-axis_lims_outeru, axis_lims_outer)
 		self.ax2.set_aspect('equal', 'box')
 		self.ax3.set_xlim(0, self.mpc_time)
 		self.ax3.set_ylim(-2, 2)
 		self.ax3.set_aspect(0.1)
 
+
+	def set_world_space(self, x, y, phi):
+		self.world_space_x = x
+		self.world_space_y = y
+		self.world_space_phi = phi
 
 	def solve(self, solve_idx):
 		self.transform_track({"x": self.world_space_x, "y": self.world_space_y, "phi": self.world_space_phi})
@@ -304,8 +313,12 @@ class MPCSolver:
 				self.world_space_x_list.pop(0)
 				self.world_space_y_list.pop(0)
 
+		start: float = time.time()
+
 		self.solver.solve(self.m, tee=False)
 		#print(1/(time.time() - self.last_solve_time))
+
+		print(f"Time taken: {time.time()-start}")
 
 		init_next_idx = self.m.t[2]
 
@@ -344,9 +357,7 @@ class MPCSolver:
 
 		plt.legend(loc='right')
 
-		return self.lines
+		return x_array, y_array
 
-	def make_animation(self):
-		date = datetime.datetime.now().strftime('%d_%m_%Y_%H_%M_%S')
-		anim = animation.FuncAnimation(self.fig, self.solve, 10000, interval=1, blit=True, repeat=False)
-		anim.save(f'myAnimation{date}.gif', writer='imagemagick', fps=30)
+	def plot(self):
+		return self.fig

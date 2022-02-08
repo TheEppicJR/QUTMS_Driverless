@@ -12,10 +12,10 @@ from nav_msgs.msg import Odometry
 from visualization_msgs.msg import Marker, MarkerArray
 from builtin_interfaces.msg import Duration
 # import custom message libraries
-from fs_msgs.msg import Track, Cone
+from fs_msgs.msg import Track, Cone, ControlCommand
 
 # other python modules
-from math import sqrt
+from math import sqrt, atan2, pi, sin, cos, atan
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt # plotting splines
@@ -28,6 +28,8 @@ import getopt
 import logging
 import datetime
 import pathlib
+
+from transforms3d.euler import quat2euler
 
 # import required sub modules
 from .point import Point
@@ -176,27 +178,27 @@ class MPCPlanner(Node):
         # sub to odometry for car pose + velocity
         self.create_subscription(Odometry, "/testing_only/odom", self.odom_callback, 10)
 
+        self.mpcsolver = MPCSolver()
+        
+        self.mpcsolver.prepfigs()
+
+        self.track_init = False
         # publishers
         self.plot_img_publisher: Publisher = self.create_publisher(Image, "/spline_map/plot_img", 1)
         self.path_publisher: Publisher = self.create_publisher(MarkerArray, "/spline_map/target_array", 1)
+        self.control_publisher: Publisher = self.create_publisher(ControlCommand, "/control_command", 10)
+
 
         self.spline_len: int = spline_len
         self.odom_header: Header = None
-        # instance var so plot figure isn't recreated each loop
-        self.fig = plt.figure()
 
         LOGGER.info("---Spline Controller Node Initalised---")
 
-
-    def odom_callback(self, odom_msg: Odometry):
-        # header used to create markers
-        self.odom_header = odom_msg.header
 
 
     def map_callback(self, track_msg: Track):
         LOGGER.info("Received map")
         
-        start: float = time.time()
         # track cone list is taken as coords relative to the initial car position
         track = track_msg.track
         
@@ -217,57 +219,117 @@ class MPCPlanner(Node):
         # retrieves spline lists (x,y)
         yx, yy = approximate_b_spline_path(yellow_x, yellow_y, self.spline_len)
         bx, by = approximate_b_spline_path(blue_x, blue_y, self.spline_len)
-
-        path_markers: List[Marker] = []
-
         
-        mpcsolver = MPCSolver()
 
         # find midpoint between splines at each point to make target path
         mid_x, mid_y = [0]*self.spline_len, [0]*self.spline_len
         for i in range(self.spline_len):
             mid_x[i], mid_y[i] = midpoint([yx[i], yy[i]], [bx[i], by[i]])
-            mpcsolver.append_track({"x" : yx[i], "y" : yy[i]},
+            self.mpcsolver.append_track({"x" : yx[i], "y" : yy[i]},
 			    {"x" : mid_x[i], "y" : mid_y[i]},
 			    {"x" : bx[i], "y" : by[i]})
-        
-        #mpcsolver.make_animation()
+        self.track_init = True
+        print("Init Track")
 
-        for i in range(self.spline_len):
-            tx.append(mid_x[i])
-            ty.append(mid_y[i])
 
-            path_markers.append(marker_msg(
-                tx[i],
-                ty[i],
-                i, 
-                self.odom_header,
-            ))
+    def odom_callback(self, odom_msg: Odometry):
+        # header used to create markers
+        if self.track_init and self.mpcsolver.not_running:
+            self.mpcsolver.not_running = True
+            print("running optimisation")
+            self.odom_header = odom_msg.header
+            w = odom_msg.pose.pose.orientation.w
+            i = odom_msg.pose.pose.orientation.x
+            j = odom_msg.pose.pose.orientation.y
+            k = odom_msg.pose.pose.orientation.z
 
-        LOGGER.info("Time taken: "+ str(time.time()-start))
+            # i, j, k angles in rad
+            ai, aj, ak = quat2euler([w, i, j, k])
 
-        # show results
-        plt.clf()
-        plt.plot(yellow_x, yellow_y, '-oy')
-        plt.plot(blue_x, blue_y, '-ob')
-        plt.plot(yx, yy, '-y')
-        plt.plot(bx, by, '-b')
-        plt.plot(tx, ty, '-r')
-        plt.grid(True)
-        plt.axis("equal")
+            x = odom_msg.pose.pose.position.x
+            y = odom_msg.pose.pose.position.y
 
-        self.fig.canvas.draw()
+            start: float = time.time()
 
-        plot_img = np.fromstring(self.fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
-        plot_img = plot_img.reshape(self.fig.canvas.get_width_height()[::-1] + (3,))
-        plot_img = cv2.cvtColor(plot_img, cv2.COLOR_RGB2BGR)
+            path_markers: List[Marker] = []
 
-        self.plot_img_publisher.publish(cv_bridge.cv2_to_imgmsg(plot_img, encoding="bgr8"))
-        
-        # create message for all cones on the track
-        path_markers_msg = MarkerArray(markers=path_markers)
-        self.path_publisher.publish(path_markers_msg)
-        # plt.show()
+            self.mpcsolver.set_world_space(x, y, ak)
+
+            tx, ty = self.mpcsolver.solve(None)
+
+            for i in range(len(tx)):
+                path_markers.append(marker_msg(
+                    tx[i],
+                    ty[i],
+                    i, 
+                    self.odom_header,
+                ))
+
+            LOGGER.info("Time taken: "+ str(time.time()-start))
+            print("Time taken: "+ str(time.time()-start))
+
+            # show results
+
+            fig = self.mpcsolver.plot()
+            fig.canvas.draw()
+
+            plot_img = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
+            plot_img = plot_img.reshape(fig.canvas.get_width_height()[::-1] + (3,))
+            plot_img = cv2.cvtColor(plot_img, cv2.COLOR_RGB2BGR)
+
+            self.plot_img_publisher.publish(cv_bridge.cv2_to_imgmsg(plot_img, encoding="bgr8"))
+            #fig.close()
+
+            # create message for all cones on the track
+            path_markers_msg = MarkerArray(markers=path_markers)
+            self.path_publisher.publish(path_markers_msg)
+
+            if len(ty) > 2:
+                target_index = 2#round(len(ty) / 6) # 1/3 along
+                target = Point(ty[target_index], -tx[target_index]) 
+                # velocity control
+                # init constants
+                Kp_vel: float = 2
+                vel_max: float = 8
+                vel_min = vel_max/2
+                throttle_max: float = 0.3 # m/s^2
+
+                # get car vel
+                vel_x: float = odom_msg.twist.twist.linear.x
+                vel_y: float = odom_msg.twist.twist.linear.y
+                vel: float = sqrt(vel_x**2 + vel_y**2)
+
+                # target velocity proportional to angle
+                target_vel: float = vel_max - (abs(atan(target.y / target.x))) * Kp_vel
+                if target_vel < vel_min: target_vel = vel_min
+                LOGGER.info(f"Target vel: {target_vel}")
+
+                # increase proportionally as it approaches target
+                throttle_scalar: float = (1 - (vel / target_vel)) 
+                if throttle_scalar > 0: calc_throttle = throttle_max * throttle_scalar
+                # if its over maximum, cut throttle
+                elif throttle_scalar <= 0: calc_throttle = 0
+
+                # steering control
+                Kp_ang: float = 1.25
+                ang_max: float = 7.0
+
+                steering_angle = -((pi/2) - atan2(target.x, target.y))*5
+                LOGGER.info(f"Target angle: {steering_angle}")
+                calc_steering = Kp_ang * steering_angle / ang_max
+
+                # publish message
+                control_msg = ControlCommand()
+                control_msg.throttle = float(calc_throttle)
+                control_msg.steering = float(calc_steering)
+                control_msg.brake = 0.0
+
+                self.control_publisher.publish(control_msg)
+            self.mpcsolver.not_running = True
+        elif self.track_init and not self.mpcsolver.not_running:
+            print("sim already running")
+        else:
+            print("Missing track")
 
 
 def main(args=sys.argv[1:]):
