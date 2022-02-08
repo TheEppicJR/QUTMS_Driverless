@@ -6,12 +6,14 @@ from rclpy.node import Node
 from rclpy.publisher import Publisher
 from cv_bridge import CvBridge
 # import ROS2 message libraries
+from std_msgs.msg import ColorRGBA
 from sensor_msgs.msg import Image
 from std_msgs.msg import Header
 from nav_msgs.msg import Odometry
 from visualization_msgs.msg import Marker, MarkerArray
 from builtin_interfaces.msg import Duration
 # import custom message libraries
+from driverless_msgs.msg import SplinePoint, SplineStamped
 from fs_msgs.msg import Track, Cone, ControlCommand
 
 # other python modules
@@ -34,6 +36,7 @@ from transforms3d.euler import quat2euler
 # import required sub modules
 from .point import Point
 from .solve import MPCSolver
+from colour import Color
 
 # initialise logger
 LOGGER = logging.getLogger(__name__)
@@ -47,6 +50,10 @@ WIDTH = 20*SCALE # 10m either side
 HEIGHT = 20*SCALE # 20m forward
 ORIGIN = Point(0, 0)
 IMG_ORIGIN = Point(int(WIDTH/2), HEIGHT)
+MAX_ANGLE = 0.148353
+red = Color("red")
+blue = Color("blue")
+col_range = list(blue.range_to(red, 100))
 
 # display colour constants
 Colour = Tuple[int, int, int]
@@ -146,8 +153,8 @@ def marker_msg(
     marker.type = Marker.SPHERE
     marker.action = Marker.ADD
 
-    marker.pose.position.x = x_coord
-    marker.pose.position.y = y_coord
+    marker.pose.position.x = float(x_coord)
+    marker.pose.position.y = float(y_coord)
     marker.pose.position.z = 0.0
     marker.pose.orientation.x = 0.0
     marker.pose.orientation.y = 0.0
@@ -185,8 +192,10 @@ class MPCPlanner(Node):
         self.track_init = False
         # publishers
         self.plot_img_publisher: Publisher = self.create_publisher(Image, "/spline_map/plot_img", 1)
-        self.path_publisher: Publisher = self.create_publisher(MarkerArray, "/spline_map/target_array", 1)
-        self.control_publisher: Publisher = self.create_publisher(ControlCommand, "/control_command", 10)
+        self.path_publisher: Publisher = self.create_publisher(SplineStamped, "/spline_mapper/path", 1)
+        self.path_marker_publisher: Publisher = self.create_publisher(MarkerArray, "/spline_mapper/path_marker_array", 1)
+
+        #self.control_publisher: Publisher = self.create_publisher(ControlCommand, "/control_command", 10)
 
 
         self.spline_len: int = spline_len
@@ -225,9 +234,9 @@ class MPCPlanner(Node):
         mid_x, mid_y = [0]*self.spline_len, [0]*self.spline_len
         for i in range(self.spline_len):
             mid_x[i], mid_y[i] = midpoint([yx[i], yy[i]], [bx[i], by[i]])
-            self.mpcsolver.append_track({"x" : yx[i], "y" : yy[i]},
+            self.mpcsolver.append_track({"x" : bx[i], "y" : by[i]},
 			    {"x" : mid_x[i], "y" : mid_y[i]},
-			    {"x" : bx[i], "y" : by[i]})
+			    {"x" : yx[i], "y" : yy[i]})
         self.track_init = True
         print("Init Track")
 
@@ -245,6 +254,7 @@ class MPCPlanner(Node):
 
             # i, j, k angles in rad
             ai, aj, ak = quat2euler([w, i, j, k])
+            print(f"{ai} {aj} {ak}")
 
             x = odom_msg.pose.pose.position.x
             y = odom_msg.pose.pose.position.y
@@ -254,6 +264,9 @@ class MPCPlanner(Node):
             path_markers: List[Marker] = []
 
             self.mpcsolver.set_world_space(x, y, ak)
+
+            tx: List[float] = [] # target spline x coords
+            ty: List[float] = [] # target spline y coords
 
             tx, ty = self.mpcsolver.solve(None)
 
@@ -282,49 +295,66 @@ class MPCPlanner(Node):
 
             # create message for all cones on the track
             path_markers_msg = MarkerArray(markers=path_markers)
-            self.path_publisher.publish(path_markers_msg)
+            self.path_marker_publisher.publish(path_markers_msg)
 
-            if len(ty) > 2:
-                target_index = 2#round(len(ty) / 6) # 1/3 along
-                target = Point(ty[target_index], -tx[target_index]) 
-                # velocity control
-                # init constants
-                Kp_vel: float = 2
-                vel_max: float = 8
-                vel_min = vel_max/2
-                throttle_max: float = 0.3 # m/s^2
+            th: List[float] = [] # target spline angles
 
-                # get car vel
-                vel_x: float = odom_msg.twist.twist.linear.x
-                vel_y: float = odom_msg.twist.twist.linear.y
-                vel: float = sqrt(vel_x**2 + vel_y**2)
+            tx, ty = approximate_b_spline_path(tx, ty, self.spline_len)
+            for i in range(len(tx)-2):
+                th.append(atan2(tx[i+1]-tx[i],ty[i+1]-ty[i]))
 
-                # target velocity proportional to angle
-                target_vel: float = vel_max - (abs(atan(target.y / target.x))) * Kp_vel
-                if target_vel < vel_min: target_vel = vel_min
-                LOGGER.info(f"Target vel: {target_vel}")
+            VEL_ZONE = 10
+            path_markers: List[Point] = []
+            path_colours: List[ColorRGBA] = []
+            path: list[SplinePoint] = []
+            for i in range(0, self.spline_len-VEL_ZONE, VEL_ZONE):
+                # check angle between current and 10th spline point ahead
+                th_change = th[i+VEL_ZONE] - th[i]
+                # keep between 360
+                if (th_change > pi): th_change=th_change-2*pi
+                elif (th_change < -pi): th_change=th_change+2*pi
 
-                # increase proportionally as it approaches target
-                throttle_scalar: float = (1 - (vel / target_vel)) 
-                if throttle_scalar > 0: calc_throttle = throttle_max * throttle_scalar
-                # if its over maximum, cut throttle
-                elif throttle_scalar <= 0: calc_throttle = 0
+                # angle relative to max angle on track
+                change_pc = abs(th_change) / MAX_ANGLE * 100
 
-                # steering control
-                Kp_ang: float = 1.25
-                ang_max: float = 7.0
+                for j in range(VEL_ZONE):
+                    path_point = SplinePoint()
+                    path_point.location.x = tx[i+j]
+                    path_point.location.y = ty[i+j]
+                    path_point.location.z = 0.0
+                    path_point.turn_intensity = change_pc
+                    path.append(path_point)
+            path_msg = SplineStamped(path=path)
+            self.path_publisher.publish(path_msg)
+            ## Visualisation marker
+            marker = Marker()
+            marker.header.frame_id = "map"
+            marker.ns = "current_path"
+            marker.id = 0
+            marker.type = Marker.LINE_STRIP
+            marker.action = Marker.ADD
 
-                steering_angle = -((pi/2) - atan2(target.x, target.y))*5
-                LOGGER.info(f"Target angle: {steering_angle}")
-                calc_steering = Kp_ang * steering_angle / ang_max
+            marker.pose.position.x = 0.0
+            marker.pose.position.y = 0.0
+            marker.pose.position.z = 0.0
+            marker.pose.orientation.x = 0.0
+            marker.pose.orientation.y = 0.0
+            marker.pose.orientation.z = 0.0
+            marker.pose.orientation.w = 1.0
+            # scale out of 1x1x1m
+            marker.scale.x = 0.2
+            marker.scale.y = 0.0
+            marker.scale.z = 0.0
 
-                # publish message
-                control_msg = ControlCommand()
-                control_msg.throttle = float(calc_throttle)
-                control_msg.steering = float(calc_steering)
-                control_msg.brake = 0.0
+            marker.points = path_markers
+            marker.colors = path_colours
 
-                self.control_publisher.publish(control_msg)
+            marker.lifetime = Duration(sec=10, nanosec=100000)
+            path_markerss: List[Marker] = []
+            path_markerss.append(marker)
+            markers = MarkerArray(markers=path_markerss)
+            self.path_marker_publisher.publish(markers)
+
             self.mpcsolver.not_running = True
         elif self.track_init and not self.mpcsolver.not_running:
             print("sim already running")

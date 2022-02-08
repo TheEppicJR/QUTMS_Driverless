@@ -67,8 +67,8 @@ class MPCSolver:
 		self.init_track_constraints = []
 		self.track_constraints = []
 
-		self.mpc_time = 1.2
-		self.mpc_samples = 5
+		self.mpc_time = 1.5
+		self.mpc_samples = 3
 
 		# do even more init i put in another func to mak it more readable
 		self.initconst()
@@ -314,8 +314,10 @@ class MPCSolver:
 				self.world_space_y_list.pop(0)
 
 		start: float = time.time()
-
-		self.solver.solve(self.m, tee=False)
+		try:
+			self.solver.solve(self.m, tee=False)
+		except:
+			return [1, 2, 3, 4, 5, 6], [1, 2, 3, 4, 5, 6]
 		#print(1/(time.time() - self.last_solve_time))
 
 		print(f"Time taken: {time.time()-start}")
