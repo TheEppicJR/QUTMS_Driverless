@@ -1,10 +1,14 @@
 # import ROS2 libraries
+from copyreg import pickle
 from re import T
 from tkinter import N
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 from rclpy.publisher import Publisher
+from geometry_msgs.msg import Point as ROSPoint
+from visualization_msgs.msg import Marker, MarkerArray
+from builtin_interfaces.msg import Duration
 from cv_bridge import CvBridge
 # import ROS2 message libraries
 from nav_msgs.msg import Odometry
@@ -54,6 +58,21 @@ LEFT_CONE_COLOUR = Cone.BLUE
 RIGHT_CONE_COLOUR = Cone.YELLOW
 
 
+
+def normalize_angle(angle):
+    """
+    Normalize an angle to [-pi, pi].
+    :param angle: (float)
+    :return: (float) Angle in radian in [-pi, pi]
+    """
+    while angle > np.pi:
+        angle -= 2.0 * np.pi
+
+    while angle < -np.pi:
+        angle += 2.0 * np.pi
+
+    return 
+
 def robot_pt_to_img_pt(x: float, y: float) -> Point:
     """
     Converts a relative depth from the camera into image coords
@@ -70,7 +89,7 @@ def angle_between_angles(theta: float, phi: float, spread: float) -> bool:
     a, b = lim2pi(phi - spread), lim2pi(phi + spread)
     if a < b and theta > a and theta < b:
         return True
-    if a < b and (theta < a or theta > b):
+    if a > b and (theta < a or theta > b):
         return True
     return False
 
@@ -113,8 +132,8 @@ def approximate_b_spline_path(
     y_list = list(scipy_interpolate.splrep(t, y, k=degree))
 
     # add 4 'zero' components to align matrices
-    x_list[1] = x + [0.0, 0.0, 0.0, 0.0]
-    y_list[1] = y + [0.0, 0.0, 0.0, 0.0]
+    x_list[1] = x #+ [0.0, 0.0, 0.0, 0.0]
+    y_list[1] = y #+ [0.0, 0.0, 0.0, 0.0]
 
     ipl_t = np.linspace(0.0, len(x) - 1, n_path_points)
     spline_x = scipy_interpolate.splev(ipl_t, x_list)
@@ -135,21 +154,28 @@ class SplinePursuit(Node):
         # sub to odometry for car pose + velocity
         self.create_subscription(Odometry, "/testing_only/odom", self.callback, 10)
         self.control_publisher: Publisher = self.create_publisher(ControlCommand, "/control_command", 10)
+        self.path_marker_publisher: Publisher = self.create_publisher(Marker, "/local_spline/path_marker", 1)
+        self.target_marker_publisher: Publisher = self.create_publisher(Marker, "/local_spline/target_marker", 1)
 
 
         self.path = None
+        self.last_target_idx = 0
 
         LOGGER.info("---Spline Controller Node Initalised---")
 
 
     def path_callback(self, spline_path: SplineStamped):
         self.path = spline_path.path
+        self.last_target_idx = 0
 
     def callback(self, odom_msg: Odometry):
 
         # target spline markers for rviz
         x = odom_msg.pose.pose.position.x
         y = odom_msg.pose.pose.position.y
+        vel_x: float = odom_msg.twist.twist.linear.x
+        vel_y: float = odom_msg.twist.twist.linear.y
+        vel: float = sqrt(vel_x**2 + vel_y**2)
         w = odom_msg.pose.pose.orientation.w
         i = odom_msg.pose.pose.orientation.x
         j = odom_msg.pose.pose.orientation.y
@@ -160,18 +186,61 @@ class SplinePursuit(Node):
 
         debug_img = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
 
+        path_markers: List[Marker] = []
+
         ## APPROACH TARGET
         if self.path is not None:
             target: Point = None
+            slow = False
+            L = 2
+            fx = x + L * np.cos(ak)
+            fy = y + L * np.sin(ak)
 
+            cx: List[float] = []
+            cy: List[float] = []
             for tpoint in self.path:
-                dx, dy = x-tpoint.location.x, y-tpoint.location.y
+                dx, dy = tpoint.location.x - x, tpoint.location.y - y
+                cx.append(tpoint.location.x)
+                cy.append(tpoint.location.y)
                 angle = atan2(dy , dx)
                 #print(f"Point: {tpoint.location.x}, {tpoint.location.y} Car: {x}, {y}, {ak/2/pi*360} Vector: {angle/2/pi*360}")
                 if angle_between_angles(angle, ak, pi/6) and target is None:
                     target = tpoint.location
+                    slow = True
+                    print("found one")
+                line_point = ROSPoint()
+                line_point.x = tpoint.location.x-x
+                line_point.y = tpoint.location.y-y
+                line_point.z = 0.0
+                path_markers.append(line_point)
             if target is None:
                 target = self.path[-1].location
+                print("didnt find one in front")
+            
+            # Search nearest point index
+            dx = [fx - icx for icx in cx]
+            dy = [fy - icy for icy in cy]
+            d = np.hypot(dx, dy)
+            target_idx = np.argmin(d)
+            if self.last_target_idx >= target_idx:
+                target_idx = self.last_target_idx
+            front_axle_vec = [-np.cos(ak + np.pi / 2),-np.sin(ak + np.pi / 2)]
+            error_front_axle = np.dot([dx[target_idx], dy[target_idx]], front_axle_vec)
+            # theta_e corrects the heading error
+            theta_e = normalize_angle(atan2(dy[target_idx],dx[target_idx]) - ak)
+            # theta_d corrects the cross track error
+            theta_d = np.arctan2(k * error_front_axle, vel)
+            # Steering control
+            #delta = theta_e + theta_d
+
+            target = self.path[target_idx].location
+            print(target)
+            print(f"{x}    {y}  {target_idx}")
+
+            # Project RMS error onto front axle vector
+            front_axle_vec = [-np.cos(ak + np.pi / 2),
+                      -np.sin(ak + np.pi / 2)]
+            error_front_axle = np.dot([dx[target_idx], dy[target_idx]], front_axle_vec)
 
             # velocity control
             # init constants
@@ -180,13 +249,14 @@ class SplinePursuit(Node):
             vel_min = vel_max/2
             throttle_max: float = 0.3 # m/s^2
 
-            # get car vel
-            vel_x: float = odom_msg.twist.twist.linear.x
-            vel_y: float = odom_msg.twist.twist.linear.y
-            vel: float = sqrt(vel_x**2 + vel_y**2)
+            
+
+            #if slow:
+            #    vel_max = 0.5
+                
             
             # target velocity proportional to angle
-            target_vel: float = vel_max - (abs(atan2(target.y, target.x))) * Kp_vel
+            target_vel: float = vel_max - (abs(atan2(y-target.y, x-target.x))) * Kp_vel
             if target_vel < vel_min: target_vel = vel_min
             LOGGER.info(f"Target vel: {target_vel}")
 
@@ -200,7 +270,7 @@ class SplinePursuit(Node):
             Kp_ang: float = 1.25
             ang_max: float = 7.0
 
-            steering_angle = -((pi/2) - atan2(target.x, target.y))*5
+            steering_angle = -((pi/2) - atan2(x-target.x, y-target.y))*5
             LOGGER.info(f"Target angle: {steering_angle}")
             calc_steering = Kp_ang * steering_angle / ang_max
 
@@ -245,6 +315,71 @@ class SplinePursuit(Node):
                 debug_img, text_vel, (10, HEIGHT-10),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2
             )
+
+            # add on each cone to published array
+            marker = Marker()
+            marker.header.frame_id = "map"
+            marker.ns = "current_path"
+            marker.id = 0
+            marker.type = Marker.LINE_STRIP
+            marker.action = Marker.ADD
+
+            marker.pose.position = odom_msg.pose.pose.position
+            marker.pose.orientation.x = 0.0
+            marker.pose.orientation.y = 0.0
+            marker.pose.orientation.z = 0.0
+            marker.pose.orientation.w = 1.0
+            # scale out of 1x1x1m
+            marker.scale.x = 0.2
+            marker.scale.y = 0.0
+            marker.scale.z = 0.0
+
+            marker.points = path_markers
+
+            marker.color.a = 1.0 # alpha
+            marker.color.r = 1.0
+            marker.color.g = 0.0
+            marker.color.b = 0.0
+
+            marker.lifetime = Duration(sec=1, nanosec=0)
+
+            # create message for all cones on the track
+            self.path_marker_publisher.publish(marker) # publish marker points data
+
+            target_markers: List[Marker] = []
+            # line_point2 = ROSPoint()
+            # line_point2.x = target.x
+            # line_point2.y = target.y
+            # line_point2.z = 0.0
+            target_markers.append(target)#line_point2)
+            print(f"Target again {target}")
+
+            marker2 = Marker()
+            marker2.header.frame_id = "map"
+            marker2.ns = "current_path"
+            marker2.id = 0
+            marker2.type = Marker.SPHERE
+            marker2.action = Marker.ADD
+
+            marker2.pose.position = target
+            marker2.pose.orientation.x = 0.0
+            marker2.pose.orientation.y = 0.0
+            marker2.pose.orientation.z = 0.0
+            marker2.pose.orientation.w = 1.0
+            # scal2e out of 1x1x1m
+            marker2.scale.x = 0.2
+            marker2.scale.y = 0.2
+            marker2.scale.z = 0.2
+
+            marker2.points = target_markers
+
+            marker2.color.a = 1.0 # alpha
+            marker2.color.r = 0.0
+            marker2.color.g = 1.0
+            marker2.color.b = 0.0
+            marker2.lifetime = Duration(sec=1, nanosec=0)
+
+            self.target_marker_publisher.publish(marker2)
 
         self.path_img_publisher.publish(cv_bridge.cv2_to_imgmsg(debug_img, encoding="bgr8"))
 

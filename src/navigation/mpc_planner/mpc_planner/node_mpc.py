@@ -9,6 +9,7 @@ from cv_bridge import CvBridge
 from std_msgs.msg import ColorRGBA
 from sensor_msgs.msg import Image
 from std_msgs.msg import Header
+from geometry_msgs.msg import Point as ROSPoint
 from nav_msgs.msg import Odometry
 from visualization_msgs.msg import Marker, MarkerArray
 from builtin_interfaces.msg import Duration
@@ -17,7 +18,7 @@ from driverless_msgs.msg import SplinePoint, SplineStamped
 from fs_msgs.msg import Track, Cone, ControlCommand
 
 # other python modules
-from math import sqrt, atan2, pi, sin, cos, atan
+from math import floor, sqrt, atan2, pi, sin, cos, atan
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt # plotting splines
@@ -64,6 +65,21 @@ ORANGE_DISP_COLOUR: Colour = (0, 165, 255) # bgr - orange
 LEFT_CONE_COLOUR = Cone.BLUE
 RIGHT_CONE_COLOUR = Cone.YELLOW
 
+YELLOW_DISP_COLOURA = ColorRGBA()
+YELLOW_DISP_COLOURA.a = 1.0 # alpha
+YELLOW_DISP_COLOURA.r = 0.0
+YELLOW_DISP_COLOURA.g = 1.0
+YELLOW_DISP_COLOURA.b = 1.0
+BLUE_DISP_COLOURA = ColorRGBA()
+BLUE_DISP_COLOURA.a = 1.0 # alpha
+BLUE_DISP_COLOURA.r = 0.0
+BLUE_DISP_COLOURA.g = 0.0
+BLUE_DISP_COLOURA.b = 1.0
+ORANGE_DISP_COLOURA = ColorRGBA()
+ORANGE_DISP_COLOURA.a = 1.0 # alpha
+ORANGE_DISP_COLOURA.r = 0.0
+ORANGE_DISP_COLOURA.g = 0.65
+ORANGE_DISP_COLOURA.b = 1.0
 
 def robot_pt_to_img_pt(x: float, y: float) -> Point:
     """
@@ -97,6 +113,25 @@ def cone_to_point(cone: Cone) -> Point:
         cone.location.y,
     )
 
+def getdefmrk() -> Marker:
+    marker = Marker()
+    marker.header.frame_id = "map"
+    marker.ns = "current_path"
+    marker.id = 0
+    marker.type = Marker.LINE_STRIP
+    marker.action = Marker.ADD
+    marker.pose.position.x = 0.0
+    marker.pose.position.y = 0.0
+    marker.pose.position.z = 0.0
+    marker.pose.orientation.x = 0.0
+    marker.pose.orientation.y = 0.0
+    marker.pose.orientation.z = 0.0
+    marker.pose.orientation.w = 1.0
+    # scale out of 1x1x1m
+    marker.scale.x = 0.2
+    marker.scale.y = 0.0
+    marker.scale.z = 0.0
+    return marker
 
 def approximate_b_spline_path(
     x: list, 
@@ -120,8 +155,8 @@ def approximate_b_spline_path(
     y_list = list(scipy_interpolate.splrep(t, y, k=degree))
 
     # add 4 'zero' components to align matrices
-    x_list[1] = x + [0.0, 0.0, 0.0, 0.0]
-    y_list[1] = y + [0.0, 0.0, 0.0, 0.0]
+    x_list[1] = x #+ [0.0, 0.0, 0.0, 0.0]
+    y_list[1] = y #+ [0.0, 0.0, 0.0, 0.0]
 
     ipl_t = np.linspace(0.0, len(x) - 1, n_path_points)
     spline_x = scipy_interpolate.splev(ipl_t, x_list)
@@ -148,6 +183,7 @@ def marker_msg(
 
     marker = Marker()
     marker.header = header
+    marker.header.frame_id = "map"
     marker.ns = "current_path"
     marker.id = ID
     marker.type = Marker.SPHERE
@@ -175,6 +211,21 @@ def marker_msg(
 
     return marker
 
+def mkpts(x, y):
+    line_point = ROSPoint()
+    path_markers: List[Point] = []
+    for i in range(len(x)):
+        line_point.x = x[i]
+        line_point.y = y[i]
+        line_point.z = 0.0
+        path_markers.append(line_point)
+    return path_markers
+
+def lim2pi(theta: float) -> float:
+    if (theta > pi): phi=theta-2*pi
+    elif (theta < -pi): phi=theta+2*pi
+    else: phi = theta
+    return phi
 
 class MPCPlanner(Node):
     def __init__(self, spline_len: int):
@@ -194,6 +245,8 @@ class MPCPlanner(Node):
         self.plot_img_publisher: Publisher = self.create_publisher(Image, "/spline_map/plot_img", 1)
         self.path_publisher: Publisher = self.create_publisher(SplineStamped, "/spline_mapper/path", 1)
         self.path_marker_publisher: Publisher = self.create_publisher(MarkerArray, "/spline_mapper/path_marker_array", 1)
+        self.track_marker_publisher: Publisher = self.create_publisher(MarkerArray, "/spline_mapper/track_marker_array", 1)
+        self.path_marker_publisher2: Publisher = self.create_publisher(Marker, "/spline_mapper/path_marker_array_2", 1)
 
         #self.control_publisher: Publisher = self.create_publisher(ControlCommand, "/control_command", 10)
 
@@ -226,10 +279,16 @@ class MPCPlanner(Node):
                 blue_y.append(cone.location.y)
             
         # retrieves spline lists (x,y)
+        # try:
+        #     yx, yy = approximate_b_spline_path(yellow_x, yellow_y, self.spline_len)
+        #     bx, by = approximate_b_spline_path(blue_x, blue_y, self.spline_len)
+        # except:
+        #     yx, yy = yellow_x, yellow_y
+        #     bx, by = blue_x, blue_y
+        # yx, yy = yellow_x, yellow_y
+        # bx, by = blue_x, blue_y
         yx, yy = approximate_b_spline_path(yellow_x, yellow_y, self.spline_len)
         bx, by = approximate_b_spline_path(blue_x, blue_y, self.spline_len)
-        
-
         # find midpoint between splines at each point to make target path
         mid_x, mid_y = [0]*self.spline_len, [0]*self.spline_len
         for i in range(self.spline_len):
@@ -240,21 +299,48 @@ class MPCPlanner(Node):
         self.track_init = True
         print("Init Track")
 
+        path_markers: List[Marker] = []
+
+        markero = getdefmrk()
+        markero.points = mkpts(yx, yy)
+        markero.color = YELLOW_DISP_COLOURA
+        markero.lifetime = Duration(sec=10, nanosec=100000)
+        path_markers.append(markero)
+        markeri = getdefmrk()
+        markeri.points = mkpts(bx, by)
+        markeri.color = BLUE_DISP_COLOURA
+        markeri.lifetime = Duration(sec=10, nanosec=100000)
+        path_markers.append(markeri)
+        markerc = getdefmrk()
+        markerc.points = mkpts(mid_x, mid_y)
+        markerc.color = ORANGE_DISP_COLOURA
+        markerc.lifetime = Duration(sec=10, nanosec=100000)
+        path_markers.append(markerc)
+        path_markers_msg = MarkerArray(markers=path_markers)
+        self.track_marker_publisher.publish(path_markers_msg)
+
+
 
     def odom_callback(self, odom_msg: Odometry):
         # header used to create markers
         if self.track_init and self.mpcsolver.not_running:
-            self.mpcsolver.not_running = True
+            self.mpcsolver.not_running = False
             print("running optimisation")
             self.odom_header = odom_msg.header
             w = odom_msg.pose.pose.orientation.w
             i = odom_msg.pose.pose.orientation.x
             j = odom_msg.pose.pose.orientation.y
             k = odom_msg.pose.pose.orientation.z
+            vel_x: float = odom_msg.twist.twist.linear.x
+            vel_y: float = odom_msg.twist.twist.linear.y
+            vel: float = sqrt(vel_x**2 + vel_y**2)
+            omega: float = odom_msg.twist.twist.angular.z
 
             # i, j, k angles in rad
             ai, aj, ak = quat2euler([w, i, j, k])
-            print(f"{ai} {aj} {ak}")
+            s = sin(-ak)
+            c = cos(-ak)
+            #print(f"{ai} {aj} {ak}")
 
             x = odom_msg.pose.pose.position.x
             y = odom_msg.pose.pose.position.y
@@ -263,13 +349,26 @@ class MPCPlanner(Node):
 
             path_markers: List[Marker] = []
 
-            self.mpcsolver.set_world_space(x, y, ak)
+
+            #self.mpcsolver.set_world_space(x, y, ak, vel_x*c-vel_y*s, vel_x*c-vel_y*s, omega) # lim2pi(ak+pi)
+            self.mpcsolver.set_world_space(x, y, ak, vel_x, vel_y, omega)
 
             tx: List[float] = [] # target spline x coords
             ty: List[float] = [] # target spline y coords
 
-            tx, ty = self.mpcsolver.solve(None)
+            print("Before Solve: "+ str(time.time()-start))
+            px, py = self.mpcsolver.solve(None)
+            ss = sin(ak)
+            cc = cos(ak)
 
+            
+            for i in range(len(px)):
+                dx = px[i]
+                dy = py[i]
+                #print(f" {dx} {dy} {x} {y} {px[i]} {py[i]}")
+                tx.append(dx*cc-dy*ss)
+                ty.append(dx*ss+dy*cc)
+            print("After Solve: "+ str(time.time()-start))
             for i in range(len(tx)):
                 path_markers.append(marker_msg(
                     tx[i],
@@ -291,7 +390,8 @@ class MPCPlanner(Node):
             plot_img = cv2.cvtColor(plot_img, cv2.COLOR_RGB2BGR)
 
             self.plot_img_publisher.publish(cv_bridge.cv2_to_imgmsg(plot_img, encoding="bgr8"))
-            #fig.close()
+            
+            print("Time taken plotting: "+ str(time.time()-start))
 
             # create message for all cones on the track
             path_markers_msg = MarkerArray(markers=path_markers)
@@ -315,15 +415,29 @@ class MPCPlanner(Node):
                 elif (th_change < -pi): th_change=th_change+2*pi
 
                 # angle relative to max angle on track
-                change_pc = abs(th_change) / MAX_ANGLE * 100
+                change_pc = abs(th_change) / pi * 100
+                #print(f"{floor(change_pc)} {len(col_range)}")
+
+                col = col_range[floor(change_pc)].get_rgb()
 
                 for j in range(VEL_ZONE):
                     path_point = SplinePoint()
-                    path_point.location.x = tx[i+j]
-                    path_point.location.y = ty[i+j]
+                    path_point.location.x = tx[i+j] + x
+                    path_point.location.y = ty[i+j] + y
                     path_point.location.z = 0.0
                     path_point.turn_intensity = change_pc
                     path.append(path_point)
+                    line_point = ROSPoint()
+                    line_point.x = tx[i+j] + x
+                    line_point.y = ty[i+j] + y
+                    line_point.z = 0.0
+                    path_markers.append(line_point)
+                    line_colour = ColorRGBA()
+                    line_colour.a = 1.0 # alpha
+                    line_colour.r = col[0]
+                    line_colour.g = col[1]
+                    line_colour.b = col[2]
+                    path_colours.append(line_colour)
             path_msg = SplineStamped(path=path)
             self.path_publisher.publish(path_msg)
             ## Visualisation marker
@@ -350,10 +464,7 @@ class MPCPlanner(Node):
             marker.colors = path_colours
 
             marker.lifetime = Duration(sec=10, nanosec=100000)
-            path_markerss: List[Marker] = []
-            path_markerss.append(marker)
-            markers = MarkerArray(markers=path_markerss)
-            self.path_marker_publisher.publish(markers)
+            self.path_marker_publisher2.publish(marker)
 
             self.mpcsolver.not_running = True
         elif self.track_init and not self.mpcsolver.not_running:

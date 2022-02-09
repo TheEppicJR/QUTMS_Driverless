@@ -352,8 +352,8 @@ class LocalSpline(Node):
         if target is not None:
             # velocity control
             # init constants
-            Kp_vel: float = 2
-            vel_max: float = 8
+            Kp_vel: float = 1
+            vel_max: float = 4
             vel_min = vel_max/2
             throttle_max: float = 0.3 # m/s^2
 

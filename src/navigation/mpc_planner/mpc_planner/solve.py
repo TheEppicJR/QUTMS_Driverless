@@ -30,7 +30,7 @@ def list_of_dict_to_list(list_of_dict, key):
 class MPCSolver:
 	def __init__(self) -> None:
 		self.solver = SolverFactory('ipopt')
-		self.solver.options['tol'] = 1e-4
+		self.solver.options['tol'] = 1e-4 # was origionally to the -4
 		self.solver.options['warm_start_init_point'] = 'yes'
 		self.solver.options['warm_start_bound_push'] = 1e-2
 		self.solver.options['warm_start_mult_bound_push'] = 1e-2
@@ -67,8 +67,8 @@ class MPCSolver:
 		self.init_track_constraints = []
 		self.track_constraints = []
 
-		self.mpc_time = 1.5
-		self.mpc_samples = 3
+		self.mpc_time = 3
+		self.mpc_samples = 24
 
 		# do even more init i put in another func to mak it more readable
 		self.initconst()
@@ -269,10 +269,15 @@ class MPCSolver:
 		self.ax3.set_aspect(0.1)
 
 
-	def set_world_space(self, x, y, phi):
+	def set_world_space(self, x, y, phi, v_x, v_y, omega):
 		self.world_space_x = x
 		self.world_space_y = y
 		self.world_space_phi = phi
+		#self.m.D_init = 
+		#self.m.delta_init = 
+		self.m.v_x_init = v_x
+		self.m.v_y_init = v_y
+		self.m.omega_init = omega
 
 	def solve(self, solve_idx):
 		self.transform_track({"x": self.world_space_x, "y": self.world_space_y, "phi": self.world_space_phi})
@@ -320,8 +325,8 @@ class MPCSolver:
 			return [1, 2, 3, 4, 5, 6], [1, 2, 3, 4, 5, 6]
 		#print(1/(time.time() - self.last_solve_time))
 
-		print(f"Time taken: {time.time()-start}")
-
+		print(f"Time taken MCP: {time.time()-start}")
+		start: float = time.time()
 		init_next_idx = self.m.t[2]
 
 		world_space_phi = self.m.phi[init_next_idx]() + self.world_space_phi
@@ -358,7 +363,8 @@ class MPCSolver:
 			self.lines[line_idx].set_data(t_array,self.plot_list[key])
 
 		plt.legend(loc='right')
-
+		
+		print(f"Time taken post MCP: {time.time()-start}")
 		return x_array, y_array
 
 	def plot(self):
