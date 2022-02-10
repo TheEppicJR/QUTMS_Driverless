@@ -200,23 +200,11 @@ class SplinePursuit(Node):
             cx: List[float] = []
             cy: List[float] = []
             for tpoint in self.path:
-                dx, dy = tpoint.x - x, tpoint.y - y
-                cx.append(tpoint.x)
-                cy.append(tpoint.y)
-                angle = atan2(dy , dx)
-                #print(f"Point: {tpoint.location.x}, {tpoint.location.y} Car: {x}, {y}, {ak/2/pi*360} Vector: {angle/2/pi*360}")
-                if angle_between_angles(angle, ak, pi/6) and target is None:
-                    target = tpoint
-                    slow = True
-                    #print("found one")
                 line_point = ROSPoint()
                 line_point.x = tpoint.x-x
                 line_point.y = tpoint.y-y
                 line_point.z = 0.0
                 path_markers.append(line_point)
-            if target is None:
-                target = self.path[-1]
-                #print("didnt find one in front")
             
             # Search nearest point index
             dx = [fx - icx for icx in cx]
@@ -225,33 +213,16 @@ class SplinePursuit(Node):
             target_idx = np.argmin(d)
             if self.last_target_idx >= target_idx:
                 target_idx = self.last_target_idx
-            front_axle_vec = [-np.cos(ak + np.pi / 2),-np.sin(ak + np.pi / 2)]
-            error_front_axle = np.dot([dx[target_idx], dy[target_idx]], front_axle_vec)
-            # theta_e corrects the heading error
-            theta_e = normalize_angle(atan2(dy[target_idx],dx[target_idx]) - ak)
-            # theta_d corrects the cross track error
-            theta_d = np.arctan2(k * error_front_axle, vel)
-            # Steering control
-            #delta = theta_e + theta_d
 
             target = self.path[target_idx]
-            #print(target)
-            #print(f"{x}    {y}  {target_idx}")
-            #target = self.path[3]
 
-            # Project RMS error onto front axle vector
-            front_axle_vec = [-np.cos(ak + np.pi / 2),
-                      -np.sin(ak + np.pi / 2)]
-            error_front_axle = np.dot([dx[target_idx], dy[target_idx]], front_axle_vec)
 
             # velocity control
             # init constants
             Kp_vel: float = 2
-            vel_max: float = 3
+            vel_max: float = 6
             vel_min = vel_max/2
             throttle_max: float = 0.3 # m/s^2
-
-            
                 
             
             # target velocity proportional to angle
