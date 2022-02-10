@@ -13,7 +13,7 @@ from cv_bridge import CvBridge
 # import ROS2 message libraries
 from nav_msgs.msg import Odometry
 # import custom message libraries
-from driverless_msgs.msg import SplinePoint, SplineStamped, Cone
+from driverless_msgs.msg import SplinePoint, SplineStamped, Cone, Waypoint, WaypointsArray
 from fs_msgs.msg import ControlCommand
 
 # other python modules
@@ -71,7 +71,7 @@ def normalize_angle(angle):
     while angle < -np.pi:
         angle += 2.0 * np.pi
 
-    return 
+    return angle
 
 def robot_pt_to_img_pt(x: float, y: float) -> Point:
     """
@@ -148,7 +148,7 @@ class SplinePursuit(Node):
         super().__init__("spline_planner")
 
         # sub to track for all cone locations relative to car start point
-        self.create_subscription(SplineStamped, "/spline_mapper/path", self.path_callback, 10)
+        self.create_subscription(Marker, "/visual/filtered_tree_branch", self.path_callback, 10)
         self.path_img_publisher: Publisher = self.create_publisher(Image, "/pursuit/path_img", 1)
 
         # sub to odometry for car pose + velocity
@@ -159,14 +159,15 @@ class SplinePursuit(Node):
 
 
         self.path = None
-        self.last_target_idx = 0
+        self.last_target_idx = 3
 
         LOGGER.info("---Spline Controller Node Initalised---")
 
 
-    def path_callback(self, spline_path: SplineStamped):
-        self.path = spline_path.path
-        self.last_target_idx = 0
+    def path_callback(self, spline_path: Marker):
+        if len(spline_path.points) > 0:
+            self.path = spline_path.points
+            self.last_target_idx = 3
 
     def callback(self, odom_msg: Odometry):
 
@@ -189,7 +190,7 @@ class SplinePursuit(Node):
         path_markers: List[Marker] = []
 
         ## APPROACH TARGET
-        if self.path is not None:
+        if self.path is not None and len(self.path)>0:
             target: Point = None
             slow = False
             L = 2
@@ -199,23 +200,23 @@ class SplinePursuit(Node):
             cx: List[float] = []
             cy: List[float] = []
             for tpoint in self.path:
-                dx, dy = tpoint.location.x - x, tpoint.location.y - y
-                cx.append(tpoint.location.x)
-                cy.append(tpoint.location.y)
+                dx, dy = tpoint.x - x, tpoint.y - y
+                cx.append(tpoint.x)
+                cy.append(tpoint.y)
                 angle = atan2(dy , dx)
                 #print(f"Point: {tpoint.location.x}, {tpoint.location.y} Car: {x}, {y}, {ak/2/pi*360} Vector: {angle/2/pi*360}")
                 if angle_between_angles(angle, ak, pi/6) and target is None:
-                    target = tpoint.location
+                    target = tpoint
                     slow = True
-                    print("found one")
+                    #print("found one")
                 line_point = ROSPoint()
-                line_point.x = tpoint.location.x-x
-                line_point.y = tpoint.location.y-y
+                line_point.x = tpoint.x-x
+                line_point.y = tpoint.y-y
                 line_point.z = 0.0
                 path_markers.append(line_point)
             if target is None:
-                target = self.path[-1].location
-                print("didnt find one in front")
+                target = self.path[-1]
+                #print("didnt find one in front")
             
             # Search nearest point index
             dx = [fx - icx for icx in cx]
@@ -233,9 +234,10 @@ class SplinePursuit(Node):
             # Steering control
             #delta = theta_e + theta_d
 
-            target = self.path[target_idx].location
-            print(target)
-            print(f"{x}    {y}  {target_idx}")
+            target = self.path[target_idx]
+            #print(target)
+            #print(f"{x}    {y}  {target_idx}")
+            #target = self.path[3]
 
             # Project RMS error onto front axle vector
             front_axle_vec = [-np.cos(ak + np.pi / 2),
@@ -245,18 +247,15 @@ class SplinePursuit(Node):
             # velocity control
             # init constants
             Kp_vel: float = 2
-            vel_max: float = 8
+            vel_max: float = 3
             vel_min = vel_max/2
             throttle_max: float = 0.3 # m/s^2
 
             
-
-            #if slow:
-            #    vel_max = 0.5
                 
             
             # target velocity proportional to angle
-            target_vel: float = vel_max - (abs(atan2(y-target.y, x-target.x))) * Kp_vel
+            target_vel: float = vel_max - (abs(normalize_angle((-atan2(target.y-y, target.x-x)+ak)))) * Kp_vel
             if target_vel < vel_min: target_vel = vel_min
             LOGGER.info(f"Target vel: {target_vel}")
 
@@ -269,10 +268,10 @@ class SplinePursuit(Node):
             # steering control
             Kp_ang: float = 1.25
             ang_max: float = 7.0
-
-            steering_angle = -((pi/2) - atan2(x-target.x, y-target.y))*5
+            steering_angle = normalize_angle((-atan2(target.y-y, target.x-x)+ak))*5
             LOGGER.info(f"Target angle: {steering_angle}")
             calc_steering = Kp_ang * steering_angle / ang_max
+
 
             # publish message
             control_msg = ControlCommand()
@@ -352,7 +351,7 @@ class SplinePursuit(Node):
             # line_point2.y = target.y
             # line_point2.z = 0.0
             target_markers.append(target)#line_point2)
-            print(f"Target again {target}")
+            #print(f"Target again {target}")
 
             marker2 = Marker()
             marker2.header.frame_id = "map"
