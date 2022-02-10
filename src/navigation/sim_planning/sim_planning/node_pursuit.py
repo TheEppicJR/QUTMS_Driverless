@@ -200,6 +200,8 @@ class SplinePursuit(Node):
             cx: List[float] = []
             cy: List[float] = []
             for tpoint in self.path:
+                cx.append(tpoint.x)
+                cy.append(tpoint.y)
                 line_point = ROSPoint()
                 line_point.x = tpoint.x-x
                 line_point.y = tpoint.y-y
