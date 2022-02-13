@@ -6,6 +6,7 @@ import message_filters
 from ament_index_python.packages import get_package_share_directory
 # import ROS2 message libraries
 from sensor_msgs.msg import Image, CameraInfo
+from rclpy.publisher import Publisher
 # import custom message libraries
 from driverless_msgs.msg import Cone
 
@@ -77,25 +78,27 @@ class AnnotatorNode(Node):
         # subscribers
         CAMERA = "left" ## SWITCH CAMERAS TO INCREASE DATASET SIZE ON ADDITIONAL RUNS
         # CAMERA = "right"
-        colour_sub = message_filters.Subscriber(
-            self, Image, f"/zed2i/zed_node/{CAMERA}/image_rect_color"
-        )
-        colour_camera_info_sub = message_filters.Subscriber(
-            self, CameraInfo, f"/zed2i/zed_node/{CAMERA}/camera_info"
-        )
+        # colour_sub = message_filters.Subscriber(
+        #     self, Image, f"/zed2i/zed_node/{CAMERA}/image_rect_color"
+        # )
+        # colour_camera_info_sub = message_filters.Subscriber(
+        #     self, CameraInfo, f"/zed2i/zed_node/{CAMERA}/camera_info"
+        # )
 
-        synchronizer = message_filters.TimeSynchronizer(
-            fs=[colour_sub, colour_camera_info_sub],
-            queue_size=30,
-        )
-        synchronizer.registerCallback(self.callback)
+        # synchronizer = message_filters.TimeSynchronizer(
+        #     fs=[colour_sub, colour_camera_info_sub],
+        #     queue_size=30,
+        # )
+        # synchronizer.registerCallback(self.callback)
 
-        self.get_logger().info("Initialised Annotator Node")
+        # self.get_logger().info("Initialised Annotator Node")
+        self.create_subscription(Image, "/fsds/cam2", self.callback, 10)
+        self.anno_img_publisher: Publisher = self.create_publisher(Image, "/cam/anno_img", 1)
         
         self.count: int = 1500 ## START WHERE THE MOST RECENT ANNOTATION SET FINISHED
 
 
-    def callback(self, colour_msg: Image, colour_camera_info_msg: CameraInfo):
+    def callback(self, colour_msg: Image):#, colour_camera_info_msg: CameraInfo):
         logger = self.get_logger()
         logger.info("Received image")
         
@@ -107,10 +110,10 @@ class AnnotatorNode(Node):
         # colour_frame = cv2.flip(colour_frame, 1) ## UNCOMMENT TO INCREASE DATASET SIZE ON ADDITIONAL RUNS
         
         # save current frame
-        cv2.imwrite(f"{PATHSTR}.png", colour_frame)
+        #cv2.imwrite(f"{PATHSTR}.png", colour_frame)
 
         # open txt file for annotations to pair with current frame
-        file = open(f"{PATHSTR}.txt", 'w')
+        #file = open(f"{PATHSTR}.txt", 'w')
 
         # extract frame dimensions
         h, w, _ = colour_frame.shape
@@ -124,19 +127,20 @@ class AnnotatorNode(Node):
             norm_h: float = bounding_box.height/h
 
             # write YOLOv5 annotation format to txt file
-            file.write(
-                str(cone_colour) + " " + \
-                str(norm_x) + " " + \
-                str(norm_y) + " " + \
-                str(norm_w) + " " + \
-                str(norm_h) + "\n"
-            )
-        file.close()
+            # file.write(
+            #     str(cone_colour) + " " + \
+            #     str(norm_x) + " " + \
+            #     str(norm_y) + " " + \
+            #     str(norm_w) + " " + \
+            #     str(norm_h) + "\n"
+            # )
+        # file.close()
 
         # show and save validation frame (check false positives/negatives)
-        cv2.imshow("debug", colour_frame)
-        cv2.imwrite(f"{VALIDATION_PATH}annotation_{self.count}val.jpeg", colour_frame) 
-        cv2.waitKey(1)
+        # cv2.imshow("debug", colour_frame)
+        # cv2.imwrite(f"{VALIDATION_PATH}annotation_{self.count}val.jpeg", colour_frame) 
+        # cv2.waitKey(1)
+        self.anno_img_publisher.publish(cv_bridge.cv2_to_imgmsg(colour_frame, encoding="bgr8"))
 
         self.count += 1
 
