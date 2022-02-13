@@ -241,7 +241,6 @@ def main_torch(args=None):
 ## TensorRT inference
 def main_trt(args=None):
     from .trt_inference import TensorWrapper
-
     # loading TensorRT engine
     ENGINE_PATH = os.path.join(get_package_share_directory("vision_pipeline"), "models", "YBV2.engine")
     PLUGIN_PATH = os.path.join(get_package_share_directory("vision_pipeline"), "models", "libplugins.so")
@@ -264,7 +263,6 @@ def main_trt(args=None):
             print(box, cone_colour)
             bounding_boxes.append((bounding_box, cone_colour, CONE_DISPLAY_PARAMETERS[cone_colour]))
         return bounding_boxes
-
     rclpy.init(args=args)
     detector_node = DetectorNode(ModeEnum.trt_inference, get_trt_bounding_boxes)
     rclpy.spin(detector_node)
