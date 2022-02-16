@@ -11,3 +11,6 @@
 	path = src/common/fs_msgs
 	url = https://github.com/FS-Driverless/fs_msgs.git
 	branch = ros2
+[submodule "src/navigation/rrt_path_plan"]
+	path = src/navigation/rrt_path_plan
+	url = https://github.com/TheEppicJR/ma_rrt_path_plan.git
