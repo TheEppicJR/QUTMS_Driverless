@@ -24,6 +24,7 @@ set(msg_files
   "msg/SplineStamped.msg"
   "msg/Waypoint.msg"
   "msg/WaypointsArray.msg"
+  "msg/Can.msg"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
