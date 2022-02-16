@@ -56,20 +56,15 @@ class ZedNode(Node):
         self.camera_info = CameraInfo()
         self.camera_info.height = 1080
         self.camera_info.width = 1920
-        
-
+    
 
     def depth_callback(self, colour_msg: Image):#, colour_camera_info_msg: CameraInfo):
-        logger = self.get_logger()
-        logger.info("Received image")
         self.depth_img_publisher.publish(colour_msg)
-        colour_frame: np.ndarray = cv_bridge.imgmsg_to_cv2(colour_msg, desired_encoding='32FC1')
-        backtorgb = cv2.cvtColor(colour_frame, cv2.COLOR_GRAY2RGB)
-        self.anno_img_publisher.publish(cv_bridge.cv2_to_imgmsg(backtorgb))#, encoding="bgr8"))
+        # colour_frame: np.ndarray = cv_bridge.imgmsg_to_cv2(colour_msg, desired_encoding='32FC1')
+        # backtorgb = cv2.cvtColor(colour_frame, cv2.COLOR_GRAY2RGB)
+        # self.anno_img_publisher.publish(cv_bridge.cv2_to_imgmsg(backtorgb))
     
     def rgb_callback(self, colour_msg: Image):#, colour_camera_info_msg: CameraInfo):
-        logger = self.get_logger()
-        logger.info("Received image")
         self.rgb_img_info_publisher.publish(self.camera_info)
         self.rgb_img_publisher.publish(colour_msg)
 

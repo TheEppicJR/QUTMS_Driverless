@@ -42,7 +42,6 @@ CONE_DISPLAY_PARAMETERS = [
 
 ConeMsgColour = int # define arbitrary variable type
 
-
 def cone_distance(
     colour_frame_cone_bounding_box: Rect,
     depth_frame: np.ndarray,
@@ -60,7 +59,6 @@ def cone_distance(
 
     return np.mean(depth_roi)
 
-
 def cone_bearing(
     colour_frame_cone_bounding_box: Rect,
     colour_frame_camera_info: CameraInfo,
@@ -71,7 +69,6 @@ def cone_bearing(
     center_scaled = (frame_width / 2 - cone_center) / (frame_width / 2)  # 1 to -1 left to right
     
     return CAMERA_FOV/2 * center_scaled
-
 
 def cone_msg(
     distance: float,

@@ -1,16 +1,25 @@
 {
-    "configurations": [
-        {
-            "name": "Linux",
-            "includePath": [
-                "${workspaceFolder}/**"
-            ],
-            "defines": [],
-            "compilerPath": "/usr/bin/gcc",
-            "cStandard": "c11",
-            "cppStandard": "c++17",
-            "intelliSenseMode": "clang-x64"
-        }
-    ],
-    "version": 4
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${workspaceFolder}/.vscode/browse.vc.db",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/mnt/c/Users/ian/QUTMS_Driverless/install/fs_msgs/include/**",
+        "/mnt/c/Users/ian/QUTMS_Driverless/install/driverless_msgs/include/**",
+        "/home/ian/mambaforge/envs/driverless_env/include/**",
+        "/opt/ros/galactic/include/**",
+        "/mnt/c/Users/ian/QUTMS_Driverless/src/hardware/can_driver/include/**",
+        "/mnt/c/Users/ian/QUTMS_Driverless/src/navigation/cone_estimation/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
 }

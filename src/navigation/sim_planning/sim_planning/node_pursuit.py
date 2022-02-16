@@ -32,6 +32,7 @@ import pathlib
 
 from transforms3d.euler import quat2euler
 
+
 # import required sub modules
 from driverless_common.point import Point
 
@@ -40,6 +41,8 @@ LOGGER = logging.getLogger(__name__)
 
 # translate ROS image messages to OpenCV
 cv_bridge = CvBridge()
+
+DEBUG: bool = False
 
 # image display geometry
 SCALE = 20
@@ -56,7 +59,6 @@ ORANGE_DISP_COLOUR: Colour = (0, 165, 255) # bgr - orange
 
 LEFT_CONE_COLOUR = Cone.BLUE
 RIGHT_CONE_COLOUR = Cone.YELLOW
-
 
 
 def normalize_angle(angle):
@@ -102,13 +104,11 @@ def lim2pi(theta: float) -> float:
 def dist(a: Point, b: Point) -> float:
     return sqrt((a.x-b.x)**2 + (a.y-b.y)**2)
 
-
 def cone_to_point(cone: Cone) -> Point:
     return Point(
         cone.location.x,
         cone.location.y,
     )
-
 
 def approximate_b_spline_path(
     x: list, 
@@ -183,7 +183,7 @@ class SplinePursuit(Node):
         k = odom_msg.pose.pose.orientation.z
 
         # i, j, k angles in rad
-        ai, aj, ak = quat2euler([w, i, j, k])
+        (ai, aj, ak) = quat2euler([w, i, j, k])
 
         debug_img = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
 
@@ -229,20 +229,23 @@ class SplinePursuit(Node):
             
             # target velocity proportional to angle
             target_vel: float = vel_max - (abs(normalize_angle((-atan2(target.y-y, target.x-x)+ak)))) * Kp_vel
-            if target_vel < vel_min: target_vel = vel_min
-            LOGGER.info(f"Target vel: {target_vel}")
+            if target_vel < vel_min:
+                target_vel = vel_min
+            #LOGGER.info(f"Target vel: {target_vel}")
 
             # increase proportionally as it approaches target
             throttle_scalar: float = (1 - (vel / target_vel)) 
-            if throttle_scalar > 0: calc_throttle = throttle_max * throttle_scalar
+            if throttle_scalar > 0:
+                calc_throttle = throttle_max * throttle_scalar
             # if its over maximum, cut throttle
-            elif throttle_scalar <= 0: calc_throttle = 0
+            elif throttle_scalar <= 0:
+                calc_throttle = 0
 
             # steering control
             Kp_ang: float = 1.25
             ang_max: float = 7.0
             steering_angle = normalize_angle((-atan2(target.y-y, target.x-x)+ak))*5
-            LOGGER.info(f"Target angle: {steering_angle}")
+            #LOGGER.info(f"Target angle: {steering_angle}")
             calc_steering = Kp_ang * steering_angle / ang_max
 
 
@@ -254,106 +257,105 @@ class SplinePursuit(Node):
 
             self.control_publisher.publish(control_msg)
 
-            # draw target
-            target_img_pt = robot_pt_to_img_pt(target.x, target.y)
-            cv2.drawMarker(
-                debug_img, 
-                robot_pt_to_img_pt(target.x, target.y).to_tuple(),
-                (0, 0, 255),
-                markerType=cv2.MARKER_TILTED_CROSS,
-                markerSize=10,
-                thickness=2
-            )
-            target_img_angle = atan2(target_img_pt.y - IMG_ORIGIN.y, target_img_pt.x - IMG_ORIGIN.x)
-            # draw angle line
-            cv2.line(
-                debug_img,
-                (int(50*cos(target_img_angle) + IMG_ORIGIN.x), int(50*sin(target_img_angle) + IMG_ORIGIN.y)),
-                IMG_ORIGIN.to_tuple(),
-                (0, 0, 255)
-            )
-            # add text for targets data
-            cv2.putText(
-                debug_img, "Targets", (10, HEIGHT-40),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2
-            )
-            text_angle = "Steering: "+str(round(steering_angle, 2))
-            cv2.putText(
-                debug_img, text_angle, (10, HEIGHT-25),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2
-            )
-            text_vel = "Velocity: "+str(round(target_vel, 2))
-            cv2.putText(
-                debug_img, text_vel, (10, HEIGHT-10),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2
-            )
+            if self.path_marker_publisher.get_subscription_count() > 0:
+                
+                # add on each cone to published array
+                marker = Marker()
+                marker.header.frame_id = "map"
+                marker.ns = "current_path"
+                marker.id = 0
+                marker.type = Marker.LINE_STRIP
+                marker.action = Marker.ADD
 
-            # add on each cone to published array
-            marker = Marker()
-            marker.header.frame_id = "map"
-            marker.ns = "current_path"
-            marker.id = 0
-            marker.type = Marker.LINE_STRIP
-            marker.action = Marker.ADD
+                marker.pose.position = odom_msg.pose.pose.position
+                marker.pose.orientation.x = 0.0
+                marker.pose.orientation.y = 0.0
+                marker.pose.orientation.z = 0.0
+                marker.pose.orientation.w = 1.0
+                # scale out of 1x1x1m
+                marker.scale.x = 0.2
+                marker.scale.y = 0.0
+                marker.scale.z = 0.0
 
-            marker.pose.position = odom_msg.pose.pose.position
-            marker.pose.orientation.x = 0.0
-            marker.pose.orientation.y = 0.0
-            marker.pose.orientation.z = 0.0
-            marker.pose.orientation.w = 1.0
-            # scale out of 1x1x1m
-            marker.scale.x = 0.2
-            marker.scale.y = 0.0
-            marker.scale.z = 0.0
+                marker.points = path_markers
 
-            marker.points = path_markers
+                marker.color.a = 1.0 # alpha
+                marker.color.r = 1.0
+                marker.color.g = 0.0
+                marker.color.b = 0.0
 
-            marker.color.a = 1.0 # alpha
-            marker.color.r = 1.0
-            marker.color.g = 0.0
-            marker.color.b = 0.0
+                marker.lifetime = Duration(sec=1, nanosec=0)
 
-            marker.lifetime = Duration(sec=1, nanosec=0)
+                # create message for all cones on the track
+                self.path_marker_publisher.publish(marker) # publish marker points data
+            if self.target_marker_publisher.get_subscription_count() > 0:
 
-            # create message for all cones on the track
-            self.path_marker_publisher.publish(marker) # publish marker points data
+                target_markers: List[Marker] = []
+                target_markers.append(target)
 
-            target_markers: List[Marker] = []
-            # line_point2 = ROSPoint()
-            # line_point2.x = target.x
-            # line_point2.y = target.y
-            # line_point2.z = 0.0
-            target_markers.append(target)#line_point2)
-            #print(f"Target again {target}")
+                marker2 = Marker()
+                marker2.header.frame_id = "map"
+                marker2.ns = "current_path"
+                marker2.id = 0
+                marker2.type = Marker.SPHERE
+                marker2.action = Marker.ADD
 
-            marker2 = Marker()
-            marker2.header.frame_id = "map"
-            marker2.ns = "current_path"
-            marker2.id = 0
-            marker2.type = Marker.SPHERE
-            marker2.action = Marker.ADD
+                marker2.pose.position = target
+                marker2.pose.orientation.x = 0.0
+                marker2.pose.orientation.y = 0.0
+                marker2.pose.orientation.z = 0.0
+                marker2.pose.orientation.w = 1.0
+                # scal2e out of 1x1x1m
+                marker2.scale.x = 0.2
+                marker2.scale.y = 0.2
+                marker2.scale.z = 0.2
 
-            marker2.pose.position = target
-            marker2.pose.orientation.x = 0.0
-            marker2.pose.orientation.y = 0.0
-            marker2.pose.orientation.z = 0.0
-            marker2.pose.orientation.w = 1.0
-            # scal2e out of 1x1x1m
-            marker2.scale.x = 0.2
-            marker2.scale.y = 0.2
-            marker2.scale.z = 0.2
+                marker2.points = target_markers
 
-            marker2.points = target_markers
+                marker2.color.a = 1.0 # alpha
+                marker2.color.r = 0.0
+                marker2.color.g = 1.0
+                marker2.color.b = 0.0
+                marker2.lifetime = Duration(sec=1, nanosec=0)
 
-            marker2.color.a = 1.0 # alpha
-            marker2.color.r = 0.0
-            marker2.color.g = 1.0
-            marker2.color.b = 0.0
-            marker2.lifetime = Duration(sec=1, nanosec=0)
+                self.target_marker_publisher.publish(marker2)
 
-            self.target_marker_publisher.publish(marker2)
+            if self.path_img_publisher.get_subscription_count() > 0:
+                # draw target
+                target_img_pt = robot_pt_to_img_pt(x-target.x, y-target.y)
+                cv2.drawMarker(
+                    debug_img, 
+                    target_img_pt.to_tuple(),
+                    (0, 0, 255),
+                    markerType=cv2.MARKER_TILTED_CROSS,
+                    markerSize=10,
+                    thickness=2
+                )
+                target_img_angle = atan2(target_img_pt.y - IMG_ORIGIN.y, target_img_pt.x - IMG_ORIGIN.x)
+                # draw angle line
+                cv2.line(
+                    debug_img,
+                    (int(50*cos(target_img_angle) + IMG_ORIGIN.x), int(50*sin(target_img_angle) + IMG_ORIGIN.y)),
+                    IMG_ORIGIN.to_tuple(),
+                    (0, 0, 255)
+                )
+                # add text for targets data
+                cv2.putText(
+                    debug_img, "Targets", (10, HEIGHT-40),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2
+                )
+                text_angle = "Steering: "+str(round(steering_angle, 2))
+                cv2.putText(
+                    debug_img, text_angle, (10, HEIGHT-25),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2
+                )
+                text_vel = "Velocity: "+str(round(target_vel, 2))
+                cv2.putText(
+                    debug_img, text_vel, (10, HEIGHT-10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2
+                )
 
-        self.path_img_publisher.publish(cv_bridge.cv2_to_imgmsg(debug_img, encoding="bgr8"))
+                self.path_img_publisher.publish(cv_bridge.cv2_to_imgmsg(debug_img, encoding="bgr8"))
 
 
 def main(args=sys.argv[1:]):
