@@ -1,10 +1,10 @@
 <launch>    
 
-    <node name="$(arg name)" pkg="rrt_path_plan" type="rrt_plan" output="screen">
+    <node name="rrt_path" pkg="rrt_path_plan" type="rrt_plan" output="screen">
         <!-- this is slow and should be redone in C++ -->
     </node>
 
-    <node name="$(arg name)" pkg="sim_planning" type="pursuit" output="screen">
+    <node name="rrt_pursuit" pkg="sim_planning" type="pursuit" output="screen">
         <!-- this is nice and snapy now but also works kinda ass -->
     </node>
 
@@ -49,9 +49,8 @@
         <param name="pose0" value="turtle1/sensors/pose" />
         <rosparam param="pose0_config"> [true, true, false, false, false, true, false, false, false, false, false, false, false, false, false]</rosparam>
         <remap from="odometry/filtered" to="odometry/filtered_map"/>
-        <param name="odom1" value="/your_state_estimation_node_topic">
+        <param name="odom1" value="/your_state_estimation_node_topic"/>
         <rosparam param="odom1_config">[true,  true,  false, false, false, false, false, false, false, false, false, false, false, false, false]</rosparam>
         <param name="odom1_differential" value="false"/>
     </node>
-    
 </launch>

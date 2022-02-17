@@ -13,3 +13,7 @@
 	path = src/common/fs_msgs
 	url = https://github.com/FS-Driverless/fs_msgs.git
 	branch = ros2
+[submodule "src/navigation/robot_localization"]
+	path = src/navigation/robot_localization
+	url = https://github.com/cra-ros-pkg/robot_localization.git
+	branch = galactic

@@ -13,7 +13,6 @@ find_package(driverless_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(Eigen REQUIRED)
 
-include_directories(${Eigen_INCLUDE_DIRS})
 include_directories(include)
 
 set (SOURCES
