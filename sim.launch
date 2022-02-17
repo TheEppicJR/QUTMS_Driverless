@@ -1,0 +1,57 @@
+<launch>    
+
+    <node name="$(arg name)" pkg="rrt_path_plan" type="rrt_plan" output="screen">
+        <!-- this is slow and should be redone in C++ -->
+    </node>
+
+    <node name="$(arg name)" pkg="sim_planning" type="pursuit" output="screen">
+        <!-- this is nice and snapy now but also works kinda ass -->
+    </node>
+
+    <node pkg="robot_localization" type="navsat_transform_node" name="navsat_transform_node" respawn="true">
+
+        <param name="magnetic_declination_radians" value="0"/>
+
+        <param name="yaw_offset" value="0"/>
+
+        <remap from="/imu/data" to="/imu" />
+        <remap from="/gps/fix" to="/gps" />
+        <remap from="/odometry/filtered" to="/your/robot_localization/output/topic" />
+
+    </node>
+
+    <node pkg="robot_localization" type="ekf_localization_node" name="robot_localization_ekf_node_odom" clear_params="true">
+        <param name="frequency" value="10." />
+        <param name="sensor_timeout" value="0.2" />
+        <param name="two_d_mode" value="true" />
+        <param name="publish_tf" value="true" />
+        <param name="map_frame" value="map" />
+        <param name="odom_frame" value="odom" />
+        <param name="base_link_frame" value="base_link" />
+        <param name="world_frame" value="odom" />
+        <remap from="odometry/filtered" to="odometry/filtered_twist" />
+        <param name="twist0" value="turtle1/sensors/twist" />
+        <param name="twist0_differential" value="false"/>
+        <rosparam param="twist0_config"> [false, false, false, false, false, false, true, true, false, false, false, true, false, false, false]</rosparam>
+    </node>
+
+    <node pkg="robot_localization" type="ekf_localization_node" name="robot_localization_ekf_node_map" clear_params="true">
+        <param name="frequency" value="10" />  
+        <param name="sensor_timeout" value="0.2" />  
+        <param name="two_d_mode" value="true" />
+        <param name="publish_tf" value="true" />
+        <param name="map_frame" value="map" />
+        <param name="odom_frame" value="odom" />
+        <param name="base_link_frame" value="base_link" />
+        <param name="world_frame" value="map" />
+        <param name="twist0" value="turtle1/sensors/twist" />
+        <rosparam param="twist0_config">  [false, false, false, false, false, false, true, true, false, false, false, true, false, false, false]</rosparam>
+        <param name="pose0" value="turtle1/sensors/pose" />
+        <rosparam param="pose0_config"> [true, true, false, false, false, true, false, false, false, false, false, false, false, false, false]</rosparam>
+        <remap from="odometry/filtered" to="odometry/filtered_map"/>
+        <param name="odom1" value="/your_state_estimation_node_topic">
+        <rosparam param="odom1_config">[true,  true,  false, false, false, false, false, false, false, false, false, false, false, false, false]</rosparam>
+        <param name="odom1_differential" value="false"/>
+    </node>
+    
+</launch>

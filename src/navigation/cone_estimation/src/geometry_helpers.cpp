@@ -1,5 +1,7 @@
 #include "ros_msg_helpers.hpp"
 #include <math.h>       /* cos */
+#include <Eigen/Core>
+#include <Eigen/Geometry>
 
 #define PI 3.14159265
 
@@ -16,22 +18,4 @@ Matrix rotate_cov_about_phi(Matrix& covMatrix, double& phi)
 
     Matrix rslt(3, std::vector<double>(3, 0));
 
-    rslt = mulMat(mulMat(rotMatrix, covMatrix), );
-}
-
-template <size_t rows, size_t cols>
-Matrix mulMat(Matrix& mat1, Matrix& mat2)
-{
-    Matrix rslt(3, std::vector<double>(3, 0));
- 
-    for (int i = 0; i < 3; i++) {
-        for (int j = 0; j < 3; j++) {
-            rslt[i][j] = 0;
- 
-            for (int k = 0; k < 3; k++) {
-                rslt[i][j] += mat1[i][k] * mat2[k][j];
-            }
-        }
-    }
-    
 }

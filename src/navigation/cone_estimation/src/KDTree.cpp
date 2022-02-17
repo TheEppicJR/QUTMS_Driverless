@@ -19,6 +19,8 @@
 #include <limits>
 #include <memory>
 #include <vector>
+#include <Eigen/Core>
+#include <Eigen/Geometry>
 
 #include "KDTree.hpp"
 
