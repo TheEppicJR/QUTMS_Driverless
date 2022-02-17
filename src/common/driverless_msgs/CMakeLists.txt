@@ -27,6 +27,7 @@ set(msg_files
   "msg/Can.msg"
   "msg/PointWithCovarianceStamped.msg"
   "msg/PointWithCovarianceStampedArray.msg"
+  "msg/StateWithCovarianceStamped.msg"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
