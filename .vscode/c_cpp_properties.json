@@ -10,7 +10,8 @@
         "/mnt/c/Users/ian/QUTMS_Driverless/install/driverless_msgs/include/**",
         "/home/ian/mambaforge/envs/driverless_env/include/**",
         "/opt/ros/galactic/include/**",
-        "/mnt/c/Users/ian/QUTMS_Driverless/src/hardware/can_driver/include/**",
+        "/mnt/c/Users/ian/QUTMS_Driverless/src/hardware/canbus/include/**",
+        "/mnt/c/Users/ian/QUTMS_Driverless/src/hardware/steering_actuator/include/**",
         "/mnt/c/Users/ian/QUTMS_Driverless/src/navigation/cone_estimation/include/**",
         "/usr/include/**"
       ],

@@ -5,12 +5,20 @@
 
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
+#include "driverless_msgs/msg/cone.hpp"
+#include "driverless_msgs/msg/cone_detection_stamped.hpp"
+#include "driverless_msgs/msg/point_with_covariance_stamped.hpp"
+#include "driverless_msgs/msg/point_with_covariance_stamped_array.hpp"
+#include "std_msgs/msg/header.hpp"
+#include "geometry_msgs/msg/point.hpp"
+
 
 
 using namespace std::chrono_literals;
 
 /* This example creates a subclass of Node and uses std::bind() to register a
 * member function as a callback from the timer. */
+
 
 class MinimalPublisher : public rclcpp::Node
 {
@@ -19,8 +27,7 @@ class MinimalPublisher : public rclcpp::Node
     : Node("minimal_publisher"), count_(0)
     {
       publisher_ = this->create_publisher<std_msgs::msg::String>("topic", 10);
-      timer_ = this->create_wall_timer(
-      500ms, std::bind(&MinimalPublisher::timer_callback, this));
+      timer_ = this->create_wall_timer(500ms, std::bind(&MinimalPublisher::timer_callback, this));
     }
 
   private:

@@ -2,14 +2,31 @@ cmake_minimum_required(VERSION 3.8)
 project(cone_estimation)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  add_compile_options(-Wall -Wextra -Wpedantic)
+  add_compile_options(-Wall -Wextra -Wpedantic -Werror)
 endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
-# find_package(<dependency> REQUIRED)
+find_package(driverless_msgs REQUIRED)
+find_package(rclcpp REQUIRED)
+
+include_directories(include)
+
+set (SOURCES
+  src/ros_msg_helpers.cpp
+)
+
+add_executable(cone_estimation src/cone_estimation_node.cpp ${SOURCES})
+ament_target_dependencies(cone_estimation rclcpp driverless_msgs)
+
+target_include_directories(cone_estimation PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+
+install(TARGETS cone_estimation
+  DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
