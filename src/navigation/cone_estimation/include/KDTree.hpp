@@ -9,6 +9,8 @@
  * It is a reimplementation of the C code using C++.
  * It also includes a few more queries than the original
  *
+ * 
+ * Additional changes by Ian
  */
 
 #include <algorithm>
@@ -20,6 +22,17 @@ using point_t = std::vector< double >;
 using indexArr = std::vector< size_t >;
 using pointIndex = typename std::pair< std::vector< double >, size_t >;
 
+/*
+ *
+ * The KDNode should store X, Y, and Z of the cossible cone
+ * The node should also hold the Covariance as a 3x3 matrix and a timestamp of when the cone was last seen
+ * imho the KDTree can sort in just X and Y and that would be ok, idgaf about z
+ * I think the position and Covariance should be computed for Z becuase there might be a Covariance between distance and percived height (i see a possible benifit and no real drawback)
+ * 
+ * Im not certan how to deal with Cone color or if a cone is knocked over yet
+ *
+ */
+
 class KDNode {
    public:
     using KDNodePtr = std::shared_ptr< KDNode >;
@@ -30,8 +43,7 @@ class KDNode {
 
     // initializer
     KDNode();
-    KDNode(const point_t &, const size_t &, const KDNodePtr &,
-           const KDNodePtr &);
+    KDNode(const point_t &, const size_t &, const KDNodePtr &, const KDNodePtr &);
     KDNode(const pointIndex &, const KDNodePtr &, const KDNodePtr &);
     ~KDNode();
 

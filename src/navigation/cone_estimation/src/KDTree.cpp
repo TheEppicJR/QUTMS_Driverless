@@ -9,6 +9,7 @@
  * more queries than the original, namely finding all points at a distance
  * smaller than some given distance to a point.
  *
+ * Some modifications by Ian
  */
 
 #include <algorithm>
@@ -22,6 +23,17 @@
 #include "KDTree.hpp"
 
 KDNode::KDNode() = default;
+
+/*
+ * Have to add the things noted in the header file to this file
+ * 
+ * This whole file needs hella comments
+ * 
+ * I think the reason why the doccumentation says you cant add points is because it would break the 'look for nearby points' functionallity
+ * 
+ * I need to add the ability to add points and rebalance the tree (dont really even have to be able to rebalance rn, can just make a whole new tree every so often)
+ * 
+ */
 
 KDNode::KDNode(const point_t &pt, const size_t &idx_, const KDNodePtr &left_,
                const KDNodePtr &right_) {

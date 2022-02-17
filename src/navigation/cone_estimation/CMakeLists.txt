@@ -16,6 +16,7 @@ include_directories(include)
 
 set (SOURCES
   src/ros_msg_helpers.cpp
+  src/KDTree.cpp
 )
 
 add_executable(cone_estimation src/cone_estimation_node.cpp ${SOURCES})

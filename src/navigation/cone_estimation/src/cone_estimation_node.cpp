@@ -21,8 +21,25 @@
 
 using namespace std::chrono_literals;
 
-/* This example creates a subclass of Node and uses std::bind() to register a
-* member function as a callback from the timer. */
+/*
+ * 
+ * TODO
+ * 
+ * Testing/helpers:
+ * Make nodes to make fake lidar and vision sightings so I can try this with reasonable CPU usage
+ * Make node to simulate the GPS/IMU/INS and upsample the FSDS to 1kHz
+ * Make a node that outputs debug for this node (maybe makes the Covariances into transparent roughly spherical objects)
+ * 
+ * This Node:
+ * Make the subscribers in this class work, turn them into a Cone class or whatever 
+ * Create the logic to add cones to the Cone Tree and Cone Buffer (and remove old cones from the buffer)
+ * Make the logic to combine two readings / covariances
+ * Add logic to convert the angle of the refrence frome of the covariances (from inertial to global)
+ * 
+ * Other:
+ * Come up with basic Covariance stats on the readings from the lidar and camera
+ * 
+ */
 
 
 class ConeEstimator : public rclcpp::Node
