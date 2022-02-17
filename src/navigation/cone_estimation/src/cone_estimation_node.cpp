@@ -70,7 +70,9 @@ class ConeEstimator : public rclcpp::Node
     {
       RCLCPP_INFO(this->get_logger(), "I heard: '%s'", msg->data.c_str());
     }
-    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_;
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr lidar_subscription_;
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr vision_subscription_;
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr odom_subscription_;
 };
 
 
