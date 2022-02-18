@@ -1,10 +1,10 @@
 <launch>    
 
-    <node name="rrt_path" pkg="rrt_path_plan" type="rrt_plan" output="screen">
+    <node name="rrt_path" pkg="rrt_path_plan" type="rrt_plan">
         <!-- this is slow and should be redone in C++ -->
     </node>
 
-    <node name="rrt_pursuit" pkg="sim_planning" type="pursuit" output="screen">
+    <node name="rrt_pursuit" pkg="sim_planning" type="pursuit">
         <!-- this is nice and snapy now but also works kinda ass -->
     </node>
 
