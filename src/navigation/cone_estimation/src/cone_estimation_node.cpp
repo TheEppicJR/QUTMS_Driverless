@@ -7,6 +7,7 @@
 // import some ROS messages
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/string.hpp"
+using std::placeholders::_1;
 #include "driverless_msgs/msg/cone.hpp"
 #include "driverless_msgs/msg/cone_detection_stamped.hpp"
 #include "driverless_msgs/msg/point_with_covariance_stamped.hpp"
@@ -61,10 +62,10 @@ class ConeEstimator : public rclcpp::Node
       auto message = std_msgs::msg::String();
       message.data = "Hello, world! ";
       RCLCPP_INFO(this->get_logger(), "Publishing: '%s'", message.data.c_str());
-      publisher_->publish(message);
+      // publisher_->publish(message);
     }
     rclcpp::TimerBase::SharedPtr timer_;
-    rclcpp::Publisher<std_msgs::msg::String>::SharedPtr publisher_;
+    rclcpp::Publisher<driverless_msgs::msg::PointWithCovarianceStampedArray>::SharedPtr publisher_;
 
     void topic_callback(const std_msgs::msg::String::SharedPtr msg) const
     {

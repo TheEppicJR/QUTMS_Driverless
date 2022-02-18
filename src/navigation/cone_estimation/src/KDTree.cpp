@@ -19,8 +19,6 @@
 #include <limits>
 #include <memory>
 #include <vector>
-#include <Eigen/Core>
-#include <Eigen/Geometry>
 
 #include "KDTree.hpp"
 
@@ -87,7 +85,7 @@ inline double dist(const KDNodePtr &a, const KDNodePtr &b) {
     return std::sqrt(dist2(a, b));
 }
 
-comparer::comparer(size_t idx_) : idx{idx_} {};
+comparer::comparer(size_t idx_) : idx{idx_} {}
 
 inline bool comparer::compare_idx(const pointIndex &a,  //
                                   const pointIndex &b   //
@@ -232,7 +230,7 @@ KDNodePtr KDTree::nearest_(   //
     }
 
     return best_l;
-};
+}
 
 // default caller
 KDNodePtr KDTree::nearest_(const point_t &pt) {
@@ -244,14 +242,14 @@ KDNodePtr KDTree::nearest_(const point_t &pt) {
                     level,         // start from level 0
                     root,          // best is the root
                     branch_dist);  // best_dist = branch_dist
-};
+}
 
 point_t KDTree::nearest_point(const point_t &pt) {
     return point_t(*nearest_(pt));
-};
+}
 size_t KDTree::nearest_index(const point_t &pt) {
     return size_t(*nearest_(pt));
-};
+}
 
 pointIndex KDTree::nearest_pointIndex(const point_t &pt) {
     KDNodePtr Nearest = nearest_(pt);
@@ -304,7 +302,7 @@ pointIndexArr KDTree::neighborhood_(  //
     }
 
     return nbh;
-};
+}
 
 pointIndexArr KDTree::neighborhood(  //
     const point_t &pt,               //

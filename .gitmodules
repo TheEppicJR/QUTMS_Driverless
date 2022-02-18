@@ -17,7 +17,7 @@
 	path = src/navigation/robot_localization
 	url = https://github.com/cra-ros-pkg/robot_localization.git
 	branch = galactic
-[submodule "src/common/geographic_info"]
-	path = src/common/geographic_info
+[submodule "src/geographic_info"]
+	path = src/geographic_info
 	url = https://github.com/ros-geographic-info/geographic_info.git
 	branch = ros2

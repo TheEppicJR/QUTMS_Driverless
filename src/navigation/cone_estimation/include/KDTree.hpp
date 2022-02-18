@@ -17,8 +17,6 @@
 #include <functional>
 #include <memory>
 #include <vector>
-#include <Eigen/Core>
-#include <Eigen/Geometry>
 
 using point_t = std::vector< double >;
 using indexArr = std::vector< size_t >;
