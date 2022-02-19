@@ -25,6 +25,9 @@ set(msg_files
   "msg/Waypoint.msg"
   "msg/WaypointsArray.msg"
   "msg/Can.msg"
+  "msg/PointWithCovarianceStamped.msg"
+  "msg/PointWithCovarianceStampedArray.msg"
+  "msg/StateWithCovarianceStamped.msg"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
