@@ -11,6 +11,7 @@ from typing import Tuple, List
 import pycuda.autoinit
 import pycuda.driver as cuda
 import tensorrt as trt
+import os
 
 class TensorWrapper(object):
     """
@@ -24,6 +25,7 @@ class TensorWrapper(object):
         iou_thresh: float=0.4,
     ):
         # load in object pluggin file
+        
         ctypes.CDLL(pluggin_file_path)
         # create a Context on this device,
         self.ctx = cuda.Device(0).make_context()

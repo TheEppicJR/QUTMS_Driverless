@@ -129,6 +129,7 @@ def get_prototype_points_4(segments, bins, point_norms, z):
 
     return split_prototype_segments, prototype_segments[np.concatenate((np.array([0]), proto_seg_diff))]
 
+
 # Notes
 # 1. For get_prototype_points() if needed you can revert back to using a numpy
 #    array and then converting to a python list. It's quicker for operations

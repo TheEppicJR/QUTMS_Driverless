@@ -2,7 +2,6 @@ from distutils.core import setup
 from Cython.Build import cythonize
 
 import numpy
-
 import pathlib
 
 working_dir = str(pathlib.Path(__file__).parent.resolve())

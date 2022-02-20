@@ -14,9 +14,12 @@ dependencies:
   - pkg-config
   - make
   - ninja
+  - numba
   # for some reason, not installed in base python?
   - typing-extensions
+  - pycuda
   - pip
+  - pytorch
   - pip:
     - colcon-common-extensions
     # colcon shell support

@@ -42,7 +42,6 @@ CONE_DISPLAY_PARAMETERS = [
 
 ConeMsgColour = int # define arbitrary variable type
 
-
 def cone_distance(
     colour_frame_cone_bounding_box: Rect,
     depth_frame: np.ndarray,
@@ -60,7 +59,6 @@ def cone_distance(
 
     return np.mean(depth_roi)
 
-
 def cone_bearing(
     colour_frame_cone_bounding_box: Rect,
     colour_frame_camera_info: CameraInfo,
@@ -71,7 +69,6 @@ def cone_bearing(
     center_scaled = (frame_width / 2 - cone_center) / (frame_width / 2)  # 1 to -1 left to right
     
     return CAMERA_FOV/2 * center_scaled
-
 
 def cone_msg(
     distance: float,
@@ -168,7 +165,7 @@ class DetectorNode(Node):
             header=colour_msg.header,
             cones=detected_cones,
         )
-
+        print("got to publishing stage")
         self.detection_publisher.publish(detection_msg)
         self.debug_img_publisher.publish(cv_bridge.cv2_to_imgmsg(colour_frame, encoding="bgra8"))
 
@@ -241,7 +238,6 @@ def main_torch(args=None):
 ## TensorRT inference
 def main_trt(args=None):
     from .trt_inference import TensorWrapper
-
     # loading TensorRT engine
     ENGINE_PATH = os.path.join(get_package_share_directory("vision_pipeline"), "models", "YBV2.engine")
     PLUGIN_PATH = os.path.join(get_package_share_directory("vision_pipeline"), "models", "libplugins.so")
@@ -264,7 +260,6 @@ def main_trt(args=None):
             print(box, cone_colour)
             bounding_boxes.append((bounding_box, cone_colour, CONE_DISPLAY_PARAMETERS[cone_colour]))
         return bounding_boxes
-
     rclpy.init(args=args)
     detector_node = DetectorNode(ModeEnum.trt_inference, get_trt_bounding_boxes)
     rclpy.spin(detector_node)

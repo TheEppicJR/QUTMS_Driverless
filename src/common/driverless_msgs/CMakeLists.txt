@@ -22,6 +22,12 @@ set(msg_files
   "msg/ConeDetectionStamped.msg"
   "msg/SplinePoint.msg"
   "msg/SplineStamped.msg"
+  "msg/Waypoint.msg"
+  "msg/WaypointsArray.msg"
+  "msg/Can.msg"
+  "msg/PointWithCovarianceStamped.msg"
+  "msg/PointWithCovarianceStampedArray.msg"
+  "msg/StateWithCovarianceStamped.msg"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}

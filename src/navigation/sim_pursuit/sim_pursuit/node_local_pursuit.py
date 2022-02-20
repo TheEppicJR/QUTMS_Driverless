@@ -285,6 +285,15 @@ class LocalSpline(Node):
             target_index = round(self.spline_len / 3) # 1/3 along
             target = Point(ty[target_index], -tx[target_index]) 
 
+            # target spline markers for rviz
+            x = odom_msg.pose.pose.position.x
+            y = odom_msg.pose.pose.position.y
+            w = odom_msg.pose.pose.orientation.w
+            i = odom_msg.pose.pose.orientation.x
+            j = odom_msg.pose.pose.orientation.y
+            k = odom_msg.pose.pose.orientation.z
+            # i, j, k angles in rad
+            ai, aj, ak = quat2euler([w, i, j, k])
             # spline visualisation
             path_markers: List[Marker] = []
             for t in range(len(tx)):
@@ -298,15 +307,6 @@ class LocalSpline(Node):
                     thickness=2
                 )
 
-                # target spline markers for rviz
-                x = odom_msg.pose.pose.position.x
-                y = odom_msg.pose.pose.position.y
-                w = odom_msg.pose.pose.orientation.w
-                i = odom_msg.pose.pose.orientation.x
-                j = odom_msg.pose.pose.orientation.y
-                k = odom_msg.pose.pose.orientation.z
-                # i, j, k angles in rad
-                ai, aj, ak = quat2euler([w, i, j, k])
                 # displacement from car to target element
                 x_dist = (tx[t]*sin(ak) + ty[t]*cos(ak))
                 y_dist = (ty[t]*sin(ak) - tx[t]*cos(ak))
@@ -352,8 +352,8 @@ class LocalSpline(Node):
         if target is not None:
             # velocity control
             # init constants
-            Kp_vel: float = 2
-            vel_max: float = 8
+            Kp_vel: float = 1
+            vel_max: float = 4
             vel_min = vel_max/2
             throttle_max: float = 0.3 # m/s^2
 

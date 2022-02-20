@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>ma_rrt_path_plan</name>
+  <version>1.0.0</version>
+  <description>The ma_rrt_path_plan package</description>
+
+  <maintainer email="maxim.yastremsky@egnition-hamburg.de">Maxim Yastremsky</maintainer>
+
+  <license>MIT</license>
+
+
+  <depend>driverless_msgs</depend>
+  <depend>fs_msgs</depend>
+
+  <!-- The export tag contains other, unspecified, tags -->
+  <export>
+    <!-- Other tools can request additional information be placed here -->
+    <build_type>ament_python</build_type>
+  </export>
+</package>
