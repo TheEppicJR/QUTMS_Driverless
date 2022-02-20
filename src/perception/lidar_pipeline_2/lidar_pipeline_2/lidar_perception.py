@@ -290,6 +290,10 @@ def main(args=sys.argv[1:]):
         print("--print_logs flag not specified")
         print("Launching lidar_perception without printing to terminal ...")
 
+    if not print_logs:
+        print("--print_logs flag not specified")
+        print("Launching lidar_perception without printing to terminal ...")
+
     # Validating args
     numeric_level = getattr(logging, loglevel.upper(), None)
 
