@@ -8,25 +8,21 @@ import rclpy.logging
 from cv_bridge import CvBridge
 import message_filters
 # import ROS2 message libraries
-from sensor_msgs.msg import Image
-from ackermann_msgs.msg import AckermannDrive
 from sklearn import cluster
 from std_msgs.msg import Header
 from visualization_msgs.msg import Marker, MarkerArray
-from builtin_interfaces.msg import Duration
 from nav_msgs.msg import Odometry
 # import custom message libraries
 from driverless_msgs.msg import Cone as QUTCone
-from driverless_msgs.msg import ConeDetectionStamped
-from fs_msgs.msg import ControlCommand, Track
+from driverless_msgs.msg import ConeDetectionStamped, PointWithCovarianceStamped, PointWithCovarianceStampedArray
+
+from typing import List
+
 
 # other python modules
 from math import sqrt, atan2, pi, sin, cos, atan
 import cv2
 import numpy as np
-import matplotlib.pyplot as plt # plotting splines
-import scipy.interpolate as scipy_interpolate # for spline calcs
-from typing import Tuple, List, Optional
 import sys
 import os
 import getopt
@@ -37,8 +33,9 @@ import time
 from transforms3d.euler import quat2euler
 
 # import required sub modules
-from .point import Point
+from .point import Point, PointWithCov
 from . import kmeans_clustering as km
+from . import kdtree
 
 # initialise logger
 LOGGER = logging.getLogger(__name__)
@@ -50,104 +47,129 @@ cv_bridge = CvBridge()
 LEFT_CONE_COLOUR = QUTCone.BLUE
 RIGHT_CONE_COLOUR = QUTCone.YELLOW
 
-
-def marker_msg(
-    x_coord: float, 
-    y_coord: float, 
-    ID: int, 
-    header: Header,
-) -> Marker: 
-    """
-    Creates a Marker object for cones or a car.
-    * param x_coord: x position relative to parent frame
-    * param y_coord: y position relative to parent frame
-    * param ID: Unique for markers in the same frame
-    * param header: passed in because creating time is dumb
-    * return: Marker
-    """
-
-    marker = Marker()
-    marker.header = header
-    marker.ns = "current_path"
-    marker.id = ID
-    marker.type = Marker.SPHERE
-    marker.action = Marker.ADD
-
-    marker.pose.position.x = x_coord
-    marker.pose.position.y = y_coord
-    marker.pose.position.z = 0.0
-    marker.pose.orientation.x = 0.0
-    marker.pose.orientation.y = 0.0
-    marker.pose.orientation.z = 0.0
-    marker.pose.orientation.w = 1.0
-
-    # scale out of 1x1x1m
-    marker.scale.x = 0.1
-    marker.scale.y = 0.1
-    marker.scale.z = 0.1
-
-    marker.color.a = 1.0 # alpha
-    marker.color.r = 1.0
-    marker.color.g = 0.0
-    marker.color.b = 0.0
-
-    marker.lifetime = Duration(sec=1, nanosec=0)
-
-    return marker
-
-
 class ConePipeline(Node):
     def __init__(self):
         super().__init__("cone_pipeline")
 
-        self.tx: List[float] = []
-        self.ty: List[float] = []
-        self.yellow_x: List[float] = []
-        self.yellow_y: List[float] = []
-        self.blue_x: List[float] = []
-        self.blue_y: List[float] = []
-        self.yx: List[float] = []
-        self.yy: List[float] = []
-        self.bx: List[float] = []
-        self.by: List[float] = []
-        self.path_markers: List[Marker] = []
-
-        self.spline_len: int = 4000
-
-        self.fig = plt.figure()
-
         self.logger = self.get_logger()
 
-        self.create_subscription(Track, "/testing_only/track", self.map_callback, 10)
+        self.create_subscription(PointWithCovarianceStampedArray, "/lidar/cone_detection_cov", self.lidarCallback, 10)
+        self.create_subscription(PointWithCovarianceStampedArray, "/vision/cone_detection_cov", self.visionCallback, 10)
 
-        # subscribers
-        cones_sub = message_filters.Subscriber(
-            self, ConeDetectionStamped, "/detector/cone_detection"
-        )
-        self.actualcone = message_filters.Cache(cones_sub, 100)
+        self.filtered_cones_pub: Publisher = self.create_publisher(PointWithCovarianceStampedArray, "/cone_pipe/cone_detection_cov", 1)
 
-        lidar_cones_sub = message_filters.Subscriber(
-            self, ConeDetectionStamped, "/lidar/cone_detection"
-        )
-        lidar_cones_sub.registerCallback(self.callback)
+        self.lidar_markers: Publisher = self.create_publisher(MarkerArray, "/cone_pipe/lidar_marker", 1)
+        self.vision_markers: Publisher = self.create_publisher(MarkerArray, "/cone_pipe/vision_marker", 1)
+        self.filtered_markers: Publisher = self.create_publisher(MarkerArray, "/cone_pipe/filtered_marker", 1)
 
         odom_sub = message_filters.Subscriber(self, Odometry, "/testing_only/odom")
         self.actualodom = message_filters.Cache(odom_sub, 100)
 
-        self.plot_img_publisher: Publisher = self.create_publisher(Image, "/cone_pipeline/plot_img", 1)
+        self.printmarkers: bool = True
 
-        self.cones = []
-        self.num_cones = 1
-        self.max_range = 18
+        self.conesKDTree: KDNode = None
 
-
-        # publishers
-        self.debug_img_publisher: Publisher = self.create_publisher(Image, "/cone_pipeline/debug_img", 1)
-        #self.path_publisher: Publisher = self.create_publisher(MarkerArray, "/cone_pipeline/target_array", 1)
+        self.bufferKDTree: KDNode = None
 
         LOGGER.info("---Cone Pipeline Node Initalised---")
         self.logger.debug("---Cone Pipeline Node Initalised---")
 
+    def getNearestOdom(self, stamp):
+        # need to switch this over to a position from a EKF with covariance
+        locodom = self.cache.getElemBeforeTime(stamp)
+        cov = np.identity(3) * 0.0025 # standin covariance for ekf assuming the variance is sigma = 5cm with no covariance
+        return locodom, cov
+
+    def fuseCone(self, point):
+        closestcone = self.conesKDTree.search_knn(point, 1)
+        if closestcone[0][1] < 0.5:
+            closestcone[0][0].update(point)
+            self.conesKDTree.rebalance()
+        else:
+            self.bufferCone(point)
+            
+
+    def bufferCone(self, point):
+        if self.bufferKDTree is not None:
+            closestcone = self.bufferKDTree.search_knn(point, 1)
+            if closestcone[0][1] < 0.5:
+                pointnew = closestcone[0][0]
+                pointnew.update(point)
+                self.bufferKDTree.remove(pointnew)
+                if self.conesKDTree is not None:
+                    self.conesKDTree.add(pointnew)
+                    self.conesKDTree.rebalance()
+                else:
+                    self.conesKDTree = kdtree.create([point])
+                self.bufferKDTree.rebalance()
+            else:
+                self.bufferKDTree.add(point)
+                self.bufferKDTree.rebalance()
+        else:
+            self.bufferKDTree = kdtree.create([point])
+
+    def fusePoints(self, points):
+        if self.conesKDTree is not None:
+            for point in points:
+                self.fuseCone(point)
+        else:
+            for point in points:
+                self.bufferCone(point)
+        
+        
+    def lidarCallback(self, points: PointWithCovarianceStampedArray):
+        if len(points.points) > 0:
+            msgs = self.printmarkers and self.lidar_markers.get_subscription_count() > 0
+            header = points.points[0].header
+            odomloc, odomcov = self.getNearestOdom(header.stamp)
+            orientation_q = odomloc.pose.pose.orientation
+            orientation_list = [orientation_q.w, orientation_q.x, orientation_q.y, orientation_q.z]
+            (roll, pitch, theta)  = quat2euler(orientation_list)
+            x = odomloc.pose.pose.position.x
+            y = odomloc.pose.pose.position.y
+            z = odomloc.pose.pose.position.z
+            
+            conelist: List[PointWithCov] = []
+            markers: List[Marker] = []
+            for point in points.points:
+                p = PointWithCov(point.position.x, point.position.y, point.position.z, np.array(point.covariance).reshape((3,3)), point.header)
+                p.translate(x, y, z, theta, odomcov)
+                conelist.append(p)
+                if msgs:
+                    markers.append(p.getCov)
+                    markers.append(p.getMarker)
+            if msgs:
+                mkr = MarkerArray()
+                mkr.markers = markers
+                self.lidar_markers.publish(mkr)
+            self.fusePoints(conelist)
+
+    def visionCallback(self, points: PointWithCovarianceStampedArray):
+        if len(points.points) > 0:
+            msgs = self.printmarkers and self.vision_markers.get_subscription_count() > 0
+            header = points.points[0].header
+            odomloc, odomcov = self.getNearestOdom(header.stamp)
+            orientation_q = odomloc.pose.pose.orientation
+            orientation_list = [orientation_q.w, orientation_q.x, orientation_q.y, orientation_q.z]
+            (roll, pitch, theta)  = quat2euler(orientation_list)
+            x = odomloc.pose.pose.position.x
+            y = odomloc.pose.pose.position.y
+            z = odomloc.pose.pose.position.z
+            
+            conelist: List[PointWithCov] = []
+            markers: List[Marker] = []
+            for point in points.points:
+                p = PointWithCov(point.position.x, point.position.y, point.position.z, np.array(point.covariance).reshape((3,3)), point.header)
+                p.translate(x, y, z, theta, odomcov)
+                conelist.append(p)
+                if msgs:
+                    markers.append(p.getCov)
+                    markers.append(p.getMarker)
+            if msgs:
+                mkr = MarkerArray()
+                mkr.markers = markers
+                self.vision_markers.publish(mkr)
+            self.fusePoints(conelist)
 
 
 
