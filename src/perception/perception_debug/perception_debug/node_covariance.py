@@ -63,7 +63,7 @@ class CovNode(Node):
 
         # create the critical subscriptions
         self.create_subscription(ConeDetectionStamped, "/detector/cone_detection", self.visionCallback, 10)
-        self.create_subscription(ConeDetectionStamped, "lidar/cone_detection", self.lidarCallback, 10)
+        self.create_subscription(ConeDetectionStamped, "/cone_sensing/cones", self.lidarCallback, 10)
         self.create_subscription(Track, "/testing_only/track", self.mapCallback, 10)
         sub = message_filters.Subscriber(self, Odometry, "/testing_only/odom")
         self.cache = message_filters.Cache(sub, 100)
