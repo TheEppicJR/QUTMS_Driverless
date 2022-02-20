@@ -21,8 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             "cov = perception_debug.node_covariance:main",
-            "lidar_sim = perception_debug.node_detector:main_cv2",
-            "vision_sim = perception_debug.node_detector:main_torch",
+            "perception_sim = perception_debug.node_perception_sim:main",
         ],
     },
 )

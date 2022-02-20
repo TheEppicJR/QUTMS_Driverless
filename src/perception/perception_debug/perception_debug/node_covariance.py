@@ -1,7 +1,5 @@
 # import ROS2 libraries
 from cmath import sqrt
-from tkinter import N
-from tkinter.messagebox import NO
 import rclpy
 from rclpy.node import Node
 from rclpy.time import Time
@@ -29,8 +27,6 @@ from typing import List, Tuple, Callable
 import time
 import enum
 from sklearn.neighbors import KDTree
-from matplotlib.colors import LogNorm
-from scipy.interpolate import interp2d
 import matplotlib.pyplot as plt
 import cv2
 
@@ -63,7 +59,7 @@ class CovNode(Node):
 
         # create the critical subscriptions
         self.create_subscription(ConeDetectionStamped, "/detector/cone_detection", self.visionCallback, 10)
-        self.create_subscription(ConeDetectionStamped, "/cone_sensing/cones", self.lidarCallback, 10)
+        self.create_subscription(ConeDetectionStamped, "lidar/cone_detection", self.lidarCallback, 10) # "/cone_sensing/cones"
         self.create_subscription(Track, "/testing_only/track", self.mapCallback, 10)
         sub = message_filters.Subscriber(self, Odometry, "/testing_only/odom")
         self.cache = message_filters.Cache(sub, 100)
@@ -82,7 +78,7 @@ class CovNode(Node):
         self.vision_cc_publisher: Publisher = self.create_publisher(Image, "/vision_debug/cc", 1)
         self.vision_ee_publisher: Publisher = self.create_publisher(Image, "/vision_debug/ee", 1)
 
-        self.radial = True
+        self.radial = False
         self.camerafov = 55
         self.lidarfov = 90
         # make the global variables
@@ -111,8 +107,6 @@ class CovNode(Node):
         counts, xbins, ybins = np.histogram2d(x, y, bins=(20, 30), range=[[ymin, ymax], [xmin, xmax]])
         sums, _, _ = np.histogram2d(x, y, weights=d, bins=(xbins, ybins))
         fig, ax = plt.subplots()
-        # have to add one so it dosent crash if the diffrence from max to min is 0
-        #levels = np.linspace(d.min(), d.max()+1, 7)
 
         #ax.plot(x, y, 'o', markersize=2, color='grey')
         #ax.tricontourf(x, y, d, levels=levels)
@@ -124,7 +118,6 @@ class CovNode(Node):
         with np.errstate(divide='ignore', invalid='ignore'):  # suppress possible divide-by-zero warnings
             m3 = ax.pcolormesh(ybins, xbins, sums / counts, cmap=colors)
         plt.colorbar(m3, ax=ax)
-        #ax.set_title('mean values')
 
         fig.canvas.draw()
         img = np.fromstring(fig.canvas.tostring_rgb(), dtype=np.uint8, sep='')
@@ -137,6 +130,7 @@ class CovNode(Node):
 
     def plot(self):
         if self.lidarcones is not None:
+            #print(f"Lidar: {np.cov(self.lidarcones[:, 4:7], rowvar=False)}")
             if self.lidar_dx_publisher.get_subscription_count() > 0:
                 self.lidar_dx_publisher.publish(cv_bridge.cv2_to_imgmsg(self.pltsparce(self.lidarcones[:, 0], self.lidarcones[:, 1], self.lidarcones[:, 4], camera=False), encoding="bgr8"))
             if self.lidar_dy_publisher.get_subscription_count() > 0:
@@ -152,6 +146,7 @@ class CovNode(Node):
                 self.lidar_ee_publisher.publish(cv_bridge.cv2_to_imgmsg(self.pltsparce(self.lidarconese[:, 0], self.lidarconese[:, 1], self.lidarconese[:, 7], camera=False), encoding="bgr8"))
             
         if self.visioncones is not None:
+            #print(f"Vision: {np.cov(self.visioncones[:, 4:7], rowvar=False)}")
             if self.vision_dx_publisher.get_subscription_count() > 0:
                 self.vision_dx_publisher.publish(cv_bridge.cv2_to_imgmsg(self.pltsparce(self.visioncones[:, 0], self.visioncones[:, 1], self.visioncones[:, 4]), encoding="bgr8"))
             if self.vision_dy_publisher.get_subscription_count() > 0:
@@ -251,7 +246,7 @@ class CovNode(Node):
                     ly = normalize_angle(theta)*180/3.1415
 
                 # now add that data to a array
-                if de > 1:
+                if de > 2:
                     errantPos.append([lx, ly, lz, pc, dx, dy, dz, de, ac, cc])
                 else:
                     conePos.append([lx, ly, lz, pc, dx, dy, dz, de, ac, cc])
