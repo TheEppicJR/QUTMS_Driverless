@@ -1,4 +1,4 @@
-# Import Helper Modules
+# Import Python Modules
 import numpy as np
 
 
@@ -12,7 +12,7 @@ def get_discretised_positions(point_cloud, point_norms, DELTA_ALPHA, BIN_SIZE):
     bins_idx = point_norms / BIN_SIZE
 
     # Stacking arrays segments_idx, bins_idx, point_norms, and z coords into one array
-    return np.column_stack((segments_idx.astype(int, copy=False), bins_idx.astype(int, copy=False), point_norms, point_cloud['z']))
+    return np.column_stack((segments_idx.astype(int, copy=False), bins_idx.astype(int, copy=False), point_norms, point_cloud['x'], point_cloud['y'], point_cloud['z']))
 
 
 def get_prototype_points(seg_bin_nrm_z, SEGMENT_COUNT, BIN_COUNT):
@@ -51,8 +51,20 @@ def get_discretised_positions_2(point_cloud, point_norms, DELTA_ALPHA, BIN_SIZE)
     # Calculating the bin index for each point
     bins_idx = point_norms / BIN_SIZE
 
-    # Stacking arrays segments_idx, bins_idx, point_norms, and z coords into one array
-    return np.column_stack((segments_idx.astype(int, copy=False), bins_idx.astype(int, copy=False), point_norms, point_cloud['x'], point_cloud['y'], point_cloud['z']))
+    # Stacking arrays segments_idx, bins_idx, point_norms, and xyz coords into one array
+    return segments_idx.astype(int, copy=False), bins_idx.astype(int, copy=False)
+
+
+def get_discretised_positions_3(point_cloud, point_norms, DELTA_ALPHA, BIN_SIZE):
+    # Calculating the segment index for each point
+    segments_idx = np.arctan(point_cloud['y'] / point_cloud['x']) / DELTA_ALPHA
+    np.nan_to_num(segments_idx, copy=False, nan=((np.pi / 2) / DELTA_ALPHA))  # Limit arctan x->inf = pi/2
+
+    # Calculating the bin index for each point
+    bins_idx = point_norms / BIN_SIZE
+
+    # Stacking arrays segments_idx, bins_idx, point_norms, and xyz coords into one array
+    return np.rec.fromarrays((segments_idx.astype(int, copy=False), bins_idx.astype(int, copy=False), point_norms, point_cloud['x'], point_cloud['y'], point_cloud['z']), names=('seg_idx', 'bin_idx', 'norms', 'x', 'y', 'z'))
 
 
 def get_prototype_points_2(seg_bin_nrm_z):
@@ -74,6 +86,48 @@ def get_prototype_points_2(seg_bin_nrm_z):
         seg_idx += 1
 
     return prototype_points, split_bin_nrm_z
+
+
+def get_prototype_points_3(seg_bin_nrm_xyz):
+    # Sorting points by segment idx then height (z) in ascending order
+    seg_bin_nrm_xyz = seg_bin_nrm_xyz[np.lexsort((np.absolute(seg_bin_nrm_xyz[:, 5]), seg_bin_nrm_xyz[:, 1], seg_bin_nrm_xyz[:, 0]))]
+    
+    # Splitting seg_bin_nrm_xyz into sub arrays for each unique segment
+    split_bin_nrm_xyz = np.split(seg_bin_nrm_xyz, np.where(np.diff(seg_bin_nrm_xyz[:, 0]))[0] + 1)
+
+    prototype_points = []
+    for segment in split_bin_nrm_xyz:
+        split_split_nrm_xyz = np.split(segment, np.where(np.diff(segment[:, 1]))[0] + 1)
+        
+        for bin in split_split_nrm_xyz:
+            prototype_points.append(bin[0])
+    
+    return None, None
+
+
+def get_prototype_points_4(segments, bins, point_norms, z):
+    # Indicies sorted by segments, then bins, then absolute z (height)
+    seg_bin_z_ind = np.lexsort((np.absolute(z), bins, segments))
+
+    # Indicies where neighbouring bins in array are different
+    bin_diff_ind = np.where((bins[seg_bin_z_ind])[:-1] != (bins[seg_bin_z_ind])[1:])[0] + 1
+
+    # Indicies of prototype points
+    proto_sorted_ind = np.empty(bin_diff_ind.size + 1, dtype=int)
+    proto_sorted_ind[0] = seg_bin_z_ind[0]
+    proto_sorted_ind[1:] = seg_bin_z_ind[bin_diff_ind]
+
+    # Prototype points and segment idx corresponding to each
+    prototype_points = np.column_stack((point_norms[proto_sorted_ind], z[proto_sorted_ind]))
+    prototype_segments = segments[proto_sorted_ind]
+
+    # Indicies where neighbouring prototype_segments value in array are different
+    proto_seg_diff = np.where(prototype_segments[:-1] != prototype_segments[1:])[0] + 1
+    
+    # Prototype points split into subarrays for each segment
+    split_prototype_segments = np.split(prototype_points, proto_seg_diff)
+
+    return split_prototype_segments, prototype_segments[np.concatenate((np.array([0]), proto_seg_diff))]
 
 # Notes
 # 1. For get_prototype_points() if needed you can revert back to using a numpy

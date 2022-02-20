@@ -147,7 +147,7 @@ def get_line_end_points(ground_plane, line_set_idx, DELTA_ALPHA):
 
 def get_point_line_dist(line_end_points, nearest_line_set, split_bin_nrm_z, SEGMENT_COUNT):
     # For each point, find closest line
-    point_line_dist = np.empty(SEGMENT_COUNT, dtype=object)
+    point_line_dist = np.zeros(SEGMENT_COUNT, dtype=object)
     for point_set in split_bin_nrm_z:
         seg_idx = int(point_set[0, 0])
 
@@ -199,3 +199,8 @@ def dist_points_3D(x_0, p_1, p_2):
 
     # return distance
     return dist_norm / p_norm
+
+
+def label_points_3(ground_plane):
+    print(ground_plane)
+    pass
