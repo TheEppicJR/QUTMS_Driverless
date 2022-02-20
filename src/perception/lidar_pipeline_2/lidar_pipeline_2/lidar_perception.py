@@ -109,6 +109,7 @@ class ConeSensingNode(Node):
         start_time = time.time()
         point_norms = np.linalg.norm([point_cloud['x'], point_cloud['y']], axis=0)
 
+
         # Creating mask to remove points outside of range and norms of 0
         mask = (point_norms <= self.LIDAR_RANGE) & (point_norms != 0)
 
@@ -246,6 +247,7 @@ def main(args=sys.argv[1:]):
                                             'print_logs',
                                             'sim'])
 
+
     for opt, arg in opts:
         if opt == '--pc_node':
             pc_node = arg
@@ -285,6 +287,10 @@ def main(args=sys.argv[1:]):
             print_logs = True
         elif opt == '--sim':
             pc_node = "/lidar/Lidar2"
+
+    if not print_logs:
+        print("--print_logs flag not specified")
+        print("Launching lidar_perception without printing to terminal ...")
 
     if not print_logs:
         print("--print_logs flag not specified")
@@ -391,3 +397,4 @@ if __name__ == '__main__':
 # 5. Unify logging directories
 # 6. Fix the total time estimates
 # 7. Only import what's required
+
