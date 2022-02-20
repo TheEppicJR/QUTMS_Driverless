@@ -165,7 +165,7 @@ class DetectorNode(Node):
             header=colour_msg.header,
             cones=detected_cones,
         )
-
+        print("got to publishing stage")
         self.detection_publisher.publish(detection_msg)
         self.debug_img_publisher.publish(cv_bridge.cv2_to_imgmsg(colour_frame, encoding="bgra8"))
 

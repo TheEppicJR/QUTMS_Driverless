@@ -5,19 +5,17 @@ from rclpy.node import Node
 # Import ROS2 Message Modules
 from sensor_msgs.msg import PointCloud2
 
-# Import ROS2 Helper Modules
-import ros2_numpy as rnp
-
 # Import Custom Message Modules
 from driverless_msgs.msg import ConeDetectionStamped
 
-# Import Custom Modules
-from .library.lidar_manager import detect_cones
+# Import ROS2 Helper Modules
+import ros2_numpy as rnp
 
-# Import Helper Modules
-import numpy as np
+# Import Custom Modules
+from .library import lidar_manager
 
 # Import Python Modules
+import numpy as np
 import datetime
 import pathlib
 import os
@@ -74,6 +72,8 @@ class ConeSensingNode(Node):
 
         # Main variables for lidar manager
         self.LIDAR_RANGE = _LIDAR_RANGE
+        self.DELTA_ALPHA = _DELTA_ALPHA
+        self.BIN_SIZE = _BIN_SIZE
         self.T_M = _T_M
         self.T_M_SMALL = _T_M_SMALL
         self.T_B = _T_B
@@ -93,12 +93,13 @@ class ConeSensingNode(Node):
         LOGGER.info('Waiting for PointCloud2 data ...')
 
     def pc_callback(self, pc_msg):
+        timestamp = create_timestamp()
         LOGGER.info('PointCloud2 message received at ' + timestamp)
 
         # Convert PointCloud2 message from LiDAR sensor to numpy array
         start_time = time.time()
-        dtype_list = rnp.point_cloud2.fields_to_dtype(pc_msg.fields, pc_msg.point_step) # x y z intensity ring
-        pc_matrix = np.frombuffer(pc_msg.data, dtype_list)
+        dtype_list = rnp.point_cloud2.fields_to_dtype(pc_msg.fields, pc_msg.point_step)  # x y z intensity ring
+        point_cloud = np.frombuffer(pc_msg.data, dtype_list)
         end_time = time.time()
 
         LOGGER.info(f'PointCloud2 converted to numpy array in {end_time - start_time}s')
@@ -181,11 +182,30 @@ def main(args=sys.argv[1:]):
     print_logs = False
     stdout_handler = None
 
-    global lidar_range
-    lidar_range = 90
+    # Max range of points to process (metres)
+    LIDAR_RANGE = 20
 
-    global delta_alpha
-    delta_alpha = 2 * math.pi / 128  # Delta angle of segments
+    # Delta angle of segments
+    DELTA_ALPHA = (2 * math.pi) / 128
+
+    # Size of bins
+    BIN_SIZE = 0.14
+
+    # Max angle that will be considered for ground lines
+    T_M = (2 * math.pi) / 152
+
+    # Angle considered to be a small slope
+    T_M_SMALL = 0
+
+    # Max y-intercept for a ground plane line
+    T_B = 0.1
+
+    # Threshold of the Root Mean Square Error of the fit (Recommended: 0.2 - 0.5)
+    T_RMSE = 0.2
+
+    # Determines if regression for ground lines should occur between two
+    # neighbouring bins when they're described by different lines
+    REGRESS_BETWEEN_BINS = True
 
     # Maximum distance a point can be from the origin to even be considered as
     # a ground point. Otherwise it's labelled as a non-ground point.
@@ -223,7 +243,8 @@ def main(args=sys.argv[1:]):
                                             'show_figures',
                                             'animate_figures',
                                             'export_data',
-                                            'print_logs'])
+                                            'print_logs',
+                                            'sim'])
 
     for opt, arg in opts:
         if opt == '--pc_node':
@@ -233,7 +254,7 @@ def main(args=sys.argv[1:]):
         elif opt == '--lidar_range':
             LIDAR_RANGE = int(arg)
         elif opt == '--delta_alpha':
-            delta_alpha = arg
+            DELTA_ALPHA = arg
         elif opt == '--bin_size':
             BIN_SIZE = arg
         elif opt == '--t_m':
@@ -262,6 +283,8 @@ def main(args=sys.argv[1:]):
             export_data = True
         elif opt == '--print_logs':
             print_logs = True
+        elif opt == '--sim':
+            pc_node = "/lidar/Lidar2"
 
     if not print_logs:
         print("--print_logs flag not specified")
@@ -295,7 +318,6 @@ def main(args=sys.argv[1:]):
 
     LOGGER.info('Hi from lidar_pipeline_2.')
     LOGGER.info(f'args = {args}')
-    LOGGER.info(f'pc_node = {pc_node}')
 
     # Use local data or real-time stream
     if data_path != None:

@@ -61,7 +61,7 @@ LEFT_CONE_COLOUR = Cone.BLUE
 RIGHT_CONE_COLOUR = Cone.YELLOW
 
 
-def normalize_angle(angle):
+def normalize_angle(angle: float) -> float:
     """
     Normalize an angle to [-pi, pi].
     :param angle: (float)
@@ -88,18 +88,12 @@ def robot_pt_to_img_pt(x: float, y: float) -> Point:
     )
 
 def angle_between_angles(theta: float, phi: float, spread: float) -> bool:
-    a, b = lim2pi(phi - spread), lim2pi(phi + spread)
+    a, b = normalize_angle(phi - spread), normalize_angle(phi + spread)
     if a < b and theta > a and theta < b:
         return True
     if a > b and (theta < a or theta > b):
         return True
     return False
-
-def lim2pi(theta: float) -> float:
-    if (theta > pi): phi=theta-2*pi
-    elif (theta < -pi): phi=theta+2*pi
-    else: phi = theta
-    return phi
 
 def dist(a: Point, b: Point) -> float:
     return sqrt((a.x-b.x)**2 + (a.y-b.y)**2)

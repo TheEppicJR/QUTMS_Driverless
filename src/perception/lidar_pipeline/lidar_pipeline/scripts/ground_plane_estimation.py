@@ -424,28 +424,28 @@ def get_cones(reconstructed_clusters: List[List]) -> List[List]:
 def get_ground_plane(point_cloud: List[List]) -> List[List]:
     # might be able to modifiy segments directly if label points doesn't need it
     start_time: float = time.time()
-    now: float = time.time()
+    #now: float = time.time()
     segments_bins: List[List[List]] = points_to_seg_bin(point_cloud)
-    print("points_to_seg_bin", time.time() - now)
+    #print("points_to_seg_bin", time.time() - now)
     
     #if VISUALISE: vis.plot_segments_bins(segments_bins, False)
 
-    now = time.time()
+    #now = time.time()
     segments_bins_prototype: List[List[List]] = approximate_2D(segments_bins)
-    print("approximate_2D", time.time() - now)
+    #print("approximate_2D", time.time() - now)
 
-    now = time.time()
-    print(len(point_cloud))
+    #now = time.time()
+    #print(len(point_cloud))
     ground_plane: List[List[List]] = line_extraction.get_ground_plane(segments_bins_prototype, NUM_SEGMENTS, NUM_BINS)
-    print("get_ground_plane", time.time() - now)
+    #print("get_ground_plane", time.time() - now)
     
 
     #if VISUALISE: vis.plot_ground_lines_3D(segments_bins_prototype, ground_plane, False)
     #if VISUALISE: vis.plot_segments_fitted(segments_bins_prototype, ground_plane)
 
-    now = time.time()
+    #now = time.time()
     cluster_centers = DBSCAN.get_objects(label_points_np(segments_bins, ground_plane))
-    print("my_ground_plane_removal", time.time() - now)
+    #print("my_ground_plane_removal", time.time() - now)
     return cluster_centers #lol
 
     now = time.time()
