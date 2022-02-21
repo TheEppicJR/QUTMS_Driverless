@@ -47,6 +47,7 @@ class PointWithCov:
         self.global_z: float = None
         self.global_cov: np.array = None
         self.header: Header = header
+        self.nMeasurments: int = 0
     
     def translate(self, x, y, z, theta, g_cov):
         s, c = sin(theta), cos(theta)
@@ -65,6 +66,7 @@ class PointWithCov:
         self.global_y = m3[1]
         self.global_z = m3[2]
         self.coords = (self.global_x, self.global_y)
+        self.nMeasurments += 1
 
     def dist(self, other:"PointWithCov"):
         return sqrt((self.global_x-other.global_x)**2+(self.global_y-other.global_y)**2+(self.global_z-other.global_z)**2)
@@ -73,7 +75,8 @@ class PointWithCov:
         return point_msg(self.global_x, self.global_y, self.global_z, id, self.header)
 
     def getCov(self, id: int):
-        return cov_msg(self.global_x, self.global_y, self.global_z, id, self.header, sqrt(self.global_cov[0,0]), sqrt(self.global_cov[1,1]), sqrt(self.global_cov[2,2]))
+        # make a deformed sphere at 3 sigma of the variance in each axis (the diagnal elements of the covariance matrix are squared so we gotta sqrt)
+        return cov_msg(self.global_x, self.global_y, self.global_z, id, self.header, 3*sqrt(self.global_cov[0,0]), 3*sqrt(self.global_cov[1,1]), 3*sqrt(self.global_cov[2,2]))
 
     def __len__(self):
         return len(self.coords)

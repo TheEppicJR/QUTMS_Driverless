@@ -371,6 +371,13 @@ class KDNode(Node):
         return all(c.is_balanced for c, _ in self.children)
 
 
+    def returnElements(self):
+        """
+        Returns list of all nodes
+        """
+
+        return [x.data for x in self.inorder()]
+
     def rebalance(self):
         """
         Returns the (possibly new) root of the rebalanced tree

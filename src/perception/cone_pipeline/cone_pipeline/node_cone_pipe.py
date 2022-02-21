@@ -1,14 +1,12 @@
+# !NUT
 # import ROS2 libraries
-import imp
 import rclpy
 from rclpy.node import Node
 from rclpy.publisher import Publisher
 from rclpy.time import Time
 import rclpy.logging
-from cv_bridge import CvBridge
 import message_filters
 # import ROS2 message libraries
-from sklearn import cluster
 from std_msgs.msg import Header
 from visualization_msgs.msg import Marker, MarkerArray
 from nav_msgs.msg import Odometry
@@ -20,15 +18,12 @@ from typing import List
 
 
 # other python modules
-from math import sqrt, atan2, pi, sin, cos, atan
-import cv2
 import numpy as np
 import sys
 import os
 import getopt
 import logging
 import pathlib
-import time
 
 from transforms3d.euler import quat2euler
 
@@ -39,10 +34,6 @@ from . import kdtree
 
 # initialise logger
 LOGGER = logging.getLogger(__name__)
-
-# translate ROS image messages to OpenCV
-cv_bridge = CvBridge()
-
 
 LEFT_CONE_COLOUR = QUTCone.BLUE
 RIGHT_CONE_COLOUR = QUTCone.YELLOW
@@ -81,41 +72,111 @@ class ConePipeline(Node):
         return locodom, cov
 
     def fuseCone(self, point):
+        # find the closest cone in the cone tree
         closestcone = self.conesKDTree.search_knn(point, 1)
+        # if its close enough to a actual cone than fuse it and rebalance in case it moved a bit too much (should only really matter for the orange cones near the start and may not need to rebalance at this step but why not) (im sure i will remove the rebalance to spare my cpu later and then the whole thing will break lol)
         if closestcone[0][1] < 0.5:
             closestcone[0][0].update(point)
             self.conesKDTree.rebalance()
+        # otherwise check it against the buffer
         else:
             self.bufferCone(point)
             
 
     def bufferCone(self, point):
+        # if we already have a list of possible cones then look through that tree for something close
         if self.bufferKDTree is not None:
+            # find the closest possible cone to the possible cone
             closestcone = self.bufferKDTree.search_knn(point, 1)
+            # see if it is close enough for our liking (ths distance in m) than we will turn it into a actual cone
             if closestcone[0][1] < 0.5:
+                # select the first group from the returned tuple (point objects) and then get the first one (which will be our point since we only asked for one)
                 pointnew = closestcone[0][0]
+                # fuse the points together
                 pointnew.update(point)
+                # remove the point from the buffer tree
                 self.bufferKDTree.remove(pointnew)
+                # if there is already a tree of Offical Cones tm than add it to that tree and then rebalance it
                 if self.conesKDTree is not None:
                     self.conesKDTree.add(pointnew)
                     self.conesKDTree.rebalance()
+                # if not than make a tree for them
                 else:
                     self.conesKDTree = kdtree.create([point])
+                # the rebalance the buffer tree since we removed something
                 self.bufferKDTree.rebalance()
+            # if nothind is close in the buffer than add it to the buffer tree and rebalance
             else:
                 self.bufferKDTree.add(point)
                 self.bufferKDTree.rebalance()
+        # if we dont already have a buffer tree than create one (this should only ever happen once i hope, otherwise something has gone horrible wrong)
         else:
             self.bufferKDTree = kdtree.create([point])
 
     def fusePoints(self, points):
+        # if we have cones in the cone tree than check if we can fuse our new points with them
         if self.conesKDTree is not None:
             for point in points:
                 self.fuseCone(point)
+        # if not we will check them against the buffer (or create a buffer) this should happen the tirst two cycles the fuse points is run (first there wont be either tree and the second time there wont be a cone tree yet)
         else:
             for point in points:
                 self.bufferCone(point)
-        
+        # if we have cones we are sure about than send them out in messages
+        if self.conesKDTree is not None:
+            # make a bool to determine if we are going to spend the time to generate markers
+            msgs = self.printmarkers and self.filtered_markers.get_subscription_count() > 0
+            # get all the cone elements from the tree structure
+            curcones = self.conesKDTree.returnElements()
+            # create the lists to fill with our elements
+            conelist: List[QUTCone] = []
+            conelist_cov: List[PointWithCovarianceStamped] = []
+            markers: List[Marker] = []
+            for cone in curcones:
+                # should probabbly put a filter for how many times a cone has actually been spotted
+
+                # create out messages to be published with the final cones that we found
+                pubpt_cov = PointWithCovarianceStamped()
+                pubpt = QUTCone()
+                # create a point at the location of the cone
+                point = Point()
+                point.x = cone.global_x
+                point.y = cone.global_y
+                point.z = cone.global_z
+                # create the row major 3x3 cov matrix for the message elements
+                pubpt_cov.covariance = cone.global_cov.flatten()
+                # set those parts of the message
+                pubpt_cov.position = point
+                pubpt_cov.header = cone.header
+                pubpt.location = point
+                # i dont want to deal with color yert
+                pubpt.color = 4
+
+                # append those elements to the list of elements for the message
+                conelist.append(pubpt)
+                conelist_cov.append(pubpt_cov)
+
+                if msgs:
+                    markers.append(cone.getCov())
+                    markers.append(cone.getMarker())
+            if msgs:
+                mkr = MarkerArray()
+                mkr.markers = markers
+                self.lidar_markers.publish(mkr)
+            
+            # create a ConeDetectionStamped message
+            coneListPub = ConeDetectionStamped()
+            coneListPub.cones = conelist
+            # idk what makes sense for setting the header on this detection, this is probably wrong but idc atm
+            coneListPub.header = curcones[0].header
+            # create a PointWithCovarianceStampedArray message
+            coneListPubCov = PointWithCovarianceStampedArray()
+            coneListPubCov.points = conelist_cov
+            # publish the messages
+            self.filtered_markers.publish(coneListPub)
+            self.filtered_cones_pub.publish(coneListPubCov)
+
+        # need to make a section to remove old points from the buffer
         
     def lidarCallback(self, points: PointWithCovarianceStampedArray):
         if len(points.points) > 0:
@@ -136,8 +197,8 @@ class ConePipeline(Node):
                 p.translate(x, y, z, theta, odomcov)
                 conelist.append(p)
                 if msgs:
-                    markers.append(p.getCov)
-                    markers.append(p.getMarker)
+                    markers.append(p.getCov())
+                    markers.append(p.getMarker())
             if msgs:
                 mkr = MarkerArray()
                 mkr.markers = markers
@@ -163,8 +224,8 @@ class ConePipeline(Node):
                 p.translate(x, y, z, theta, odomcov)
                 conelist.append(p)
                 if msgs:
-                    markers.append(p.getCov)
-                    markers.append(p.getMarker)
+                    markers.append(p.getCov())
+                    markers.append(p.getMarker())
             if msgs:
                 mkr = MarkerArray()
                 mkr.markers = markers
@@ -199,7 +260,7 @@ def main(args=sys.argv[1:]):
     if not os.path.isdir(path + '/logs'):
         os.mkdir(path + '/logs')
 
-    date = "hi"
+    date = "hi" # Hi!
     logging.basicConfig(
         filename=f'{path}/logs/{date}.log',
         filemode='w',
