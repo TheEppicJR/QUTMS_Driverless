@@ -36,19 +36,56 @@ class PointWithCov:
         loc_y: float,
         loc_z: float,
         loc_cov: np.array,
+        color: int,
         header: Header
         ) -> None:
         self.loc_x: float = loc_x
         self.loc_y: float = loc_y
         self.loc_z: float = loc_z
         self.loc_cov: np.array = loc_cov
+        self.color: int = color
+        self.isyellow = 0
+        self.isblue = 0
+        self.isorange = 0
+        self.isbig = 0
+        self.issmall = 0
         self.global_x: float = None
         self.global_y: float = None
         self.global_z: float = None
         self.global_cov: np.array = None
         self.header: Header = header
         self.nMeasurments: int = 0
+        self.ncMeasurments: int = 0
     
+    def updatecolor(self, color):
+        if color == 0:
+            self.isblue += 1
+            self.ncMeasurments += 1
+        elif color == 1:
+            self.isyellow += 1
+            self.ncMeasurments += 1
+        elif color == 2:
+            self.isorange += 1
+            self.isbig += 1
+            self.ncMeasurments += 1
+        elif color == 3:
+            self.isorange += 1
+            self.issmall += 1
+            self.ncMeasurments += 1
+        else:
+            pass
+        if self.isblue / self.ncMeasurments > 0.7:
+            self.color = 0
+        elif self.isyellow / self.ncMeasurments > 0.7:
+            self.color = 1
+        elif self.isorange / self.ncMeasurments > 0.7:
+            if self.isbig / (self.isbig+self.issmall) > 0.5:
+                self.color = 2
+            else:
+                self.color = 3
+        else:
+            self.color = 4
+
     def translate(self, x, y, z, theta, g_cov):
         s, c = sin(theta), cos(theta)
         rotation_matrix = [[c, -1*s, 0],[s, c, 0], [0, 0, 1]]
@@ -67,10 +104,12 @@ class PointWithCov:
         self.global_z = m3[2]
         self.coords = (self.global_x, self.global_y)
         self.nMeasurments += 1
+        self.updatecolor(other.color)
 
     def dist(self, other:"PointWithCov"):
         return sqrt((self.global_x-other.global_x)**2+(self.global_y-other.global_y)**2+(self.global_z-other.global_z)**2)
 
+    # should add cone color to this
     def getMarker(self, id: int):
         return point_msg(self.global_x, self.global_y, self.global_z, id, self.header)
 

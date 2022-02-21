@@ -149,8 +149,8 @@ class ConePipeline(Node):
                 pubpt_cov.position = point
                 pubpt_cov.header = cone.header
                 pubpt.location = point
-                # i dont want to deal with color yert
-                pubpt.color = 4
+                # set its color
+                pubpt.color = cone.color
 
                 # append those elements to the list of elements for the message
                 conelist.append(pubpt)
