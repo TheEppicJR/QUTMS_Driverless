@@ -55,8 +55,8 @@ class ZedNode(Node):
         self.rgb_img_publisher: Publisher = self.create_publisher(Image, "/zed2i/zed_node/rgb/image_rect_color", 1)
         self.rgb_img_info_publisher: Publisher = self.create_publisher(CameraInfo, "/zed2i/zed_node/rgb/camera_info", 1)
         self.camera_info = CameraInfo()
-        self.camera_info.height = 1080
-        self.camera_info.width = 1920
+        self.camera_info.height = 360
+        self.camera_info.width = 640
     
 
     def depth_callback(self, colour_msg: Image):#, colour_camera_info_msg: CameraInfo):

@@ -115,7 +115,7 @@ class PointWithCov:
         # get the vector between the points
         vector = [self.global_x-other.global_x, self.global_y-other.global_y, self.global_z-other.global_z]
         # get the normalized vector between the points
-        dist = sqrt(vector[0]**2+vector[1]**2+vector[2]**2)
+        dist = sqrt(vector[0]**2+vector[1]**2+vector[2]**2)+ 0.00001
         # calculate the distance fo 3 sigma in the direction of the normal vector
         selfTwosig = sqrt(((vector[0] / dist) * sqrt(self.global_cov[0,0]))**2 + ((vector[1] / dist) * sqrt(self.global_cov[1,1]))**2 + ((vector[2] / dist) * sqrt(self.global_cov[2,2]))**2) * 3
         otherTwosig = sqrt(((vector[0] / dist) * sqrt(other.global_cov[0,0]))**2 + ((vector[1] / dist) * sqrt(other.global_cov[1,1]))**2 + ((vector[2] / dist) * sqrt(other.global_cov[2,2]))**2) * 3

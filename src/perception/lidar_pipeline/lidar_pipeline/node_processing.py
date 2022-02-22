@@ -10,9 +10,11 @@ from geometry_msgs.msg import Point
 from visualization_msgs.msg import Marker, MarkerArray
 from builtin_interfaces.msg import Duration
 # import custom message libraries
-from driverless_msgs.msg import Cone, ConeDetectionStamped
+from driverless_msgs.msg import Cone, ConeDetectionStamped, PointWithCovarianceStamped, PointWithCovarianceStampedArray
 
 # other python modules
+from math import sin, cos, radians, isnan, isinf
+import numpy as np
 import time
 from typing import List
 import sys
@@ -76,7 +78,25 @@ def marker_msg(x_coord: float, y_coord: float, ID: int, head: Header) -> Marker:
 
     return marker
 
+def cone_msg_cov(
+    x_coord: float,
+    y_coord: float,
+    cov: List[int],
+    header: Header
+) -> Cone:
 
+    location = Point(
+        x=x_coord,
+        y=y_coord,
+        z=0.0,
+    )
+
+    return PointWithCovarianceStamped(
+        position=location,
+        color=4,
+        header=header,
+        covariance=cov
+    )
 class LidarProcessing(Node):
     def __init__(self, pc2_topic: str, visualise: bool, display: bool, max_range: int):
         super().__init__('lidar_processor')
@@ -96,10 +116,14 @@ class LidarProcessing(Node):
             "lidar/cone_detection", 
             1)
 
+        self.detection_publisher_cov: Publisher = self.create_publisher(PointWithCovarianceStampedArray, "/lidar/cone_detection_cov", 1)
+
         self.marker_publisher: Publisher = self.create_publisher(
             MarkerArray, 
             "lidar/debug_cones_array", 
             1)
+
+        self.lidarcov = np.array([[ 0.0625,  0, 0], [ 0, 0.0625, 0], [0, 0,  0.01]])
 
         LOGGER.info('---LiDAR processing node initialised---')
         self.logger.debug('---LiDAR processing node initialised---')
@@ -129,6 +153,7 @@ class LidarProcessing(Node):
         # define message component - list of Cone type messages
         detected_cones: List[Cone] = []
         markers_list: List[Marker] = []
+        detected_cones_cov: List[PointWithCovarianceStamped] = []
         for i in range(len(cones)):
             # add cone to msg list
             detected_cones.append(cone_msg(
@@ -141,15 +166,20 @@ class LidarProcessing(Node):
                 i, 
                 pc2_msg.header,
             ))
-
+            detected_cones_cov.append(cone_msg_cov(cones[i][0], cones[i][1], self.lidarcov.flatten(), pc2_msg.header))
         detection_msg = ConeDetectionStamped(
             header=pc2_msg.header,
             cones=detected_cones
         )
 
+        detection_msg_cov = PointWithCovarianceStampedArray(
+            points=detected_cones_cov,
+        )
+
         markers_msg = MarkerArray(markers=markers_list)
 
         self.detection_publisher.publish(detection_msg) # publish cone data
+        self.detection_publisher_cov.publish(detection_msg_cov)
         self.marker_publisher.publish(markers_msg) # publish marker points data
 
         LOGGER.info("Total Time:" + str(time.time()-start))

@@ -1,4 +1,5 @@
 # import ROS2 libraries
+from turtle import position
 import rclpy
 from rclpy.node import Node
 from rclpy.publisher import Publisher
@@ -14,7 +15,7 @@ from std_msgs.msg import Header
 # translate ROS image messages to OpenCV
 cv_bridge = CvBridge()
 # import custom message libraries
-from driverless_msgs.msg import Cone, ConeDetectionStamped
+from driverless_msgs.msg import Cone, ConeDetectionStamped, PointWithCovarianceStamped, PointWithCovarianceStampedArray
 
 # other python libraries
 import os
@@ -28,7 +29,7 @@ import enum
 # import required sub modules
 from .rect import Rect, draw_box
 
-CAMERA_FOV = 110  # degrees
+CAMERA_FOV = 100  # degrees
 
 # display colour constants
 Colour = Tuple[int, int, int]
@@ -90,6 +91,27 @@ def cone_msg(
         color=colour,
     )
 
+def cone_msg_cov(
+    distance: float,
+    bearing: float,
+    colour: int,  # {Cone.YELLOW, Cone.BLUE, Cone.ORANGE_SMALL}
+    cov: List[int],
+    header: Header
+) -> Cone:
+
+    location = Point(
+        x=distance*cos(radians(bearing)),
+        y=distance*sin(radians(bearing)),
+        z=0.0,
+    )
+
+    return PointWithCovarianceStamped(
+        position=location,
+        color=colour,
+        header=header,
+        covariance=cov
+    )
+
 
 class ModeEnum(enum.Enum):
     cv_thresholding = 0
@@ -106,16 +128,20 @@ class DetectorNode(Node):
         super().__init__("cone_detector")
 
         # subscribers
-        colour_sub = message_filters.Subscriber(self, Image, "/zed2i/zed_node/rgb/image_rect_color")
-        self.colour_cache = message_filters.Cache(colour_sub, 10)
-        depth_sub = message_filters.Subscriber(self, Image, "/zed2i/zed_node/depth/depth_registered")
+        # colour_sub = message_filters.Subscriber(self, Image, "/zed2i/zed_node/rgb/image_rect_color")
+        # self.colour_cache = message_filters.Cache(colour_sub, 10)
+        depth_sub = message_filters.Subscriber(self, Image, "/fsds/camera/depth_registered")
         self.depth_cache = message_filters.Cache(depth_sub, 10)
-        self.create_subscription(CameraInfo, "/zed2i/zed_node/rgb/camera_info", self.callback, 10)
+        # self.create_subscription(CameraInfo, "/zed2i/zed_node/rgb/camera_info", self.callback, 10)
+        self.create_subscription(Image, "/fsds/camera/image_rect_color", self.callback, 10)
 
 
         # publishers
         self.detection_publisher: Publisher = self.create_publisher(ConeDetectionStamped, "/detector/cone_detection", 1)
+        self.detection_publisher_cov: Publisher = self.create_publisher(PointWithCovarianceStampedArray, "/detector/cone_detection_cov", 1)
         self.debug_img_publisher: Publisher = self.create_publisher(Image, "/detector/debug_img", 1)
+
+        self.visioncov = np.array([[ 0.0625,  0, 0], [ 0, 0.0625, 0], [0, 0,  0.01]])
 
         # set which cone detection this will be using
         self.get_logger().info("Selected detection mode. 0==cv2, 1==torch, 2==trt")
@@ -124,9 +150,11 @@ class DetectorNode(Node):
         self.get_bounding_boxes_callable = get_bounding_boxes_callable
 
 
-    def callback(self, colour_camera_info_msg: CameraInfo):
-        stamp = colour_camera_info_msg.header.stamp
-        colour_msg = self.colour_cache.getElemAfterTime(Time(seconds=stamp.sec, nanoseconds=stamp.nanosec, clock_type=ClockType.ROS_TIME))# + Duration(nanoseconds=0.02*10**9))
+    def callback(self, colour_msg: Image):
+        stamp = colour_msg.header.stamp
+        colour_camera_info_msg = CameraInfo()
+        colour_camera_info_msg.height = 360
+        colour_camera_info_msg.width = 640
         depth_msg = self.depth_cache.getElemAfterTime(Time(seconds=stamp.sec, nanoseconds=stamp.nanosec, clock_type=ClockType.ROS_TIME))# + Duration(nanoseconds=0.02*10**9))
         logger = self.get_logger()
         logger.info("Received image")
@@ -141,6 +169,7 @@ class DetectorNode(Node):
         depth_frame: np.ndarray = cv_bridge.imgmsg_to_cv2(depth_msg, desired_encoding='32FC1')
 
         detected_cones: List[Cone] = []
+        detected_cones_cov: List[PointWithCovarianceStamped] = []
         for bounding_box, cone_colour, display_colour in self.get_bounding_boxes_callable(colour_frame):
             if self.enable_cv_filters:
                 # filter by height
@@ -160,15 +189,20 @@ class DetectorNode(Node):
 
             bearing = cone_bearing(bounding_box, colour_camera_info_msg)
             detected_cones.append(cone_msg(distance, bearing, cone_colour))
+            detected_cones_cov.append(cone_msg_cov(distance, bearing, cone_colour, self.visioncov.flatten(), colour_msg.header))
             draw_box(colour_frame, box=bounding_box, colour=display_colour, distance=distance)
 
         detection_msg = ConeDetectionStamped(
             header=colour_msg.header,
             cones=detected_cones,
         )
+        detection_msg_cov = PointWithCovarianceStampedArray(
+            points=detected_cones_cov,
+        )
         print("got to publishing stage")
         self.detection_publisher.publish(detection_msg)
-        self.debug_img_publisher.publish(cv_bridge.cv2_to_imgmsg(colour_frame, encoding="bgra8"))
+        self.detection_publisher_cov.publish(detection_msg_cov)
+        self.debug_img_publisher.publish(cv_bridge.cv2_to_imgmsg(colour_frame))#, encoding="bgra8"))
 
         logger.info("Time: " + str(time.time() - start)) # log time
 

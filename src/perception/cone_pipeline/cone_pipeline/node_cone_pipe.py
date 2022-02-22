@@ -46,8 +46,8 @@ class ConePipeline(Node):
 
         self.logger = self.get_logger()
 
-        self.create_subscription(PointWithCovarianceStampedArray, "/lidar/cone_detection_cov", self.lidarCallback, 10)
-        self.create_subscription(PointWithCovarianceStampedArray, "/vision/cone_detection_cov", self.visionCallback, 10)
+        self.create_subscription(PointWithCovarianceStampedArray, "/lidar/cone_detection_cov", self.lidarCallback, 10) # "/lidar/cone_detection_cov"
+        self.create_subscription(PointWithCovarianceStampedArray, "/detector/cone_detection_cov", self.visionCallback, 10) # "/vision/cone_detection_cov"
 
         self.filtered_cones_pub: Publisher = self.create_publisher(ConeDetectionStamped, "/cone_pipe/cone_detection", 1)
         self.filtered_cones_pub_cov: Publisher = self.create_publisher(PointWithCovarianceStampedArray, "/cone_pipe/cone_detection_cov", 1)
@@ -57,7 +57,7 @@ class ConePipeline(Node):
         self.filtered_markers: Publisher = self.create_publisher(MarkerArray, "/cone_pipe/filtered_marker", 1)
 
         odom_sub = message_filters.Subscriber(self, Odometry, "/testing_only/odom")
-        self.actualodom = message_filters.Cache(odom_sub, 200)
+        self.actualodom = message_filters.Cache(odom_sub, 1000) # needs to be the more than the max latency of perception in ms
 
         self.printmarkers: bool = True
 
