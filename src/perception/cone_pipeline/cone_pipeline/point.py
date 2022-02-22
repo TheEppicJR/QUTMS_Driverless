@@ -108,14 +108,17 @@ class PointWithCov:
         self.nMeasurments += 1
         self.updatecolor(other.color)
 
+    def covMax(self, lim):
+        return sqrt(self.global_cov[0,0]**2+self.global_cov[1,1]**2+self.global_cov[2,2]**2) < lim
+
     def inTwoSigma(self, other:"PointWithCov"):
         # get the vector between the points
         vector = [self.global_x-other.global_x, self.global_y-other.global_y, self.global_z-other.global_z]
         # get the normalized vector between the points
         dist = sqrt(vector[0]**2+vector[1]**2+vector[2]**2)
-        # calculate the distance fo 2 sigma in the direction of the normal vector
-        selfTwosig = sqrt(((vector[0] / dist) * sqrt(self.global_cov[0,0]))**2 + ((vector[1] / dist) * sqrt(self.global_cov[1,1]))**2 + ((vector[2] / dist) * sqrt(self.global_cov[2,2]))**2) * 2
-        otherTwosig = sqrt(((vector[0] / dist) * sqrt(other.global_cov[0,0]))**2 + ((vector[1] / dist) * sqrt(other.global_cov[1,1]))**2 + ((vector[2] / dist) * sqrt(other.global_cov[2,2]))**2) * 2
+        # calculate the distance fo 3 sigma in the direction of the normal vector
+        selfTwosig = sqrt(((vector[0] / dist) * sqrt(self.global_cov[0,0]))**2 + ((vector[1] / dist) * sqrt(self.global_cov[1,1]))**2 + ((vector[2] / dist) * sqrt(self.global_cov[2,2]))**2) * 3
+        otherTwosig = sqrt(((vector[0] / dist) * sqrt(other.global_cov[0,0]))**2 + ((vector[1] / dist) * sqrt(other.global_cov[1,1]))**2 + ((vector[2] / dist) * sqrt(other.global_cov[2,2]))**2) * 3
         # see if the distance is less than the sum of the two 2 sigma vectors
         return dist < selfTwosig + otherTwosig
 

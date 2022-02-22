@@ -65,7 +65,7 @@ class MaRRTPathPlanNode(Node):
         self.lastPublishWaypointsTime = 0
 
         # All Subs and pubs
-        self.create_subscription(Track, "/testing_only/track", self.mapCallback, 10)
+        self.create_subscription(ConeDetectionStamped, "/cone_pipe/cone_detection", self.mapCallback, 10)
         self.create_subscription(Odometry, "/testing_only/odom", self.odometryCallback, 10)
 
         # Create publishers
@@ -108,8 +108,8 @@ class MaRRTPathPlanNode(Node):
         self.carPosYaw = yaw
 
 
-    def mapCallback(self, track_msg: Track):
-        self.map = track_msg.track
+    def mapCallback(self, track_msg: ConeDetectionStamped):
+        self.map = track_msg.cones
 
     def sampleTree(self):
 

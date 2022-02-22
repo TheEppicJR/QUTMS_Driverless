@@ -3,11 +3,14 @@ import rclpy
 from rclpy.node import Node
 from rclpy.publisher import Publisher
 from cv_bridge import CvBridge
+from rclpy.time import Time, Duration
+from rclpy.clock import ClockType
 import message_filters
 from ament_index_python.packages import get_package_share_directory
 # import ROS2 message libraries
 from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import Point
+from std_msgs.msg import Header
 # translate ROS image messages to OpenCV
 cv_bridge = CvBridge()
 # import custom message libraries
@@ -103,21 +106,12 @@ class DetectorNode(Node):
         super().__init__("cone_detector")
 
         # subscribers
-        colour_sub = message_filters.Subscriber(
-            self, Image, "/zed2i/zed_node/rgb/image_rect_color"
-        )
-        colour_camera_info_sub = message_filters.Subscriber(
-            self, CameraInfo, "/zed2i/zed_node/rgb/camera_info"
-        )
-        depth_sub = message_filters.Subscriber(
-            self, Image, "/zed2i/zed_node/depth/depth_registered"
-        )
+        colour_sub = message_filters.Subscriber(self, Image, "/zed2i/zed_node/rgb/image_rect_color")
+        self.colour_cache = message_filters.Cache(colour_sub, 10)
+        depth_sub = message_filters.Subscriber(self, Image, "/zed2i/zed_node/depth/depth_registered")
+        self.depth_cache = message_filters.Cache(depth_sub, 10)
+        self.create_subscription(CameraInfo, "/zed2i/zed_node/rgb/camera_info", self.callback, 10)
 
-        synchronizer = message_filters.TimeSynchronizer(
-            fs=[colour_sub, colour_camera_info_sub, depth_sub],
-            queue_size=30,
-        )
-        synchronizer.registerCallback(self.callback)
 
         # publishers
         self.detection_publisher: Publisher = self.create_publisher(ConeDetectionStamped, "/detector/cone_detection", 1)
@@ -130,9 +124,16 @@ class DetectorNode(Node):
         self.get_bounding_boxes_callable = get_bounding_boxes_callable
 
 
-    def callback(self, colour_msg: Image, colour_camera_info_msg: CameraInfo, depth_msg: Image):
+    def callback(self, colour_camera_info_msg: CameraInfo):
+        stamp = colour_camera_info_msg.header.stamp
+        colour_msg = self.colour_cache.getElemAfterTime(Time(seconds=stamp.sec, nanoseconds=stamp.nanosec, clock_type=ClockType.ROS_TIME))# + Duration(nanoseconds=0.02*10**9))
+        depth_msg = self.depth_cache.getElemAfterTime(Time(seconds=stamp.sec, nanoseconds=stamp.nanosec, clock_type=ClockType.ROS_TIME))# + Duration(nanoseconds=0.02*10**9))
         logger = self.get_logger()
         logger.info("Received image")
+
+        if colour_msg is None or depth_msg is None:
+            print("No camera")
+            return None
 
         start: float = time.time() # begin a timer
 

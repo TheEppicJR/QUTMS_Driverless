@@ -3,7 +3,6 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.publisher import Publisher
-from rclpy.time import Time
 from rclpy.clock import ClockType
 from rclpy.time import Time, Duration
 import rclpy.logging
@@ -140,32 +139,32 @@ class ConePipeline(Node):
             msgid = 0
             for cone in curcones:
                 # should probabbly put a filter for how many times a cone has actually been spotted
+                if cone.covMax(0.5):
+                    # create out messages to be published with the final cones that we found
+                    pubpt_cov = PointWithCovarianceStamped()
+                    pubpt = QUTCone()
+                    # create a point at the location of the cone
+                    point = Point()
+                    point.x = cone.global_x
+                    point.y = cone.global_y
+                    point.z = cone.global_z
+                    # create the row major 3x3 cov matrix for the message elements
+                    pubpt_cov.covariance = cone.global_cov.flatten()
+                    # set those parts of the message
+                    pubpt_cov.position = point
+                    pubpt_cov.header = cone.header
+                    pubpt.location = point
+                    # set its color
+                    pubpt.color = cone.color
 
-                # create out messages to be published with the final cones that we found
-                pubpt_cov = PointWithCovarianceStamped()
-                pubpt = QUTCone()
-                # create a point at the location of the cone
-                point = Point()
-                point.x = cone.global_x
-                point.y = cone.global_y
-                point.z = cone.global_z
-                # create the row major 3x3 cov matrix for the message elements
-                pubpt_cov.covariance = cone.global_cov.flatten()
-                # set those parts of the message
-                pubpt_cov.position = point
-                pubpt_cov.header = cone.header
-                pubpt.location = point
-                # set its color
-                pubpt.color = cone.color
+                    # append those elements to the list of elements for the message
+                    conelist.append(pubpt)
+                    conelist_cov.append(pubpt_cov)
 
-                # append those elements to the list of elements for the message
-                conelist.append(pubpt)
-                conelist_cov.append(pubpt_cov)
-
-                if msgs:
-                    markers.append(cone.getCov(msgid, False))
-                    markers.append(cone.getMarker(msgid+1))
-                msgid += 2
+                    if msgs:
+                        markers.append(cone.getCov(msgid, False))
+                        markers.append(cone.getMarker(msgid+1))
+                    msgid += 2
             if msgs:
                 mkr = MarkerArray()
                 mkr.markers = markers

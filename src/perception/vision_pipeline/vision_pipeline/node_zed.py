@@ -7,6 +7,7 @@ from ament_index_python.packages import get_package_share_directory
 # import ROS2 message libraries
 from sensor_msgs.msg import Image, CameraInfo
 from rclpy.publisher import Publisher
+from std_msgs.msg import Header
 # import custom message libraries
 from driverless_msgs.msg import Cone
 
@@ -65,6 +66,7 @@ class ZedNode(Node):
         # self.anno_img_publisher.publish(cv_bridge.cv2_to_imgmsg(backtorgb))
     
     def rgb_callback(self, colour_msg: Image):#, colour_camera_info_msg: CameraInfo):
+        self.camera_info.header = colour_msg.header
         self.rgb_img_info_publisher.publish(self.camera_info)
         self.rgb_img_publisher.publish(colour_msg)
 
