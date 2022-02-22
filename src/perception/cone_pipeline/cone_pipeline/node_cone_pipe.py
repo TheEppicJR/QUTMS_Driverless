@@ -5,6 +5,7 @@ from rclpy.node import Node
 from rclpy.publisher import Publisher
 from rclpy.time import Time
 from rclpy.clock import ClockType
+from rclpy.time import Time, Duration
 import rclpy.logging
 import message_filters
 # import ROS2 message libraries
@@ -79,7 +80,7 @@ class ConePipeline(Node):
         # find the closest cone in the cone tree
         closestcone = self.conesKDTree.search_knn(point, 1)
         # if its close enough to a actual cone than fuse it and rebalance in case it moved a bit too much (should only really matter for the orange cones near the start and may not need to rebalance at this step but why not) (im sure i will remove the rebalance to spare my cpu later and then the whole thing will break lol)
-        if closestcone[0][0].data.dist(point) < 0.5:
+        if closestcone[0][0].data.inTwoSigma(point):
             closestcone[0][0].data.update(point)
             self.conesKDTree.rebalance()
         # otherwise check it against the buffer
@@ -93,7 +94,7 @@ class ConePipeline(Node):
             # find the closest possible cone to the possible cone
             closestcone = self.bufferKDTree.search_knn(point, 1)
             # see if it is close enough for our liking (ths distance in m) than we will turn it into a actual cone
-            if closestcone[0][0].data.dist(point) < 0.5:
+            if closestcone[0][0].data.inTwoSigma(point):
                 # select the first group from the returned tuple (point objects) and then get the first one (which will be our point since we only asked for one)
                 pointnew = closestcone[0][0]
                 # fuse the points together
@@ -183,6 +184,11 @@ class ConePipeline(Node):
             self.filtered_cones_pub_cov.publish(coneListPubCov)
 
         # need to make a section to remove old points from the buffer
+        if self.bufferKDTree is not None and self.bufferKDTree.data is not None:
+            for point in self.bufferKDTree.returnElements():
+                if self.get_clock().now() - Duration(nanoseconds=2*10**9) > Time(seconds=point.header.stamp.sec, nanoseconds=point.header.stamp.nanosec, clock_type=ClockType.ROS_TIME):
+                    self.bufferKDTree.remove(point)
+            self.bufferKDTree.rebalance()
         
     def lidarCallback(self, points: PointWithCovarianceStampedArray):
         if len(points.points) > 0:

@@ -134,7 +134,8 @@ class SimNode(Node):
             # matrix multiply the covariance matrix with a random vector
             #noise = cov @ np.array([np.random.random()-0.5,np.random.random()-0.5,np.random.random()-0.5])
             #x, y, z = cone.location.x + noise[0], cone.location.y + noise[1], cone.location.z + noise[2]
-            x, y, z = cone.location.x + sqrt(cov[0][0]) * (np.random.random()-0.5), cone.location.y + sqrt(cov[1][1]) * (np.random.random()-0.5), cone.location.z + sqrt(cov[2][2]) * (np.random.random()-0.5)
+            # the 0.3 is pretty arbitrary
+            x, y, z = cone.location.x + sqrt(cov[0][0]) * gauss(0, 0.3), cone.location.y + sqrt(cov[1][1]) * gauss(0, 0.3), cone.location.z + sqrt(cov[2][2]) * gauss(0, 0.3)
             gax, gay, gaz = x - carPosX, y - carPosY, z
             lax, lay, laz = gax*nc-gay*ns, gay*nc+gax*ns, gaz
             thepoint = Point()
