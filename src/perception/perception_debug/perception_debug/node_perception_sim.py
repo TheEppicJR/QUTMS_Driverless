@@ -99,9 +99,9 @@ class SimNode(Node):
             frontCones = self.getFrontConeObstacles(self.map, 30, oldodom)
             returnobj = PointWithCovarianceStampedArray()
             returnobjcone = ConeDetectionStamped()
-            returnobj.points, returnobjcone.cones = self.randomiseConePos(frontCones, self.lidarcov, oldodom)
-            self.lidar_publisher_cov.publish(returnobj)
             if oldodom is not None:
+                returnobj.points, returnobjcone.cones = self.randomiseConePos(frontCones, self.lidarcov, oldodom)
+                self.lidar_publisher_cov.publish(returnobj)
                 returnobjcone.header = oldodom.header
                 self.lidar_publisher.publish(returnobjcone)
 
@@ -111,31 +111,46 @@ class SimNode(Node):
             frontCones = self.getFrontConeObstacles(self.map, 30, oldodom)
             returnobj = PointWithCovarianceStampedArray()
             returnobjcone = ConeDetectionStamped()
-            returnobj.points, returnobjcone.cones = self.randomiseConePos(frontCones, self.visioncov, oldodom)
-            self.vision_publisher_cov.publish(returnobj)
             if oldodom is not None:
+                returnobj.points, returnobjcone.cones = self.randomiseConePos(frontCones, self.visioncov, oldodom)
+                self.vision_publisher_cov.publish(returnobj)
                 returnobjcone.header = oldodom.header
                 self.vision_publisher.publish(returnobjcone)
 
     def randomiseConePos(self, cones, cov: np.array, odom):
         pointswithcov: List[PointWithCovarianceStamped] = []
         conesout: List[Cone] = []
+        orientation_q = odom.pose.pose.orientation
+        orientation_list = [orientation_q.w, orientation_q.x, orientation_q.y, orientation_q.z]
+        (roll, pitch, yaw)  = quat2euler(orientation_list)
+
+        ns = sin(-yaw)
+        nc = cos(-yaw)
+
+        carPosX = odom.pose.pose.position.x
+        carPosY = odom.pose.pose.position.y
+        carPosZ = odom.pose.pose.position.y
         for cone in cones:
-            #matrix multiply the covariance matrix with a random vector
-            noise = cov @ np.array([np.random.random(),np.random.random(),np.random.random()])
-            x, y, z = cone.location.x + noise[0], cone.location.y + noise[1], cone.location.z + noise[2]
+            # matrix multiply the covariance matrix with a random vector
+            #noise = cov @ np.array([np.random.random()-0.5,np.random.random()-0.5,np.random.random()-0.5])
+            #x, y, z = cone.location.x + noise[0], cone.location.y + noise[1], cone.location.z + noise[2]
+            x, y, z = cone.location.x + sqrt(cov[0][0]) * (np.random.random()-0.5), cone.location.y + sqrt(cov[1][1]) * (np.random.random()-0.5), cone.location.z + sqrt(cov[2][2]) * (np.random.random()-0.5)
+            gax, gay, gaz = x - carPosX, y - carPosY, z
+            lax, lay, laz = gax*nc-gay*ns, gay*nc+gax*ns, gaz
             thepoint = Point()
-            thepoint.x = x
-            thepoint.y = y
-            thepoint.z = z
+            thepoint.x = lax
+            thepoint.y = lay
+            thepoint.z = laz
             coneout = Cone()
             coneout.location = thepoint
             coneout.color = cone.color
             conesout.append(coneout)
             pwcs = PointWithCovarianceStamped()
             pwcs.header = odom.header
+            pwcs.header.frame_id = "map"
             pwcs.position = thepoint
             pwcs.covariance = cov.flatten()
+            pwcs.color = cone.color
             pointswithcov.append(pwcs)
         return pointswithcov, conesout
 

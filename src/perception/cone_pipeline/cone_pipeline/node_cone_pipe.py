@@ -4,10 +4,12 @@ import rclpy
 from rclpy.node import Node
 from rclpy.publisher import Publisher
 from rclpy.time import Time
+from rclpy.clock import ClockType
 import rclpy.logging
 import message_filters
 # import ROS2 message libraries
 from std_msgs.msg import Header
+from geometry_msgs.msg import Point
 from visualization_msgs.msg import Marker, MarkerArray
 from nav_msgs.msg import Odometry
 # import custom message libraries
@@ -28,7 +30,7 @@ import pathlib
 from transforms3d.euler import quat2euler
 
 # import required sub modules
-from .point import Point, PointWithCov
+from .point import PointWithCov
 from . import kmeans_clustering as km
 from . import kdtree
 
@@ -47,14 +49,15 @@ class ConePipeline(Node):
         self.create_subscription(PointWithCovarianceStampedArray, "/lidar/cone_detection_cov", self.lidarCallback, 10)
         self.create_subscription(PointWithCovarianceStampedArray, "/vision/cone_detection_cov", self.visionCallback, 10)
 
-        self.filtered_cones_pub: Publisher = self.create_publisher(PointWithCovarianceStampedArray, "/cone_pipe/cone_detection_cov", 1)
+        self.filtered_cones_pub: Publisher = self.create_publisher(ConeDetectionStamped, "/cone_pipe/cone_detection", 1)
+        self.filtered_cones_pub_cov: Publisher = self.create_publisher(PointWithCovarianceStampedArray, "/cone_pipe/cone_detection_cov", 1)
 
         self.lidar_markers: Publisher = self.create_publisher(MarkerArray, "/cone_pipe/lidar_marker", 1)
         self.vision_markers: Publisher = self.create_publisher(MarkerArray, "/cone_pipe/vision_marker", 1)
         self.filtered_markers: Publisher = self.create_publisher(MarkerArray, "/cone_pipe/filtered_marker", 1)
 
         odom_sub = message_filters.Subscriber(self, Odometry, "/testing_only/odom")
-        self.actualodom = message_filters.Cache(odom_sub, 100)
+        self.actualodom = message_filters.Cache(odom_sub, 200)
 
         self.printmarkers: bool = True
 
@@ -67,7 +70,8 @@ class ConePipeline(Node):
 
     def getNearestOdom(self, stamp):
         # need to switch this over to a position from a EKF with covariance
-        locodom = self.cache.getElemBeforeTime(stamp)
+        # have to do the time stuff this way because the compating of time in the message_filters __init__.py is wack
+        locodom = self.actualodom.getElemBeforeTime(Time(seconds=stamp.sec, nanoseconds=stamp.nanosec, clock_type=ClockType.ROS_TIME))
         cov = np.identity(3) * 0.0025 # standin covariance for ekf assuming the variance is sigma = 5cm with no covariance
         return locodom, cov
 
@@ -75,8 +79,8 @@ class ConePipeline(Node):
         # find the closest cone in the cone tree
         closestcone = self.conesKDTree.search_knn(point, 1)
         # if its close enough to a actual cone than fuse it and rebalance in case it moved a bit too much (should only really matter for the orange cones near the start and may not need to rebalance at this step but why not) (im sure i will remove the rebalance to spare my cpu later and then the whole thing will break lol)
-        if closestcone[0][1] < 0.5:
-            closestcone[0][0].update(point)
+        if closestcone[0][0].data.dist(point) < 0.5:
+            closestcone[0][0].data.update(point)
             self.conesKDTree.rebalance()
         # otherwise check it against the buffer
         else:
@@ -85,24 +89,24 @@ class ConePipeline(Node):
 
     def bufferCone(self, point):
         # if we already have a list of possible cones then look through that tree for something close
-        if self.bufferKDTree is not None:
+        if self.bufferKDTree is not None and self.bufferKDTree.data is not None:
             # find the closest possible cone to the possible cone
             closestcone = self.bufferKDTree.search_knn(point, 1)
             # see if it is close enough for our liking (ths distance in m) than we will turn it into a actual cone
-            if closestcone[0][1] < 0.5:
+            if closestcone[0][0].data.dist(point) < 0.5:
                 # select the first group from the returned tuple (point objects) and then get the first one (which will be our point since we only asked for one)
                 pointnew = closestcone[0][0]
                 # fuse the points together
-                pointnew.update(point)
-                # remove the point from the buffer tree
-                self.bufferKDTree.remove(pointnew)
+                pointnew.data.update(point)
                 # if there is already a tree of Offical Cones tm than add it to that tree and then rebalance it
                 if self.conesKDTree is not None:
-                    self.conesKDTree.add(pointnew)
+                    self.conesKDTree.add(pointnew.data)
                     self.conesKDTree.rebalance()
                 # if not than make a tree for them
                 else:
                     self.conesKDTree = kdtree.create([point])
+                # remove the point from the buffer tree
+                self.bufferKDTree.remove(pointnew.data)
                 # the rebalance the buffer tree since we removed something
                 self.bufferKDTree.rebalance()
             # if nothind is close in the buffer than add it to the buffer tree and rebalance
@@ -132,6 +136,7 @@ class ConePipeline(Node):
             conelist: List[QUTCone] = []
             conelist_cov: List[PointWithCovarianceStamped] = []
             markers: List[Marker] = []
+            msgid = 0
             for cone in curcones:
                 # should probabbly put a filter for how many times a cone has actually been spotted
 
@@ -157,12 +162,13 @@ class ConePipeline(Node):
                 conelist_cov.append(pubpt_cov)
 
                 if msgs:
-                    markers.append(cone.getCov())
-                    markers.append(cone.getMarker())
+                    markers.append(cone.getCov(msgid, False))
+                    markers.append(cone.getMarker(msgid+1))
+                msgid += 2
             if msgs:
                 mkr = MarkerArray()
                 mkr.markers = markers
-                self.lidar_markers.publish(mkr)
+                self.filtered_markers.publish(mkr)
             
             # create a ConeDetectionStamped message
             coneListPub = ConeDetectionStamped()
@@ -173,8 +179,8 @@ class ConePipeline(Node):
             coneListPubCov = PointWithCovarianceStampedArray()
             coneListPubCov.points = conelist_cov
             # publish the messages
-            self.filtered_markers.publish(coneListPub)
-            self.filtered_cones_pub.publish(coneListPubCov)
+            self.filtered_cones_pub.publish(coneListPub)
+            self.filtered_cones_pub_cov.publish(coneListPubCov)
 
         # need to make a section to remove old points from the buffer
         
@@ -183,6 +189,8 @@ class ConePipeline(Node):
             msgs = self.printmarkers and self.lidar_markers.get_subscription_count() > 0
             header = points.points[0].header
             odomloc, odomcov = self.getNearestOdom(header.stamp)
+            if odomloc is None:
+                return None
             orientation_q = odomloc.pose.pose.orientation
             orientation_list = [orientation_q.w, orientation_q.x, orientation_q.y, orientation_q.z]
             (roll, pitch, theta)  = quat2euler(orientation_list)
@@ -192,13 +200,15 @@ class ConePipeline(Node):
             
             conelist: List[PointWithCov] = []
             markers: List[Marker] = []
+            msgid = 0
             for point in points.points:
-                p = PointWithCov(point.position.x, point.position.y, point.position.z, np.array(point.covariance).reshape((3,3)), point.header)
+                p = PointWithCov(point.position.x, point.position.y, point.position.z, np.array(point.covariance).reshape((3,3)), 4, point.header)
                 p.translate(x, y, z, theta, odomcov)
                 conelist.append(p)
                 if msgs:
-                    markers.append(p.getCov())
-                    markers.append(p.getMarker())
+                    markers.append(p.getCov(msgid, True))
+                    markers.append(p.getMarker(msgid+1))
+                msgid += 2
             if msgs:
                 mkr = MarkerArray()
                 mkr.markers = markers
@@ -210,6 +220,8 @@ class ConePipeline(Node):
             msgs = self.printmarkers and self.vision_markers.get_subscription_count() > 0
             header = points.points[0].header
             odomloc, odomcov = self.getNearestOdom(header.stamp)
+            if odomloc is None:
+                return None
             orientation_q = odomloc.pose.pose.orientation
             orientation_list = [orientation_q.w, orientation_q.x, orientation_q.y, orientation_q.z]
             (roll, pitch, theta)  = quat2euler(orientation_list)
@@ -219,13 +231,15 @@ class ConePipeline(Node):
             
             conelist: List[PointWithCov] = []
             markers: List[Marker] = []
+            msgid = 0
             for point in points.points:
-                p = PointWithCov(point.position.x, point.position.y, point.position.z, np.array(point.covariance).reshape((3,3)), point.header)
+                p = PointWithCov(point.position.x, point.position.y, point.position.z, np.array(point.covariance).reshape((3,3)), point.color, point.header)
                 p.translate(x, y, z, theta, odomcov)
                 conelist.append(p)
                 if msgs:
-                    markers.append(p.getCov())
-                    markers.append(p.getMarker())
+                    markers.append(p.getCov(msgid, True))
+                    markers.append(p.getMarker(msgid + 1))
+                msgid += 2
             if msgs:
                 mkr = MarkerArray()
                 mkr.markers = markers

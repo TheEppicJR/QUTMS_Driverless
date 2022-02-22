@@ -54,8 +54,10 @@ class PointWithCov:
         self.global_z: float = None
         self.global_cov: np.array = None
         self.header: Header = header
+        self.header.frame_id = "map"
         self.nMeasurments: int = 0
-        self.ncMeasurments: int = 0
+        # have to start with 1 so we dont get a div by zero error
+        self.ncMeasurments: int = 1
     
     def updatecolor(self, color):
         if color == 0:
@@ -88,7 +90,7 @@ class PointWithCov:
 
     def translate(self, x, y, z, theta, g_cov):
         s, c = sin(theta), cos(theta)
-        rotation_matrix = [[c, -1*s, 0],[s, c, 0], [0, 0, 1]]
+        rotation_matrix = np.array([[c, -1*s, 0],[s, c, 0], [0, 0, 1]])
         new_cov = rotation_matrix @ self.loc_cov @ rotation_matrix.T
         self.global_cov = new_cov + g_cov
         self.global_x = x + self.loc_x * c - self.loc_y * s
@@ -113,9 +115,9 @@ class PointWithCov:
     def getMarker(self, id: int):
         return point_msg(self.global_x, self.global_y, self.global_z, id, self.header)
 
-    def getCov(self, id: int):
+    def getCov(self, id: int, buffer: bool):
         # make a deformed sphere at 3 sigma of the variance in each axis (the diagnal elements of the covariance matrix are squared so we gotta sqrt)
-        return cov_msg(self.global_x, self.global_y, self.global_z, id, self.header, 3*sqrt(self.global_cov[0,0]), 3*sqrt(self.global_cov[1,1]), 3*sqrt(self.global_cov[2,2]))
+        return cov_msg(self.global_x, self.global_y, self.global_z, id, self.header, 3*sqrt(self.global_cov[0,0]), 3*sqrt(self.global_cov[1,1]), 3*sqrt(self.global_cov[2,2]), buffer)
 
     def __len__(self):
         return len(self.coords)
@@ -124,7 +126,7 @@ class PointWithCov:
         return self.coords[i]
 
     def __repr__(self):
-        return 'Item({}, {}, {})'.format(self.coords[0], self.coords[1], self.data)
+        return 'Item({}, {}, {})'.format(self.coords[0], self.coords[1], self.color)
 
 
 def point_msg(
@@ -181,6 +183,7 @@ def cov_msg(
     x_scale: float,
     y_scale: float,
     z_scale: float,
+    buffer: bool
 ) -> Marker: 
     """
     Creates a Marker object for cones or a car.
@@ -212,9 +215,14 @@ def cov_msg(
     marker.scale.z = z_scale
 
     marker.color.a = 0.3 # alpha
-    marker.color.r = 0.0
-    marker.color.g = 0.0
-    marker.color.b = 1.0
+    if buffer:
+        marker.color.r = 0.65
+        marker.color.g = 0.65
+        marker.color.b = 0.0
+    else:
+        marker.color.r = 0.0
+        marker.color.g = 0.0
+        marker.color.b = 1.0
 
     marker.lifetime = Duration(sec=1, nanosec=0)
 

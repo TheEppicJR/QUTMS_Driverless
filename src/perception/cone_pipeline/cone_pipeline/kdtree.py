@@ -383,7 +383,11 @@ class KDNode(Node):
         Returns the (possibly new) root of the rebalanced tree
         """
 
-        return create([x.data for x in self.inorder()])
+        listOfEle = [x.data for x in self.inorder()]
+        if listOfEle is None or len(listOfEle) < 1:
+            return None
+
+        return create(listOfEle)
 
 
     def axis_dist(self, point, axis):
