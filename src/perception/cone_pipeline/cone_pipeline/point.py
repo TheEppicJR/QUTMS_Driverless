@@ -37,7 +37,11 @@ class PointWithCov:
         loc_z: float,
         loc_cov: np.array,
         color: int,
-        header: Header
+        header: Header,
+        global_x: float = None,
+        global_y: float = None,
+        global_z: float = None,
+        global_cov: np.array = None
         ) -> None:
         self.loc_x: float = loc_x
         self.loc_y: float = loc_y
@@ -49,10 +53,11 @@ class PointWithCov:
         self.isorange = 0
         self.isbig = 0
         self.issmall = 0
-        self.global_x: float = None
-        self.global_y: float = None
-        self.global_z: float = None
-        self.global_cov: np.array = None
+        self.global_x: float = global_x
+        self.global_y: float = global_y
+        self.global_z: float = global_z
+        self.global_cov: np.array = global_cov
+        self.coords = (self.global_x, self.global_y)
         self.header: Header = header
         self.header.frame_id = "map"
         self.nMeasurments: int = 0
@@ -127,7 +132,7 @@ class PointWithCov:
 
     # should add cone color to this
     def getMarker(self, id: int):
-        return point_msg(self.global_x, self.global_y, self.global_z, id, self.header)
+        return point_msg(self.global_x, self.global_y, self.global_z, id, self.header, self.color)
 
     def getCov(self, id: int, buffer: bool):
         # make a deformed sphere at 3 sigma of the variance in each axis (the diagnal elements of the covariance matrix are squared so we gotta sqrt)
@@ -149,6 +154,7 @@ def point_msg(
     z_coord: float,
     ID: int, 
     header: Header,
+    color: int
 ) -> Marker: 
     """
     Creates a Marker object for cones or a car.
@@ -180,9 +186,26 @@ def point_msg(
     marker.scale.z = 0.1
 
     marker.color.a = 1.0 # alpha
-    marker.color.r = 0.0
-    marker.color.g = 1.0
-    marker.color.b = 1.0
+    # make the cone its own color and black if unknown
+    if color == 0:
+        marker.color.r = 0.0
+        marker.color.g = 0.0
+        marker.color.b = 1.0
+    elif color == 1:
+        marker.color.r = 1.0
+        marker.color.g = 1.0
+        marker.color.b = 0.0
+    elif color == 2 or color == 3:
+        marker.color.r = 1.0
+        marker.color.g = 0.7
+        marker.color.b = 0.0
+    else:
+        marker.color.r = 0.0
+        marker.color.g = 0.0
+        marker.color.b = 0.0
+
+    
+    
 
     marker.lifetime = Duration(sec=1, nanosec=0)
 

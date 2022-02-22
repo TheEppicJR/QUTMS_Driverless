@@ -47,7 +47,7 @@ class ConePipeline(Node):
         self.logger = self.get_logger()
 
         self.create_subscription(PointWithCovarianceStampedArray, "/lidar/cone_detection_cov", self.lidarCallback, 10) # "/lidar/cone_detection_cov"
-        self.create_subscription(PointWithCovarianceStampedArray, "/detector/cone_detection_cov", self.visionCallback, 10) # "/vision/cone_detection_cov"
+        self.create_subscription(PointWithCovarianceStampedArray, "/vision/cone_detection_cov", self.visionCallback, 10) # "/detector/cone_detection_cov"
 
         self.filtered_cones_pub: Publisher = self.create_publisher(ConeDetectionStamped, "/cone_pipe/cone_detection", 1)
         self.filtered_cones_pub_cov: Publisher = self.create_publisher(PointWithCovarianceStampedArray, "/cone_pipe/cone_detection_cov", 1)
@@ -153,6 +153,7 @@ class ConePipeline(Node):
                     # set those parts of the message
                     pubpt_cov.position = point
                     pubpt_cov.header = cone.header
+                    pubpt_cov.color = cone.color
                     pubpt.location = point
                     # set its color
                     pubpt.color = cone.color

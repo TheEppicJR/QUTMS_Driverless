@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'cone_pipe = cone_pipeline.node_cone_pipe:main'
+            'cone_pipe = cone_pipeline.node_cone_pipe:main',
+            'cone_track = cone_pipeline.node_track_server:main'
         ],
     },
 )
