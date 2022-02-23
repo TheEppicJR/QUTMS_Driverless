@@ -11,6 +11,7 @@ from ament_index_python.packages import get_package_share_directory
 # import ROS2 message libraries
 from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import Point
+from std_msgs.msg import Header
 # import custom message libraries
 from driverless_msgs.msg import Cone, ConeDetectionStamped, PointWithCovarianceStamped, PointWithCovarianceStampedArray
 
@@ -61,7 +62,12 @@ def cone_distance(
     # filter out nans
     depth_roi = depth_roi[~np.isnan(depth_roi) & ~np.isinf(depth_roi)]
 
-    return np.mean(depth_roi)
+    # assume the distribution of points is bimodal and only take the closer points because those will be the cone
+    mean = np.mean(depth_roi)
+
+    conePts = depth_roi < mean
+
+    return np.mean(depth_roi[conePts]) / 2
 
 def cone_bearing(
     colour_frame_cone_bounding_box: Rect,
@@ -81,7 +87,7 @@ def cone_msg(
 ) -> Cone:
 
     location = Point(
-        x=distance*cos(radians(bearing)),
+        x=distance*cos(radians(bearing))-0.5,
         y=distance*sin(radians(bearing)),
         z=0.0,
     )
@@ -100,7 +106,7 @@ def cone_msg_cov(
 ) -> Cone:
 
     location = Point(
-        x=distance*cos(radians(bearing)),
+        x=distance*cos(radians(bearing))-0.5,
         y=distance*sin(radians(bearing)),
         z=0.0,
     )
@@ -131,17 +137,17 @@ class DetectorNode(Node):
         # colour_sub = message_filters.Subscriber(self, Image, "/zed2i/zed_node/rgb/image_rect_color")
         # self.colour_cache = message_filters.Cache(colour_sub, 10)
         depth_sub = message_filters.Subscriber(self, Image, "/fsds/camera/depth_registered")
-        self.depth_cache = message_filters.Cache(depth_sub, 10)
+        self.depth_cache = message_filters.Cache(depth_sub, 20)
         # self.create_subscription(CameraInfo, "/zed2i/zed_node/rgb/camera_info", self.callback, 10)
         self.create_subscription(Image, "/fsds/camera/image_rect_color", self.callback, 10)
 
 
         # publishers
-        self.detection_publisher: Publisher = self.create_publisher(ConeDetectionStamped, "/detector/cone_detection", 1)
-        self.detection_publisher_cov: Publisher = self.create_publisher(PointWithCovarianceStampedArray, "/detector/cone_detection_cov", 1)
-        self.debug_img_publisher: Publisher = self.create_publisher(Image, "/detector/debug_img", 1)
+        self.detection_publisher: Publisher = self.create_publisher(ConeDetectionStamped, "/vision/cone_detection", 1)
+        self.detection_publisher_cov: Publisher = self.create_publisher(PointWithCovarianceStampedArray, "/vision/cone_detection_cov", 1)
+        self.debug_img_publisher: Publisher = self.create_publisher(Image, "/vision/debug_img", 1)
 
-        self.visioncov = np.array([[ 0.0625,  0, 0], [ 0, 0.0625, 0], [0, 0,  0.01]])
+        self.visioncov = np.array([[ 0.1,  0.01, 0], [ 0.01, 0.05, 0], [0, 0,  0.01]])
 
         # set which cone detection this will be using
         self.get_logger().info("Selected detection mode. 0==cv2, 1==torch, 2==trt")
@@ -205,6 +211,7 @@ class DetectorNode(Node):
         self.debug_img_publisher.publish(cv_bridge.cv2_to_imgmsg(colour_frame))#, encoding="bgra8"))
 
         logger.debug("Time: " + str(time.time() - start) + "\n") # log time
+        print("Time: " + str(time.time() - start) + "\n")
 
 
 ## OpenCV thresholding

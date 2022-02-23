@@ -81,11 +81,11 @@ class PointWithCov:
             self.ncMeasurments += 1
         else:
             pass
-        if self.isblue / self.ncMeasurments > 0.7:
+        if self.isblue / self.ncMeasurments > 0.5:
             self.color = 0
-        elif self.isyellow / self.ncMeasurments > 0.7:
+        elif self.isyellow / self.ncMeasurments > 0.5:
             self.color = 1
-        elif self.isorange / self.ncMeasurments > 0.7:
+        elif self.isorange / self.ncMeasurments > 0.5:
             if self.isbig / (self.isbig+self.issmall) > 0.5:
                 self.color = 2
             else:

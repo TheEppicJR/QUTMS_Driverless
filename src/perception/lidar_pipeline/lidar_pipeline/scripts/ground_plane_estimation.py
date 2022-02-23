@@ -446,7 +446,7 @@ def get_ground_plane(point_cloud: List[List]) -> List[List]:
     #now = time.time()
     cluster_centers = DBSCAN.get_objects(label_points_np(segments_bins, ground_plane))
     #print("my_ground_plane_removal", time.time() - now)
-    return cluster_centers #lol
+    #return cluster_centers #lol
 
     now = time.time()
     labelled_points: List[List[List]] = label_points(segments_bins, ground_plane)
@@ -471,7 +471,7 @@ def get_ground_plane(point_cloud: List[List]) -> List[List]:
         # cluster_centers = DBSCAN.get_objects(object_points)
         # return cluster_centers #lol
         #print("get_objects", time.time() - now)
-        print(f"Number of cluster points: {len(cluster_centers)}")
+        #print(f"Number of cluster points: {len(cluster_centers)}")
 
         #now = time.time()
         reconstructed_clusters: List[List] = object_reconstruction(cluster_centers, segments_bins, ground_plane, ground_plane_vector, point)

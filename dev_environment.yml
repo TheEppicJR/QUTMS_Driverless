@@ -20,6 +20,9 @@ dependencies:
   - pycuda
   - pip
   - pytorch
+  #- torchvision
+  #- torchaudio
+  #- cudatoolkit=10.2
   - pip:
     - colcon-common-extensions
     # colcon shell support

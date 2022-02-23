@@ -58,11 +58,11 @@ class CovNode(Node):
         super().__init__("cone_cov")
 
         # create the critical subscriptions
-        self.create_subscription(ConeDetectionStamped, "/detector/cone_detection", self.visionCallback, 10)
+        self.create_subscription(ConeDetectionStamped, "/vision/cone_detection", self.visionCallback, 10)
         self.create_subscription(ConeDetectionStamped, "lidar/cone_detection", self.lidarCallback, 10) # "/cone_sensing/cones"
         self.create_subscription(Track, "/testing_only/track", self.mapCallback, 10)
         sub = message_filters.Subscriber(self, Odometry, "/testing_only/odom")
-        self.cache = message_filters.Cache(sub, 100)
+        self.cache = message_filters.Cache(sub, 1000)
 
         # create debug publishers
         self.lidar_dx_publisher: Publisher = self.create_publisher(Image, "/lidar_debug/dx", 1)
@@ -130,7 +130,7 @@ class CovNode(Node):
 
     def plot(self):
         if self.lidarcones is not None:
-            #print(f"Lidar: {np.cov(self.lidarcones[:, 4:7], rowvar=False)}")
+            print(f"Lidar: {np.cov(self.lidarcones[:, 4:7], rowvar=False)}")
             if self.lidar_dx_publisher.get_subscription_count() > 0:
                 self.lidar_dx_publisher.publish(cv_bridge.cv2_to_imgmsg(self.pltsparce(self.lidarcones[:, 0], self.lidarcones[:, 1], self.lidarcones[:, 4], camera=False), encoding="bgr8"))
             if self.lidar_dy_publisher.get_subscription_count() > 0:
@@ -146,7 +146,7 @@ class CovNode(Node):
                 self.lidar_ee_publisher.publish(cv_bridge.cv2_to_imgmsg(self.pltsparce(self.lidarconese[:, 0], self.lidarconese[:, 1], self.lidarconese[:, 7], camera=False), encoding="bgr8"))
             
         if self.visioncones is not None:
-            #print(f"Vision: {np.cov(self.visioncones[:, 4:7], rowvar=False)}")
+            print(f"Vision: {np.cov(self.visioncones[:, 4:7], rowvar=False)}")
             if self.vision_dx_publisher.get_subscription_count() > 0:
                 self.vision_dx_publisher.publish(cv_bridge.cv2_to_imgmsg(self.pltsparce(self.visioncones[:, 0], self.visioncones[:, 1], self.visioncones[:, 4]), encoding="bgr8"))
             if self.vision_dy_publisher.get_subscription_count() > 0:

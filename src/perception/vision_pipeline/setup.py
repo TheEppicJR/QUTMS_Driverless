@@ -39,7 +39,6 @@ setup(
             "trt_detector = vision_pipeline.node_detector:main_trt",
             "zed_simulator = vision_pipeline.node_zed_simulator:main",
             "annotator = vision_pipeline.node_annotator:main",
-            "zed = vision_pipeline.node_zed:main",
         ],
     },
 )
