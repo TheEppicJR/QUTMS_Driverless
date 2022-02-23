@@ -79,7 +79,7 @@ class ConePipeline(Node):
         # find the closest cone in the cone tree
         closestcone = self.conesKDTree.search_knn(point, 1)
         # if its close enough to a actual cone than fuse it and rebalance in case it moved a bit too much (should only really matter for the orange cones near the start and may not need to rebalance at this step but why not) (im sure i will remove the rebalance to spare my cpu later and then the whole thing will break lol)
-        if closestcone[0][0].data.inTwoSigma(point):
+        if closestcone[0][0].data.inFourSigma(point):
             closestcone[0][0].data.update(point)
             self.conesKDTree.rebalance()
         # otherwise check it against the buffer

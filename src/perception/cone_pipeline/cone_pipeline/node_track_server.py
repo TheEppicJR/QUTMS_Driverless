@@ -90,10 +90,8 @@ class ConePipeline(Node):
         startingLineEdges = []
         qsLineEdges = []
         for edge in delaunayLines:
-            p1 = self.coneKDTree.search_knn(PointWithCov(0, 0, 0, None, 4, Header(), edge.x1, edge.y1, 0.0, None), 1)[0][0]
-            p2 = self.coneKDTree.search_knn(PointWithCov(0, 0, 0, None, 4, Header(), edge.x2, edge.y2, 0.0, None), 1)[0][0]
-            # determine if the colors match of if there is orange ones mixed
-            # print(f"{p1.data.color} {p1.data.coords} {p2.data.color} {p2.data.coords}")
+            p1 = edge.p1
+            p2 = edge.p2
             if p1.data.color == 0 and p2.data.color == 0:
                 leftHandEdges.append(edge)
             elif p1.data.color == 1 and p2.data.color == 1:
@@ -145,7 +143,9 @@ class ConePipeline(Node):
                 j = i + 1
                 if j == 3:
                     j = 0
-                edge = Edge(conePoints[simp[i]][0], conePoints[simp[i]][1], conePoints[simp[j]][0], conePoints[simp[j]][1])
+                p1 = self.coneKDTree.search_knn(PointWithCov(0, 0, 0, None, 4, Header(), conePoints[simp[i]][0], conePoints[simp[i]][1], 0.0, None), 1)[0][0]
+                p2 = self.coneKDTree.search_knn(PointWithCov(0, 0, 0, None, 4, Header(), conePoints[simp[j]][0], conePoints[simp[j]][1], 0.0, None), 1)[0][0]
+                edge = Edge(conePoints[simp[i]][0], conePoints[simp[i]][1], conePoints[simp[j]][0], conePoints[simp[j]][1], p1, p2)
 
                 # add the line if its not already in the list and filter out if its longer than 7.5 m
                 if edge not in delaunayEdges and edge.length() < 6:
@@ -245,12 +245,14 @@ class ConePipeline(Node):
         
 
 class Edge():
-    def __init__(self, x1, y1, x2, y2):
+    def __init__(self, x1, y1, x2, y2, p1, p2):
         self.x1 = x1
         self.y1 = y1
         self.x2 = x2
         self.y2 = y2
         self.intersection = None
+        self.p1 = p1
+        self.p2 = p2
 
     def getMiddlePoint(self):
         return (self.x1 + self.x2) / 2, (self.y1 + self.y2) / 2

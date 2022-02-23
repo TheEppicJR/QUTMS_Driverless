@@ -121,11 +121,23 @@ class PointWithCov:
         vector = [self.global_x-other.global_x, self.global_y-other.global_y, self.global_z-other.global_z]
         # get the normalized vector between the points
         dist = sqrt(vector[0]**2+vector[1]**2+vector[2]**2)+ 0.00001
-        # calculate the distance fo 3 sigma in the direction of the normal vector
-        selfTwosig = sqrt(((vector[0] / dist) * sqrt(self.global_cov[0,0]))**2 + ((vector[1] / dist) * sqrt(self.global_cov[1,1]))**2 + ((vector[2] / dist) * sqrt(self.global_cov[2,2]))**2) * 3
-        otherTwosig = sqrt(((vector[0] / dist) * sqrt(other.global_cov[0,0]))**2 + ((vector[1] / dist) * sqrt(other.global_cov[1,1]))**2 + ((vector[2] / dist) * sqrt(other.global_cov[2,2]))**2) * 3
+        # calculate the distance fo 2 sigma in the direction of the normal vector
+        selfTwosig = sqrt(((vector[0] / dist) * sqrt(self.global_cov[0,0]))**2 + ((vector[1] / dist) * sqrt(self.global_cov[1,1]))**2 + ((vector[2] / dist) * sqrt(self.global_cov[2,2]))**2) * 2
+        otherTwosig = sqrt(((vector[0] / dist) * sqrt(other.global_cov[0,0]))**2 + ((vector[1] / dist) * sqrt(other.global_cov[1,1]))**2 + ((vector[2] / dist) * sqrt(other.global_cov[2,2]))**2) * 2
         # see if the distance is less than the sum of the two 2 sigma vectors
         return dist < selfTwosig + otherTwosig
+
+    def inFourSigma(self, other:"PointWithCov"):
+        # get the vector between the points
+        vector = [self.global_x-other.global_x, self.global_y-other.global_y, self.global_z-other.global_z]
+        # get the normalized vector between the points
+        dist = sqrt(vector[0]**2+vector[1]**2+vector[2]**2)+ 0.00001
+        # calculate the distance fo 4 sigma in the direction of the normal vector
+        selfTwosig = sqrt(((vector[0] / dist) * sqrt(self.global_cov[0,0]))**2 + ((vector[1] / dist) * sqrt(self.global_cov[1,1]))**2 + ((vector[2] / dist) * sqrt(self.global_cov[2,2]))**2) * 4
+        otherTwosig = sqrt(((vector[0] / dist) * sqrt(other.global_cov[0,0]))**2 + ((vector[1] / dist) * sqrt(other.global_cov[1,1]))**2 + ((vector[2] / dist) * sqrt(other.global_cov[2,2]))**2) * 4
+        # see if the distance is less than the sum of the two 2 sigma vectors
+        return dist < selfTwosig + otherTwosig
+
 
     def dist(self, other:"PointWithCov"):
         return sqrt((self.global_x-other.global_x)**2+(self.global_y-other.global_y)**2+(self.global_z-other.global_z)**2)
@@ -146,6 +158,9 @@ class PointWithCov:
 
     def __repr__(self):
         return 'Item({}, {}, {})'.format(self.coords[0], self.coords[1], self.color)
+
+    def __eq__(self, other:"PointWithCov"):
+        return self.global_x == other.global_x and self.global_y == other.global_y
 
 
 def point_msg(
