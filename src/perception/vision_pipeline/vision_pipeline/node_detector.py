@@ -11,9 +11,6 @@ from ament_index_python.packages import get_package_share_directory
 # import ROS2 message libraries
 from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import Point
-from std_msgs.msg import Header
-# translate ROS image messages to OpenCV
-cv_bridge = CvBridge()
 # import custom message libraries
 from driverless_msgs.msg import Cone, ConeDetectionStamped, PointWithCovarianceStamped, PointWithCovarianceStampedArray
 
@@ -29,7 +26,10 @@ import enum
 # import required sub modules
 from .rect import Rect, draw_box
 
-CAMERA_FOV = 100  # degrees
+# translate ROS image messages to OpenCV
+cv_bridge = CvBridge()
+
+CAMERA_FOV = 110  # degrees
 
 # display colour constants
 Colour = Tuple[int, int, int]
@@ -157,7 +157,7 @@ class DetectorNode(Node):
         colour_camera_info_msg.width = 640
         depth_msg = self.depth_cache.getElemAfterTime(Time(seconds=stamp.sec, nanoseconds=stamp.nanosec, clock_type=ClockType.ROS_TIME))# + Duration(nanoseconds=0.02*10**9))
         logger = self.get_logger()
-        logger.info("Received image")
+        logger.debug("Received image")
 
         if colour_msg is None or depth_msg is None:
             print("No camera")
@@ -165,7 +165,7 @@ class DetectorNode(Node):
 
         start: float = time.time() # begin a timer
 
-        colour_frame: np.ndarray = cv_bridge.imgmsg_to_cv2(colour_msg)
+        colour_frame: np.ndarray = cv_bridge.imgmsg_to_cv2(colour_msg, desired_encoding='bgra8')
         depth_frame: np.ndarray = cv_bridge.imgmsg_to_cv2(depth_msg, desired_encoding='32FC1')
 
         detected_cones: List[Cone] = []
@@ -204,7 +204,7 @@ class DetectorNode(Node):
         self.detection_publisher_cov.publish(detection_msg_cov)
         self.debug_img_publisher.publish(cv_bridge.cv2_to_imgmsg(colour_frame))#, encoding="bgra8"))
 
-        logger.info("Time: " + str(time.time() - start)) # log time
+        logger.debug("Time: " + str(time.time() - start) + "\n") # log time
 
 
 ## OpenCV thresholding
