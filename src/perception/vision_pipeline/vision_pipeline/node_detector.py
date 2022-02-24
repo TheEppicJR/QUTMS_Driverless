@@ -147,7 +147,7 @@ class DetectorNode(Node):
         self.detection_publisher_cov: Publisher = self.create_publisher(PointWithCovarianceStampedArray, "/vision/cone_detection_cov", 1)
         self.debug_img_publisher: Publisher = self.create_publisher(Image, "/vision/debug_img", 1)
 
-        self.visioncov = np.array([[ 0.15,  0.01, 0], [ 0.01, 0.075, 0], [0, 0,  0.01]])
+        self.visioncov = np.array([[ 0.4,  0.01, 0], [ 0.01, 0.1, 0], [0, 0,  0.01]])
 
         # set which cone detection this will be using
         self.get_logger().info("Selected detection mode. 0==cv2, 1==torch, 2==trt")
@@ -190,7 +190,7 @@ class DetectorNode(Node):
             
             distance = cone_distance(bounding_box, depth_frame)
             # filter on distance
-            if isnan(distance) or isinf(distance):
+            if isnan(distance) or isinf(distance) or distance > 20:
                 continue
 
             bearing = cone_bearing(bounding_box, colour_camera_info_msg)
