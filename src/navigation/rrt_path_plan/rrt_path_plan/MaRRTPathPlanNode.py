@@ -13,6 +13,7 @@ from cv_bridge import CvBridge
 import message_filters
 # import ROS2 message libraries
 from sensor_msgs.msg import Image
+from std_msgs.msg import Header
 from geometry_msgs.msg import Point
 from visualization_msgs.msg import Marker, MarkerArray
 from builtin_interfaces.msg import Duration
@@ -22,11 +23,14 @@ import cProfile
 import pstats
 
 # import custom message libraries
-from driverless_msgs.msg import Cone, ConeDetectionStamped, Waypoint, WaypointsArray
+from driverless_msgs.msg import Cone, ConeDetectionStamped, Waypoint, WaypointsArray, PointWithCovarianceStamped, PointWithCovarianceStampedArray
 from fs_msgs.msg import ControlCommand, Track
 
 from .ma_rrt import RRT
 
+# import required sub modules
+from .point import PointWithCov
+from . import kdtree
 
 
 # For odometry message
@@ -65,7 +69,7 @@ class MaRRTPathPlanNode(Node):
         self.lastPublishWaypointsTime = 0
 
         # All Subs and pubs
-        self.create_subscription(ConeDetectionStamped, "/cone_pipe/cone_detection", self.mapCallback, 10)
+        self.create_subscription(PointWithCovarianceStampedArray, "/cone_pipe/cone_detection_cov", self.conesCallback, 10)
         self.create_subscription(Odometry, "/testing_only/odom", self.odometryCallback, 10)
 
         # Create publishers
@@ -87,6 +91,8 @@ class MaRRTPathPlanNode(Node):
         self.savedWaypoints = []
         self.preliminaryloopclosure = False
         self.loopclosure = False
+        self.trackEdges: List[Edge] = []
+        self.conesKDTree: KDNode = None
 
         self.rrt = None
 
@@ -108,8 +114,14 @@ class MaRRTPathPlanNode(Node):
         self.carPosYaw = yaw
 
 
-    def mapCallback(self, track_msg: ConeDetectionStamped):
-        self.map = track_msg.cones
+    def conesCallback(self, cones):
+        coneList: List[PointWithCov] = []
+
+        for i in range(len(cones.points)):
+            cone = cones.points[i]
+            coneList.append(PointWithCov(0, 0, 0, None, cone.color, cone.header, cone.position.x, cone.position.y, cone.position.z, np.array(cone.covariance).reshape((3,3))))
+        self.coneKDTree = kdtree.create(coneList)
+        self.map = cones.points
 
     def sampleTree(self):
 
@@ -130,12 +142,12 @@ class MaRRTPathPlanNode(Node):
         rrtConeTargets = []
         coneTargetsDistRatio = 0.5
         for cone in frontCones:
-            coneObstacleList.append((cone.location.x, cone.location.y, coneObstacleSize))
+            coneObstacleList.append((cone.position.x, cone.position.y, coneObstacleSize))
 
-            coneDist = self.dist(self.carPosX, self.carPosY, cone.location.x, cone.location.y)
+            coneDist = self.dist(self.carPosX, self.carPosY, cone.position.x, cone.position.y)
 
             if coneDist > frontConesDist * coneTargetsDistRatio:
-                rrtConeTargets.append((cone.location.x, cone.location.y, coneObstacleSize))
+                rrtConeTargets.append((cone.position.x, cone.position.y, coneObstacleSize))
 
         # Set Initial parameters
         start = [self.carPosX, self.carPosY, self.carPosYaw]
@@ -280,7 +292,7 @@ class MaRRTPathPlanNode(Node):
 
         for i in range(len(frontCones)):
             cone = frontCones[i]
-            conePoints[i] = ([cone.location.x, cone.location.y])
+            conePoints[i] = ([cone.position.x, cone.position.y])
 
         tri = Delaunay(conePoints)
 
@@ -512,6 +524,19 @@ class MaRRTPathPlanNode(Node):
 
         self.delaunayLinesVisualPub.publish(marker)
 
+    def isSideTrack(self, cone):
+        if self.conesKDTree is not None and self.conesKDTree.data is not None:
+            pt = PointWithCov(0, 0, 0, None, 4, Header(), cone.position.x, cone.position.y, 0.0, None)
+            knn = self.coneKDTree.search_knn(pt, 1)
+            if len(knn) > 0:
+                if knn[0][0].dist(pt) < 1:
+                    if knn[0][0].color == 0:
+                        return True, True
+                    elif knn[0][0].color == 0:
+                        return True, False
+        return False, False
+
+
     def findBestBranch(self, leafNodes, nodeList, largerGroupFrontCones, coneObstacleSize, expandDistance, planDistance):
         if not leafNodes:
             return
@@ -533,7 +558,7 @@ class MaRRTPathPlanNode(Node):
                 rightCones = []
 
                 for cone in largerGroupFrontCones:
-                    coneDistSq = ((cone.location.x - node.x) ** 2 + (cone.location.y - node.y) ** 2)
+                    coneDistSq = ((cone.position.x - node.x) ** 2 + (cone.position.y - node.y) ** 2)
 
                     if coneDistSq < coneDistanceLimitSq:
                         actualDist = math.sqrt(coneDistSq)
@@ -543,11 +568,18 @@ class MaRRTPathPlanNode(Node):
                             continue
 
                         nodeRating += (coneDistLimit - actualDist)
-
-                        if self.isLeftCone(node, nodeList[node.parent], cone):
-                            leftCones.append(cone)
+                        # this is the wrong way to structure this to be efficent
+                        side, isL = self.isSideTrack(cone)
+                        if side:
+                            if isL:
+                                leftCones.append(cone)
+                            else:
+                                rightCones.append(cone)
                         else:
-                            rightCones.append(cone)
+                            if self.isLeftCone(node, nodeList[node.parent], cone):
+                                leftCones.append(cone)
+                            else:
+                                rightCones.append(cone)
 
                 if ((len(leftCones) == 0 and len(rightCones)) > 0 or (len(leftCones) > 0 and len(rightCones) == 0)):
                     nodeRating /= bothSidesImproveFactor
@@ -589,7 +621,7 @@ class MaRRTPathPlanNode(Node):
 
     def isLeftCone(self, node, parentNode, cone):
         # //((b.X - a.X)*(cone.Y - a.Y) - (b.Y - a.Y)*(cone.X - a.X)) > 0;
-        return ((node.x - parentNode.x) * (cone.location.y - parentNode.y) - (node.y - parentNode.y) * (cone.location.x - parentNode.x)) > 0
+        return ((node.x - parentNode.x) * (cone.position.y - parentNode.y) - (node.y - parentNode.y) * (cone.position.x - parentNode.x)) > 0
 
     def publishBestBranchVisual(self, nodeList, leafNode):
         marker = Marker()
@@ -755,8 +787,8 @@ class MaRRTPathPlanNode(Node):
 
         frontConeList = []
         for cone in map:
-            if (headingVectorOrt[0] * (cone.location.y - carPosBehindPoint[1]) - headingVectorOrt[1] * (cone.location.x - carPosBehindPoint[0])) < 0:
-                if ((cone.location.x - self.carPosX) ** 2 + (cone.location.y - self.carPosY) ** 2) < frontDistSq:
+            if (headingVectorOrt[0] * (cone.position.y - carPosBehindPoint[1]) - headingVectorOrt[1] * (cone.position.x - carPosBehindPoint[0])) < 0:
+                if ((cone.position.x - self.carPosX) ** 2 + (cone.position.y - self.carPosY) ** 2) < frontDistSq:
                     frontConeList.append(cone)
         return frontConeList
 
@@ -770,16 +802,17 @@ class MaRRTPathPlanNode(Node):
         coneList = []
         radiusSq = radius * radius
         for cone in map:
-            if ((cone.location.x - x) ** 2 + (cone.location.y - y) ** 2) < radiusSq:
+            if ((cone.position.x - x) ** 2 + (cone.position.y - y) ** 2) < radiusSq:
                 coneList.append(cone)
         return coneList
 
 class Edge():
-    def __init__(self, x1, y1, x2, y2):
+    def __init__(self, x1, y1, x2, y2, color: int = 4):
         self.x1 = x1
         self.y1 = y1
         self.x2 = x2
         self.y2 = y2
+        self.color = color
         self.intersection = None
 
     def getMiddlePoint(self):
@@ -789,7 +822,6 @@ class Edge():
         return math.sqrt((self.x1 - self.x2) ** 2 + (self.y1 - self.y2) ** 2)
 
     def getPartsLengthRatio(self):
-        import math
 
         part1Length = math.sqrt((self.x1 - self.intersection[0]) ** 2 + (self.y1 - self.intersection[1]) ** 2)
         part2Length = math.sqrt((self.intersection[0] - self.x2) ** 2 + (self.intersection[1] - self.y2) ** 2)

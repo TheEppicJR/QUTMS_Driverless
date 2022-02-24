@@ -28,17 +28,47 @@ import getopt
 import logging
 import pathlib
 
-from transforms3d.euler import quat2euler
-
 from scipy.spatial import Delaunay
 
 # import required sub modules
 from .point import PointWithCov
-from . import kmeans_clustering as km
 from . import kdtree
 
 # initialise logger
 LOGGER = logging.getLogger(__name__)
+
+class Edge():
+    def __init__(self, x1, y1, x2, y2, p1, p2):
+        self.x1 = x1
+        self.y1 = y1
+        self.x2 = x2
+        self.y2 = y2
+        self.intersection = None
+        self.p1 = p1
+        self.p2 = p2
+
+    def getMiddlePoint(self):
+        return (self.x1 + self.x2) / 2, (self.y1 + self.y2) / 2
+
+    def length(self):
+        return math.sqrt((self.x1 - self.x2) ** 2 + (self.y1 - self.y2) ** 2)
+
+    def getPartsLengthRatio(self):
+
+        part1Length = math.sqrt((self.x1 - self.intersection[0]) ** 2 + (self.y1 - self.intersection[1]) ** 2)
+        part2Length = math.sqrt((self.intersection[0] - self.x2) ** 2 + (self.intersection[1] - self.y2) ** 2)
+
+        return max(part1Length, part2Length) / min(part1Length, part2Length)
+
+    def __eq__(self, other):
+        return (self.x1 == other.x1 and self.y1 == other.y1 and self.x2 == other.x2 and self.y2 == other.y2
+             or self.x1 == other.x2 and self.y1 == other.y2 and self.x2 == other.x1 and self.y2 == other.y1)
+
+    def __str__(self):
+        return "(" + str(round(self.x1, 2)) + "," + str(round(self.y1,2)) + "),(" + str(round(self.x2, 2)) + "," + str(round(self.y2,2)) + ")"
+
+    def __repr__(self):
+        return str(self)
 
 class ConePipeline(Node):
     def __init__(self):
@@ -81,8 +111,7 @@ class ConePipeline(Node):
             if line not in usedLines:
                 pass
 
-
-    def getEdges(self, delaunayLines):
+    def getEdges(self, delaunayLines: List[Edge]):
         usedEdges = []
         leftHandEdges = []
         rightHandEdges = []
@@ -102,7 +131,6 @@ class ConePipeline(Node):
                 qsLineEdges.append(edge)
             else:
                 discardedEdges.append(edge)
-
 
         leftHandMsg = self.trackEdgesVisual(leftHandEdges, 0)
         rightHandMsg = self.trackEdgesVisual(rightHandEdges, 1)
@@ -243,40 +271,6 @@ class ConePipeline(Node):
 
         self.delaunayLinesVisualPub.publish(marker)
         
-
-class Edge():
-    def __init__(self, x1, y1, x2, y2, p1, p2):
-        self.x1 = x1
-        self.y1 = y1
-        self.x2 = x2
-        self.y2 = y2
-        self.intersection = None
-        self.p1 = p1
-        self.p2 = p2
-
-    def getMiddlePoint(self):
-        return (self.x1 + self.x2) / 2, (self.y1 + self.y2) / 2
-
-    def length(self):
-        return math.sqrt((self.x1 - self.x2) ** 2 + (self.y1 - self.y2) ** 2)
-
-    def getPartsLengthRatio(self):
-        import math
-
-        part1Length = math.sqrt((self.x1 - self.intersection[0]) ** 2 + (self.y1 - self.intersection[1]) ** 2)
-        part2Length = math.sqrt((self.intersection[0] - self.x2) ** 2 + (self.intersection[1] - self.y2) ** 2)
-
-        return max(part1Length, part2Length) / min(part1Length, part2Length)
-
-    def __eq__(self, other):
-        return (self.x1 == other.x1 and self.y1 == other.y1 and self.x2 == other.x2 and self.y2 == other.y2
-             or self.x1 == other.x2 and self.y1 == other.y2 and self.x2 == other.x1 and self.y2 == other.y1)
-
-    def __str__(self):
-        return "(" + str(round(self.x1, 2)) + "," + str(round(self.y1,2)) + "),(" + str(round(self.x2, 2)) + "," + str(round(self.y2,2)) + ")"
-
-    def __repr__(self):
-        return str(self)
 
 def main(args=sys.argv[1:]):
     # defaults args
