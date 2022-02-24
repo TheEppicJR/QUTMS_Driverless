@@ -80,16 +80,29 @@ def cone_bearing(
     
     return CAMERA_FOV/2 * center_scaled
 
+def cone_elevation(
+    colour_frame_cone_bounding_box: Rect,
+    colour_frame_camera_info: CameraInfo,
+) -> float:
+
+    vfov = (colour_frame_camera_info.height / colour_frame_camera_info.width) * CAMERA_FOV
+    cone_center = colour_frame_cone_bounding_box.center.y
+    frame_width = colour_frame_camera_info.height
+    center_scaled = (frame_width / 2 - cone_center) / (frame_width / 2)  # 1 to -1 left to right
+    
+    return (vfov/2 * center_scaled)
+
 def cone_msg(
     distance: float,
     bearing: float,
+    elevation: float,
     colour: int,  # {Cone.YELLOW, Cone.BLUE, Cone.ORANGE_SMALL}
 ) -> Cone:
 
     location = Point(
         x=distance*cos(radians(bearing))-0.5,
         y=distance*sin(radians(bearing)),
-        z=0.25,
+        z=distance*sin(radians(elevation)) + 0.8,
     )
 
     return Cone(
@@ -100,6 +113,7 @@ def cone_msg(
 def cone_msg_cov(
     distance: float,
     bearing: float,
+    elevation: float,
     colour: int,  # {Cone.YELLOW, Cone.BLUE, Cone.ORANGE_SMALL}
     cov: List[int],
     header: Header
@@ -108,7 +122,7 @@ def cone_msg_cov(
     location = Point(
         x=distance*cos(radians(bearing))-0.5,
         y=distance*sin(radians(bearing)),
-        z=0.25,
+        z=distance*sin(radians(elevation)) + 0.8,
     )
 
     return PointWithCovarianceStamped(
@@ -194,8 +208,9 @@ class DetectorNode(Node):
                 continue
 
             bearing = cone_bearing(bounding_box, colour_camera_info_msg)
-            detected_cones.append(cone_msg(distance, bearing, cone_colour))
-            detected_cones_cov.append(cone_msg_cov(distance, bearing, cone_colour, self.visioncov.flatten(), colour_msg.header))
+            elevation = cone_elevation(bounding_box, colour_camera_info_msg)
+            detected_cones.append(cone_msg(distance, bearing, elevation, cone_colour))
+            detected_cones_cov.append(cone_msg_cov(distance, bearing, elevation, cone_colour, self.visioncov.flatten(), colour_msg.header))
             draw_box(colour_frame, box=bounding_box, colour=display_colour, distance=distance)
 
         detection_msg = ConeDetectionStamped(

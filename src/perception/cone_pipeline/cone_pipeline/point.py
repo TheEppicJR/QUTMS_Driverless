@@ -113,8 +113,11 @@ class PointWithCov:
         self.nMeasurments += 1
         self.updatecolor(other.color)
 
-    def covMax(self, lim):
+    def covMax(self, lim) -> bool:
         return sqrt(self.global_cov[0,0]**2+self.global_cov[1,1]**2+self.global_cov[2,2]**2) < lim
+
+    def covMin(self, lim) -> bool:
+        return sqrt(self.global_cov[0,0]**2+self.global_cov[1,1]**2+self.global_cov[2,2]**2) > lim
 
     def inTwoSigma(self, other:"PointWithCov"):
         # get the vector between the points

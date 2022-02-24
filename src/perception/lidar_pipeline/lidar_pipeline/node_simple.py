@@ -24,12 +24,12 @@ from .scripts.read_pcl import read_points_list
 from .scripts.sim_simple import find_cones
 
 
-def cone_msg(x_coord: float, y_coord: float) -> Cone: 
+def cone_msg(x_coord: float, y_coord: float, z_coord: float) -> Cone: 
     # {Cone.YELLOW, Cone.BLUE, Cone.ORANGE_SMALL}
     location: Point = Point(
         x=x_coord+1.2,
         y=y_coord,
-        z=0.0,
+        z=z_coord + 0.2,
     )
 
     return Cone(
@@ -40,6 +40,7 @@ def cone_msg(x_coord: float, y_coord: float) -> Cone:
 def cone_msg_cov(
     x_coord: float,
     y_coord: float,
+    z_coord: float,
     colour: int,  # {Cone.YELLOW, Cone.BLUE, Cone.ORANGE_SMALL}
     cov: List[int],
     header: Header
@@ -48,7 +49,7 @@ def cone_msg_cov(
     location: Point = Point(
         x=x_coord+1.2,
         y=y_coord,
-        z=0.0,
+        z=z_coord + 0.2,
     )
 
     return PointWithCovarianceStamped(
@@ -96,8 +97,8 @@ class LidarProcessing(Node):
         detected_cones_cov: List[PointWithCovarianceStamped] = []
 
         for cone in cones:
-            detected_cones.append(cone_msg(cone[0], cone[1]))
-            detected_cones_cov.append(cone_msg_cov(cone[0], cone[1], 4, self.lidarcov.flatten(), pc2_msg.header))
+            detected_cones.append(cone_msg(cone[0], cone[1], cone[2]))
+            detected_cones_cov.append(cone_msg_cov(cone[0], cone[1], cone[2], 4, self.lidarcov.flatten(), pc2_msg.header))
        
         detection_msg = ConeDetectionStamped(
             header=pc2_msg.header,

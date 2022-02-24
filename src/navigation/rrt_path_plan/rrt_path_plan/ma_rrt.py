@@ -10,7 +10,6 @@ import random
 import math
 import copy
 import numpy as np
-
 class RRT():
     """
     Class for RRT Planning
@@ -276,27 +275,22 @@ class RRT():
                 return False  # collision
         return True  # safe
 
-
 class Node():
     """
     RRT Node
     """
-    x: float
-    y: float
-    yaw: float
-    cost: float
 
     def __init__(self, x, y, yaw):
-        self.x = x
-        self.y = y
-        self.yaw = yaw
-        self.cost = 0.0
+        self.x: float = x
+        self.y: float = y
+        self.yaw: float = yaw
+        self.cost: float = 0.0
         self.parent = None
 
     def __str__(self):
         return str(round(self.x, 2)) + "," + str(round(self.y,2)) + "," + str(math.degrees(self.yaw)) + "," + str(self.cost)
 
-    def __eq__(self, other):
+    def __eq__(self, other: "Node"):
         return self.x == other.x and self.y == other.y and self.yaw == other.yaw and self.cost == other.cost
 
     def __repr__(self):

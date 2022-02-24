@@ -142,12 +142,13 @@ class MaRRTPathPlanNode(Node):
         rrtConeTargets = []
         coneTargetsDistRatio = 0.5
         for cone in frontCones:
-            coneObstacleList.append((cone.position.x, cone.position.y, coneObstacleSize))
+            if cone.position.z < 0.5 and cone.position.z > 0.3:
+                coneObstacleList.append((cone.position.x, cone.position.y, coneObstacleSize))
 
-            coneDist = self.dist(self.carPosX, self.carPosY, cone.position.x, cone.position.y)
+                coneDist = self.dist(self.carPosX, self.carPosY, cone.position.x, cone.position.y)
 
-            if coneDist > frontConesDist * coneTargetsDistRatio:
-                rrtConeTargets.append((cone.position.x, cone.position.y, coneObstacleSize))
+                if coneDist > frontConesDist * coneTargetsDistRatio:
+                    rrtConeTargets.append((cone.position.x, cone.position.y, coneObstacleSize))
 
         # Set Initial parameters
         start = [self.carPosX, self.carPosY, self.carPosYaw]
@@ -162,7 +163,7 @@ class MaRRTPathPlanNode(Node):
 
         self.publishTreeVisual(nodeList, leafNodes)
 
-        frontConesBiggerDist = 12
+        frontConesBiggerDist = 18
         largerGroupFrontCones = self.getFrontConeObstacles(self.map, frontConesBiggerDist)
 
         # BestBranch
@@ -305,7 +306,7 @@ class MaRRTPathPlanNode(Node):
                     j = 0
                 edge = Edge(conePoints[simp[i]][0], conePoints[simp[i]][1], conePoints[simp[j]][0], conePoints[simp[j]][1])
 
-                if edge not in delaunayEdges:
+                if edge not in delaunayEdges and edge.length() < 7.5:
                     delaunayEdges.append(edge)
 
         return delaunayEdges
@@ -547,6 +548,19 @@ class MaRRTPathPlanNode(Node):
         bothSidesImproveFactor = 3
         minAcceptableBranchRating = 80 # fits good fsg18
 
+        largeGroupFrontCones = []
+        leftConesc = []
+        rightConesc = []
+        for cone in largerGroupFrontCones:
+            side, isL = self.isSideTrack(cone)
+            if side:
+                if isL:
+                    leftConesc.append(cone)
+                else:
+                    rightConesc.append(cone)
+            else:
+                largeGroupFrontCones.append(cone)
+
         leafRatings = []
         for leaf in leafNodes:
             branchRating = 0
@@ -554,10 +568,10 @@ class MaRRTPathPlanNode(Node):
             while node.parent is not None:
                 nodeRating = 0
 
-                leftCones = []
-                rightCones = []
+                leftCones = leftConesc
+                rightCones = rightConesc
 
-                for cone in largerGroupFrontCones:
+                for cone in largeGroupFrontCones:
                     coneDistSq = ((cone.position.x - node.x) ** 2 + (cone.position.y - node.y) ** 2)
 
                     if coneDistSq < coneDistanceLimitSq:
@@ -568,18 +582,11 @@ class MaRRTPathPlanNode(Node):
                             continue
 
                         nodeRating += (coneDistLimit - actualDist)
-                        # this is the wrong way to structure this to be efficent
-                        side, isL = self.isSideTrack(cone)
-                        if side:
-                            if isL:
-                                leftCones.append(cone)
-                            else:
-                                rightCones.append(cone)
+                        
+                        if self.isLeftCone(node, nodeList[node.parent], cone):
+                            leftCones.append(cone)
                         else:
-                            if self.isLeftCone(node, nodeList[node.parent], cone):
-                                leftCones.append(cone)
-                            else:
-                                rightCones.append(cone)
+                            rightCones.append(cone)
 
                 if ((len(leftCones) == 0 and len(rightCones)) > 0 or (len(leftCones) > 0 and len(rightCones) == 0)):
                     nodeRating /= bothSidesImproveFactor
@@ -869,8 +876,8 @@ def main(args=sys.argv[1:]):
 
     LOGGER.info(f'args = {args}')
 
-    # profiler = cProfile.Profile()
-    # profiler.enable()
+    profiler = cProfile.Profile()
+    profiler.enable()
     
     # begin ros node
     rclpy.init(args=args)
@@ -893,9 +900,9 @@ def main(args=sys.argv[1:]):
 
     rclpy.shutdown()
     thread.join()
-    # profiler.disable()
-    # stats = pstats.Stats(profiler).sort_stats(pstats.SortKey.TIME)
-    # stats.dump_stats(filename='needs_profiling.prof')
+    profiler.disable()
+    stats = pstats.Stats(profiler).sort_stats(pstats.SortKey.TIME)
+    stats.dump_stats(filename='needs_profiling.prof')
 
 
 if __name__ == '__main__':

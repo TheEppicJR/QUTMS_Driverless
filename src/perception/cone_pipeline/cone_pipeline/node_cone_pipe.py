@@ -79,7 +79,7 @@ class ConePipeline(Node):
         # find the closest cone in the cone tree
         closestcone = self.conesKDTree.search_knn(point, 1)
         # if its close enough to a actual cone than fuse it and rebalance in case it moved a bit too much (should only really matter for the orange cones near the start and may not need to rebalance at this step but why not) (im sure i will remove the rebalance to spare my cpu later and then the whole thing will break lol)
-        if closestcone[0][0].data.inFourSigma(point):
+        if len(closestcone) > 0 and closestcone[0][0].data.inFourSigma(point):
             closestcone[0][0].data.update(point)
             self.conesKDTree.rebalance()
         # otherwise check it against the buffer
@@ -127,7 +127,7 @@ class ConePipeline(Node):
             for point in points:
                 self.bufferCone(point)
         # if we have cones we are sure about than send them out in messages
-        if self.conesKDTree is not None:
+        if self.conesKDTree is not None and self.conesKDTree.data is not None:
             # make a bool to determine if we are going to spend the time to generate markers
             msgs = self.printmarkers and self.filtered_markers.get_subscription_count() > 0
             # get all the cone elements from the tree structure
@@ -191,16 +191,20 @@ class ConePipeline(Node):
                     self.bufferKDTree.remove(point)
             self.bufferKDTree.rebalance()
         if self.conesKDTree is not None and self.conesKDTree.data is not None:
-            for point in self.bufferKDTree.returnElements():
+            for point in self.conesKDTree.returnElements():
                 knn = self.conesKDTree.search_knn(point, 2)
+                #print(point.global_z)
                 if len(knn) > 1:
                     if point.inFourSigma(knn[1][0].data) and (point.color == knn[1][0].data.color or (point.color == 4 or knn[1][0].data.color == 4)):
                         knn[1][0].data.update(point)
                         self.conesKDTree.remove(point)
                         self.conesKDTree.rebalance()
-                    elif (point.nMeasurments > 3 and not points.covMax(1)) or point.global_z < 0.2 or point.global_z > 0.3:
+                    elif (point.nMeasurments > 3 and point.covMin(1)) or point.global_z < 0.2 or point.global_z > 0.7:
                         self.conesKDTree.remove(point)
                         self.conesKDTree.rebalance()
+                if point.global_z < 0.2 or point.global_z > 0.7:
+                    self.conesKDTree.remove(point)
+                    self.conesKDTree.rebalance()
 
             
         
@@ -224,7 +228,7 @@ class ConePipeline(Node):
             for point in points.points:
                 p = PointWithCov(point.position.x, point.position.y, point.position.z, np.array(point.covariance).reshape((3,3)), 4, point.header)
                 p.translate(x, y, z, theta, odomcov)
-                if point.position.z < 0.2 and point.position.z > -0.1:
+                if point.position.z < 0.25 and point.position.z > 0.15:
                     conelist.append(p)
                     if msgs:
                         markers.append(p.getCov(msgid, True))
