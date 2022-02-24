@@ -122,8 +122,8 @@ class PointWithCov:
         # get the normalized vector between the points
         dist = sqrt(vector[0]**2+vector[1]**2+vector[2]**2)+ 0.00001
         # calculate the distance fo 2 sigma in the direction of the normal vector
-        selfTwosig = sqrt(((vector[0] / dist) * sqrt(self.global_cov[0,0]))**2 + ((vector[1] / dist) * sqrt(self.global_cov[1,1]))**2 + ((vector[2] / dist) * sqrt(self.global_cov[2,2]))**2) * 2
-        otherTwosig = sqrt(((vector[0] / dist) * sqrt(other.global_cov[0,0]))**2 + ((vector[1] / dist) * sqrt(other.global_cov[1,1]))**2 + ((vector[2] / dist) * sqrt(other.global_cov[2,2]))**2) * 2
+        selfTwosig = sqrt(((vector[0] / dist) * sqrt(abs(self.global_cov[0,0])))**2 + ((vector[1] / dist) * sqrt(abs(self.global_cov[1,1])))**2 + ((vector[2] / dist) * sqrt(abs(self.global_cov[2,2])))**2) * 2
+        otherTwosig = sqrt(((vector[0] / dist) * sqrt(abs(other.global_cov[0,0])))**2 + ((vector[1] / dist) * sqrt(abs(other.global_cov[1,1])))**2 + ((vector[2] / dist) * sqrt(abs(other.global_cov[2,2])))**2) * 2
         # see if the distance is less than the sum of the two 2 sigma vectors
         return dist < selfTwosig + otherTwosig
 
@@ -133,8 +133,8 @@ class PointWithCov:
         # get the normalized vector between the points
         dist = sqrt(vector[0]**2+vector[1]**2+vector[2]**2)+ 0.00001
         # calculate the distance fo 4 sigma in the direction of the normal vector
-        selfTwosig = sqrt(((vector[0] / dist) * sqrt(self.global_cov[0,0]))**2 + ((vector[1] / dist) * sqrt(self.global_cov[1,1]))**2 + ((vector[2] / dist) * sqrt(self.global_cov[2,2]))**2) * 4
-        otherTwosig = sqrt(((vector[0] / dist) * sqrt(other.global_cov[0,0]))**2 + ((vector[1] / dist) * sqrt(other.global_cov[1,1]))**2 + ((vector[2] / dist) * sqrt(other.global_cov[2,2]))**2) * 4
+        selfTwosig = sqrt(((vector[0] / dist) * sqrt(abs(self.global_cov[0,0])))**2 + ((vector[1] / dist) * sqrt(abs(self.global_cov[1,1])))**2 + ((vector[2] / dist) * sqrt(abs(self.global_cov[2,2])))**2) * 4
+        otherTwosig = sqrt(((vector[0] / dist) * sqrt(abs(other.global_cov[0,0])))**2 + ((vector[1] / dist) * sqrt(abs(other.global_cov[1,1])))**2 + ((vector[2] / dist) * sqrt(abs(other.global_cov[2,2])))**2) * 4
         # see if the distance is less than the sum of the two 2 sigma vectors
         return dist < selfTwosig + otherTwosig
 
@@ -148,7 +148,7 @@ class PointWithCov:
 
     def getCov(self, id: int, buffer: bool):
         # make a deformed sphere at 3 sigma of the variance in each axis (the diagnal elements of the covariance matrix are squared so we gotta sqrt)
-        return cov_msg(self.global_x, self.global_y, self.global_z, id, self.header, 3*sqrt(self.global_cov[0,0]), 3*sqrt(self.global_cov[1,1]), 3*sqrt(self.global_cov[2,2]), buffer)
+        return cov_msg(self.global_x, self.global_y, self.global_z, id, self.header, 3*sqrt(abs(self.global_cov[0,0])), 3*sqrt(abs(self.global_cov[1,1])), 3*sqrt(abs(self.global_cov[2,2])), buffer)
 
     def __len__(self):
         return len(self.coords)

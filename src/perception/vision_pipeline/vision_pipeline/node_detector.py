@@ -147,7 +147,7 @@ class DetectorNode(Node):
         self.detection_publisher_cov: Publisher = self.create_publisher(PointWithCovarianceStampedArray, "/vision/cone_detection_cov", 1)
         self.debug_img_publisher: Publisher = self.create_publisher(Image, "/vision/debug_img", 1)
 
-        self.visioncov = np.array([[ 0.1,  0.01, 0], [ 0.01, 0.05, 0], [0, 0,  0.01]])
+        self.visioncov = np.array([[ 0.15,  0.01, 0], [ 0.01, 0.075, 0], [0, 0,  0.01]])
 
         # set which cone detection this will be using
         self.get_logger().info("Selected detection mode. 0==cv2, 1==torch, 2==trt")
@@ -161,7 +161,7 @@ class DetectorNode(Node):
         colour_camera_info_msg = CameraInfo()
         colour_camera_info_msg.height = 360
         colour_camera_info_msg.width = 640
-        depth_msg = self.depth_cache.getElemAfterTime(Time(seconds=stamp.sec, nanoseconds=stamp.nanosec, clock_type=ClockType.ROS_TIME))# + Duration(nanoseconds=0.02*10**9))
+        depth_msg = self.depth_cache.getElemAfterTime(Time(seconds=stamp.sec, nanoseconds=stamp.nanosec, clock_type=ClockType.ROS_TIME) - Duration(nanoseconds=0.02*10**9))
         logger = self.get_logger()
         logger.debug("Received image")
 
