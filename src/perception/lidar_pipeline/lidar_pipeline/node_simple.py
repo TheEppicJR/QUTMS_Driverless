@@ -66,7 +66,7 @@ class LidarProcessing(Node):
         self.detection_publisher: Publisher = self.create_publisher(ConeDetectionStamped, "lidar/cone_detection", 1)
         self.detection_publisher_cov: Publisher = self.create_publisher(PointWithCovarianceStampedArray, "/lidar/cone_detection_cov", 1)
 
-        self.lidarcov = np.array([[ 0.01,  0.1, 0], [ 0.1, 0.01, 0.1], [0, 0.1,  0.01]])
+        self.lidarcov = np.array([[ 0.02,  0.1, 0], [ 0.1, 0.02, 0.1], [0, 0.1,  0.01]])
 
         self.get_logger().info('---LiDAR sim processing node initialised---')
 

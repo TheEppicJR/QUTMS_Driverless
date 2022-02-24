@@ -159,6 +159,7 @@ class ConePipeline(Node):
                     pubpt.color = cone.color
 
                     # append those elements to the list of elements for the message
+                    #if True:#cone.color < 4:
                     conelist.append(pubpt)
                     conelist_cov.append(pubpt_cov)
 
@@ -189,6 +190,19 @@ class ConePipeline(Node):
                 if self.get_clock().now() - Duration(nanoseconds=2*10**9) > Time(seconds=point.header.stamp.sec, nanoseconds=point.header.stamp.nanosec, clock_type=ClockType.ROS_TIME):
                     self.bufferKDTree.remove(point)
             self.bufferKDTree.rebalance()
+        if self.conesKDTree is not None and self.conesKDTree.data is not None:
+            for point in self.bufferKDTree.returnElements():
+                knn = self.conesKDTree.search_knn(point, 2)
+                if len(knn) > 1:
+                    if point.inFourSigma(knn[1][0].data) and (point.color == knn[1][0].data.color or (point.color == 4 or knn[1][0].data.color == 4)):
+                        knn[1][0].data.update(point)
+                        self.conesKDTree.remove(point)
+                        self.conesKDTree.rebalance()
+                    elif (point.nMeasurments > 3 and not points.covMax(1)) or point.global_z < 0.2 or point.global_z > 0.3:
+                        self.conesKDTree.remove(point)
+                        self.conesKDTree.rebalance()
+
+            
         
     def lidarCallback(self, points: PointWithCovarianceStampedArray):
         if len(points.points) > 0:
@@ -210,11 +224,12 @@ class ConePipeline(Node):
             for point in points.points:
                 p = PointWithCov(point.position.x, point.position.y, point.position.z, np.array(point.covariance).reshape((3,3)), 4, point.header)
                 p.translate(x, y, z, theta, odomcov)
-                conelist.append(p)
-                if msgs:
-                    markers.append(p.getCov(msgid, True))
-                    markers.append(p.getMarker(msgid+1))
-                msgid += 2
+                if point.position.z < 0.2 and point.position.z > -0.1:
+                    conelist.append(p)
+                    if msgs:
+                        markers.append(p.getCov(msgid, True))
+                        markers.append(p.getMarker(msgid+1))
+                    msgid += 2
             if msgs:
                 mkr = MarkerArray()
                 mkr.markers = markers

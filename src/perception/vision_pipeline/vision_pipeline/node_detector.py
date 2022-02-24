@@ -89,7 +89,7 @@ def cone_msg(
     location = Point(
         x=distance*cos(radians(bearing))-0.5,
         y=distance*sin(radians(bearing)),
-        z=0.0,
+        z=0.25,
     )
 
     return Cone(
@@ -108,7 +108,7 @@ def cone_msg_cov(
     location = Point(
         x=distance*cos(radians(bearing))-0.5,
         y=distance*sin(radians(bearing)),
-        z=0.0,
+        z=0.25,
     )
 
     return PointWithCovarianceStamped(
