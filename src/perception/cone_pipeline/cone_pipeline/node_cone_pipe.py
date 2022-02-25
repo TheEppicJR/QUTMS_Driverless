@@ -32,7 +32,8 @@ from transforms3d.euler import quat2euler
 # import required sub modules
 from .point import PointWithCov
 from . import kmeans_clustering as km
-from . import kdtree
+from .kdtree import create, KDNode
+from .kdtree import Node as kdNode
 
 # initialise logger
 LOGGER = logging.getLogger(__name__)
@@ -70,9 +71,13 @@ class ConePipeline(Node):
 
     def getNearestOdom(self, stamp):
         # need to switch this over to a position from a EKF with covariance
-        # have to do the time stuff this way because the compating of time in the message_filters __init__.py is wack
-        locodom = self.actualodom.getElemBeforeTime(Time(seconds=stamp.sec, nanoseconds=stamp.nanosec, clock_type=ClockType.ROS_TIME))
+        locodom: Odometry = self.actualodom.getElemAfterTime(Time.from_msg(stamp))
         cov = np.identity(3) * 0.0025 # standin covariance for ekf assuming the variance is sigma = 5cm with no covariance
+        # if the nearest Odom in the cache is more than 0.05 sec off then just throw it away
+        if locodom is not None:
+            #print(Time.from_msg(stamp) - Time.from_msg(locodom.header.stamp))
+            if Time.from_msg(stamp) - Time.from_msg(locodom.header.stamp) > Duration(nanoseconds=0.05*(10**9)):
+                return None, cov
         return locodom, cov
 
     def fuseCone(self, point):
@@ -95,7 +100,7 @@ class ConePipeline(Node):
             # see if it is close enough for our liking (ths distance in m) than we will turn it into a actual cone
             if closestcone[0][0].data.inTwoSigma(point):
                 # select the first group from the returned tuple (point objects) and then get the first one (which will be our point since we only asked for one)
-                pointnew = closestcone[0][0]
+                pointnew: kdNode = closestcone[0][0]
                 # fuse the points together
                 pointnew.data.update(point)
                 # if there is already a tree of Offical Cones tm than add it to that tree and then rebalance it
@@ -104,7 +109,7 @@ class ConePipeline(Node):
                     self.conesKDTree.rebalance()
                 # if not than make a tree for them
                 else:
-                    self.conesKDTree = kdtree.create([point])
+                    self.conesKDTree = create([point])
                 # remove the point from the buffer tree
                 self.bufferKDTree.remove(pointnew.data)
                 # the rebalance the buffer tree since we removed something
@@ -115,7 +120,7 @@ class ConePipeline(Node):
                 self.bufferKDTree.rebalance()
         # if we dont already have a buffer tree than create one (this should only ever happen once i hope, otherwise something has gone horrible wrong)
         else:
-            self.bufferKDTree = kdtree.create([point])
+            self.bufferKDTree = create([point])
 
     def fusePoints(self, points):
         # if we have cones in the cone tree than check if we can fuse our new points with them
@@ -187,7 +192,7 @@ class ConePipeline(Node):
         # need to make a section to remove old points from the buffer
         if self.bufferKDTree is not None and self.bufferKDTree.data is not None:
             for point in self.bufferKDTree.returnElements():
-                if self.get_clock().now() - Duration(nanoseconds=2*10**9) > Time(seconds=point.header.stamp.sec, nanoseconds=point.header.stamp.nanosec, clock_type=ClockType.ROS_TIME):
+                if self.get_clock().now() - Duration(nanoseconds=2*10**9) > Time.from_msg(point.header.stamp):
                     self.bufferKDTree.remove(point)
             self.bufferKDTree.rebalance()
         if self.conesKDTree is not None and self.conesKDTree.data is not None:
@@ -203,6 +208,7 @@ class ConePipeline(Node):
                         self.conesKDTree.remove(point)
                         self.conesKDTree.rebalance()
                 if point.global_z < 0.2 or point.global_z > 0.65:
+                    #print(point.global_z)
                     self.conesKDTree.remove(point)
                     self.conesKDTree.rebalance()
 

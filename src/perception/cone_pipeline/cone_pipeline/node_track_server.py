@@ -32,7 +32,7 @@ from scipy.spatial import Delaunay
 
 # import required sub modules
 from .point import PointWithCov, Edge, Triangle, Point
-from . import kdtree
+from .kdtree import create, KDNode
 
 # initialise logger
 LOGGER = logging.getLogger(__name__)
@@ -137,7 +137,7 @@ class ConePipeline(Node):
             coneList.append(PointWithCov(0, 0, 0, None, cone.color, cone.header, cone.position.x, cone.position.y, cone.position.z, np.array(cone.covariance).reshape((3,3))))
 
         tri = Delaunay(conePoints)
-        self.coneKDTree = kdtree.create(coneList)
+        self.coneKDTree = create(coneList)
         
         for simp in tri.simplices:
             p1 = self.coneKDTree.search_knn(Point(conePoints[simp[0]][0], conePoints[simp[0]][1]), 1)[0][0].data
@@ -150,8 +150,8 @@ class ConePipeline(Node):
 
         self.triangleList: List[Triangle] = triangleList
         self.edgeList: List[Edge] = edgeList
-        self.edgeKDTree = kdtree.create(edgeList)
-        self.triangleKDTree = kdtree.create(triangleList)
+        self.edgeKDTree = create(edgeList)
+        self.triangleKDTree = create(triangleList)
         return True
 
 

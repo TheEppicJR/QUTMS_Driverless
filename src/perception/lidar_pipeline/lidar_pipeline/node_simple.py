@@ -15,6 +15,7 @@ from driverless_msgs.msg import Cone, ConeDetectionStamped, PointWithCovarianceS
 import time
 from typing import List
 import sys
+from math import sin, cos, sqrt, atan2
 import numpy as np
 
 # import ROS function that has been ported to ROS2 by
@@ -23,6 +24,14 @@ from .scripts.read_pcl import read_points_list
 # lidar cone detection algorithm
 from .scripts.sim_simple import find_cones
 
+def cone_cov(cov, x, y, z):
+    bearing = atan2(y, x)
+    distance = sqrt(x**2 +y**2 + z**2)
+    s, c = sin(bearing), cos(bearing)
+    rotation_matrix = np.array([[c, -1*s, 0],[s, c, 0], [0, 0, 1]])
+    new_cov = rotation_matrix @ cov @ rotation_matrix.T
+    retcov = new_cov * (distance/20)
+    return retcov
 
 def cone_msg(x_coord: float, y_coord: float, z_coord: float) -> Cone: 
     # {Cone.YELLOW, Cone.BLUE, Cone.ORANGE_SMALL}
@@ -67,7 +76,7 @@ class LidarProcessing(Node):
         self.detection_publisher: Publisher = self.create_publisher(ConeDetectionStamped, "lidar/cone_detection", 1)
         self.detection_publisher_cov: Publisher = self.create_publisher(PointWithCovarianceStampedArray, "/lidar/cone_detection_cov", 1)
 
-        self.lidarcov = np.array([[ 0.02,  0.1, 0], [ 0.1, 0.02, 0.1], [0, 0.1,  0.01]])
+        self.lidarcov = np.array([[ 0.04,  0, 0], [ 0, 0.06, 0], [0, 0,  0.02]])
 
         self.get_logger().info('---LiDAR sim processing node initialised---')
 
@@ -98,7 +107,8 @@ class LidarProcessing(Node):
 
         for cone in cones:
             detected_cones.append(cone_msg(cone[0], cone[1], cone[2]))
-            detected_cones_cov.append(cone_msg_cov(cone[0], cone[1], cone[2], 4, self.lidarcov.flatten(), pc2_msg.header))
+            conecov = cone_cov(self.lidarcov, cone[0], cone[1], cone[2])
+            detected_cones_cov.append(cone_msg_cov(cone[0], cone[1], cone[2], 4, conecov.flatten(), pc2_msg.header))
        
         detection_msg = ConeDetectionStamped(
             header=pc2_msg.header,

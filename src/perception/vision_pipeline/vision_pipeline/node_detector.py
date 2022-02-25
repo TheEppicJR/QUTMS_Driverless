@@ -69,6 +69,14 @@ def cone_distance(
 
     return np.mean(depth_roi[conePts]) / 2
 
+def cone_cov(cov, bearing, distance, elevation):
+    # could also impliment shifting cov due to elevation
+    s, c = sin(radians(bearing)), cos(radians(bearing))
+    rotation_matrix = np.array([[c, -1*s, 0],[s, c, 0], [0, 0, 1]])
+    new_cov = rotation_matrix @ cov @ rotation_matrix.T
+    retcov = new_cov * (distance/20)
+    return retcov
+
 def cone_bearing(
     colour_frame_cone_bounding_box: Rect,
     colour_frame_camera_info: CameraInfo,
@@ -148,12 +156,9 @@ class DetectorNode(Node):
         super().__init__("cone_detector")
 
         # subscribers
-        # colour_sub = message_filters.Subscriber(self, Image, "/zed2i/zed_node/rgb/image_rect_color")
-        # self.colour_cache = message_filters.Cache(colour_sub, 10)
-        depth_sub = message_filters.Subscriber(self, Image, "/fsds/camera/depth_registered")
-        self.depth_cache = message_filters.Cache(depth_sub, 20)
-        # self.create_subscription(CameraInfo, "/zed2i/zed_node/rgb/camera_info", self.callback, 10)
-        self.create_subscription(Image, "/fsds/camera/image_rect_color", self.callback, 10)
+        image_sub = message_filters.Subscriber(self, Image, "/fsds/camera/image_rect_color")
+        self.image_cache = message_filters.Cache(image_sub, 20)
+        self.create_subscription(Image, "/fsds/camera/depth_registered", self.callback, 10)
 
 
         # publishers
@@ -161,7 +166,7 @@ class DetectorNode(Node):
         self.detection_publisher_cov: Publisher = self.create_publisher(PointWithCovarianceStampedArray, "/vision/cone_detection_cov", 1)
         self.debug_img_publisher: Publisher = self.create_publisher(Image, "/vision/debug_img", 1)
 
-        self.visioncov = np.array([[ 0.4,  0.01, 0], [ 0.01, 0.1, 0], [0, 0,  0.01]])
+        self.visioncov = np.array([[ 0.4,  0, 0], [ 0, 0.1, 0], [0, 0,  0.05]])
 
         # set which cone detection this will be using
         self.get_logger().info("Selected detection mode. 0==cv2, 1==torch, 2==trt")
@@ -170,12 +175,12 @@ class DetectorNode(Node):
         self.get_bounding_boxes_callable = get_bounding_boxes_callable
 
 
-    def callback(self, colour_msg: Image):
-        stamp = colour_msg.header.stamp
+    def callback(self, depth_msg: Image):
+        stamp = depth_msg.header.stamp
         colour_camera_info_msg = CameraInfo()
         colour_camera_info_msg.height = 360
         colour_camera_info_msg.width = 640
-        depth_msg = self.depth_cache.getElemAfterTime(Time(seconds=stamp.sec, nanoseconds=stamp.nanosec, clock_type=ClockType.ROS_TIME) - Duration(nanoseconds=0.02*10**9))
+        colour_msg: Image = self.image_cache.getElemAfterTime(Time.from_msg(stamp) - Duration(nanoseconds=0.02*10**9))
         logger = self.get_logger()
         logger.debug("Received image")
 
@@ -183,6 +188,7 @@ class DetectorNode(Node):
             print("No camera")
             return None
 
+        #print(f"{Time.from_msg(stamp)-Time.from_msg(colour_msg.header.stamp)}")
         start: float = time.time() # begin a timer
 
         colour_frame: np.ndarray = cv_bridge.imgmsg_to_cv2(colour_msg, desired_encoding='bgra8')
@@ -209,8 +215,9 @@ class DetectorNode(Node):
 
             bearing = cone_bearing(bounding_box, colour_camera_info_msg)
             elevation = cone_elevation(bounding_box, colour_camera_info_msg)
+            conecov = cone_cov(self.visioncov, bearing, distance, elevation)
             detected_cones.append(cone_msg(distance, bearing, elevation, cone_colour))
-            detected_cones_cov.append(cone_msg_cov(distance, bearing, elevation, cone_colour, self.visioncov.flatten(), colour_msg.header))
+            detected_cones_cov.append(cone_msg_cov(distance, bearing, elevation, cone_colour, conecov.flatten(), colour_msg.header))
             draw_box(colour_frame, box=bounding_box, colour=display_colour, distance=distance)
 
         detection_msg = ConeDetectionStamped(
