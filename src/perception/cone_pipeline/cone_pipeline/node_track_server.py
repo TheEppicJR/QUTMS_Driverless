@@ -9,7 +9,7 @@ import rclpy.logging
 import message_filters
 # import ROS2 message libraries
 from std_msgs.msg import Header
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import Point as PointMsg
 from visualization_msgs.msg import Marker, MarkerArray
 from nav_msgs.msg import Odometry
 from builtin_interfaces.msg import Duration as DurationMsg
@@ -31,44 +31,12 @@ import pathlib
 from scipy.spatial import Delaunay
 
 # import required sub modules
-from .point import PointWithCov
+from .point import PointWithCov, Edge, Triangle, Point
 from . import kdtree
 
 # initialise logger
 LOGGER = logging.getLogger(__name__)
 
-class Edge():
-    def __init__(self, x1, y1, x2, y2, p1, p2):
-        self.x1 = x1
-        self.y1 = y1
-        self.x2 = x2
-        self.y2 = y2
-        self.intersection = None
-        self.p1 = p1
-        self.p2 = p2
-
-    def getMiddlePoint(self):
-        return (self.x1 + self.x2) / 2, (self.y1 + self.y2) / 2
-
-    def length(self):
-        return math.sqrt((self.x1 - self.x2) ** 2 + (self.y1 - self.y2) ** 2)
-
-    def getPartsLengthRatio(self):
-
-        part1Length = math.sqrt((self.x1 - self.intersection[0]) ** 2 + (self.y1 - self.intersection[1]) ** 2)
-        part2Length = math.sqrt((self.intersection[0] - self.x2) ** 2 + (self.intersection[1] - self.y2) ** 2)
-
-        return max(part1Length, part2Length) / min(part1Length, part2Length)
-
-    def __eq__(self, other):
-        return (self.x1 == other.x1 and self.y1 == other.y1 and self.x2 == other.x2 and self.y2 == other.y2
-             or self.x1 == other.x2 and self.y1 == other.y2 and self.x2 == other.x1 and self.y2 == other.y1)
-
-    def __str__(self):
-        return "(" + str(round(self.x1, 2)) + "," + str(round(self.y1,2)) + "),(" + str(round(self.x2, 2)) + "," + str(round(self.y2,2)) + ")"
-
-    def __repr__(self):
-        return str(self)
 
 class ConePipeline(Node):
     def __init__(self):
@@ -97,10 +65,10 @@ class ConePipeline(Node):
 
     def mapCallback(self, track_msg: PointWithCovarianceStampedArray):
         self.map = track_msg.points
-        delaunayLines = self.getDelaunayEdges(self.map)
-        if delaunayLines:
-            self.publishDelaunayEdgesVisual(delaunayLines)
-            self.getEdges(delaunayLines)
+        quecones = self.getDelaunayEdges(self.map)
+        #self.publishDelaunayEdgesVisual()
+        if quecones:
+            self.getEdges()
 
 
     def orderLines(self, lines):
@@ -111,32 +79,35 @@ class ConePipeline(Node):
             if line not in usedLines:
                 pass
 
-    def getEdges(self, delaunayLines: List[Edge]):
+    def getEdges(self):
         usedEdges = []
-        leftHandEdges = []
-        rightHandEdges = []
-        discardedEdges = []
-        startingLineEdges = []
-        qsLineEdges = []
-        for edge in delaunayLines:
-            p1 = edge.p1
-            p2 = edge.p2
-            if p1.data.color == 0 and p2.data.color == 0:
-                leftHandEdges.append(edge)
-            elif p1.data.color == 1 and p2.data.color == 1:
-                rightHandEdges.append(edge)
-            elif p1.data.color == 2 or p1.data.color == 3 or p2.data.color == 2 or p2.data.color == 3:
-                startingLineEdges.append(edge)
-            elif p1.data.color == 4 or p2.data.color == 4:
-                qsLineEdges.append(edge)
-            else:
-                discardedEdges.append(edge)
-
+        leftHandEdges: List[Edge] = []
+        rightHandEdges: List[Edge] = []
+        discardedEdges: List[Edge] = []
+        startingLineEdges: List[Edge] = []
+        qsLineEdges: List[Edge] = []
+        for triangle in self.triangleList:
+            for edge in triangle.getEdges():
+                if not edge.calledFor:
+                    x, y = edge.getMiddlePoint()
+                    ne: Edge = self.edgeKDTree.search_knn(Point(x, y), 1)[0][0].data
+                    if not ne.calledFor:
+                        if edge.length() > 10: discardedEdges.append(edge)
+                        elif edge.color == 0: leftHandEdges.append(edge)
+                        elif edge.color == 1: rightHandEdges.append(edge)
+                        elif edge.color == 2 or edge.color == 3: qsLineEdges.append(edge)
+                        elif edge.color == 4: startingLineEdges.append(edge)
+                        else: discardedEdges.append(edge)
+                        edge.calledFor = True
+                        ne.calledFor = True
+                    
         leftHandMsg = self.trackEdgesVisual(leftHandEdges, 0)
         rightHandMsg = self.trackEdgesVisual(rightHandEdges, 1)
-        discardedEdgesMsg = self.trackEdgesVisual(discardedEdges, 3)
-        startingEdgesMsg = self.trackEdgesVisual(startingLineEdges, 2)
+        discardedEdgesMsg = self.trackEdgesVisual(discardedEdges, 5)
+        startingEdgesMsg = self.trackEdgesVisual(startingLineEdges, 3)
         qsEdgesMsg = self.trackEdgesVisual(qsLineEdges, 2)
+        allEdgesMsg = self.trackEdgesVisual(self.edgeList, 5)
+
         if leftHandMsg is not None:
             self.leftLinesVisualPub.publish(leftHandMsg)
         if rightHandMsg is not None:
@@ -147,14 +118,18 @@ class ConePipeline(Node):
             self.startLinesVisualPub.publish(startingEdgesMsg)
         if qsEdgesMsg is not None:
             self.qsLinesVisualPub.publish(qsEdgesMsg)
+        if allEdgesMsg is not None:
+            self.delaunayLinesVisualPub.publish(allEdgesMsg)
 
 
     def getDelaunayEdges(self, frontCones):
         if len(frontCones) < 4: # no sense to calculate delaunay
-            return
+            return False
 
         conePoints = np.zeros((len(frontCones), 2))
         coneList: List[PointWithCov] = []
+        triangleList: List[Triangle] = []
+        edgeList: List[Edge] = []
 
         for i in range(len(frontCones)):
             cone = frontCones[i]
@@ -163,25 +138,24 @@ class ConePipeline(Node):
 
         tri = Delaunay(conePoints)
         self.coneKDTree = kdtree.create(coneList)
-
-        delaunayEdges = []
+        
         for simp in tri.simplices:
+            p1 = self.coneKDTree.search_knn(Point(conePoints[simp[0]][0], conePoints[simp[0]][1]), 1)[0][0].data
+            p2 = self.coneKDTree.search_knn(Point(conePoints[simp[1]][0], conePoints[simp[1]][1]), 1)[0][0].data
+            p3 = self.coneKDTree.search_knn(Point(conePoints[simp[2]][0], conePoints[simp[2]][1]), 1)[0][0].data
+            edgeList.append(Edge(p1, p2))
+            edgeList.append(Edge(p2, p3))
+            edgeList.append(Edge(p3, p1))
+            triangleList.append(Triangle(p1, p2, p3))
 
-            for i in range(3):
-                j = i + 1
-                if j == 3:
-                    j = 0
-                p1 = self.coneKDTree.search_knn(PointWithCov(0, 0, 0, None, 4, Header(), conePoints[simp[i]][0], conePoints[simp[i]][1], 0.0, None), 1)[0][0]
-                p2 = self.coneKDTree.search_knn(PointWithCov(0, 0, 0, None, 4, Header(), conePoints[simp[j]][0], conePoints[simp[j]][1], 0.0, None), 1)[0][0]
-                edge = Edge(conePoints[simp[i]][0], conePoints[simp[i]][1], conePoints[simp[j]][0], conePoints[simp[j]][1], p1, p2)
+        self.triangleList: List[Triangle] = triangleList
+        self.edgeList: List[Edge] = edgeList
+        self.edgeKDTree = kdtree.create(edgeList)
+        self.triangleKDTree = kdtree.create(triangleList)
+        return True
 
-                # add the line if its not already in the list and filter out if its longer than 7.5 m
-                if edge not in delaunayEdges and edge.length() < 6:
-                    delaunayEdges.append(edge)
 
-        return delaunayEdges
-
-    def trackEdgesVisual(self, edges, cc: int):
+    def trackEdgesVisual(self, edges: List[Edge], cc: int):
         if not edges:
             return None
 
@@ -202,74 +176,23 @@ class ConePipeline(Node):
         elif cc == 1:
             marker.color.r = 1.0
             marker.color.g = 1.0
-        elif cc == 2:
+            marker.color.b = 0.0
+        elif cc == 2 or cc == 3 or cc == 4:
             marker.color.r = 1.0
             marker.color.g = 0.7
+            marker.color.b = 0.0
         else:
             marker.color.r = 0.0
             marker.color.g = 0.0
             marker.color.b = 0.0
 
-        path_markers: List[Point] = []
-
+        path_markers: List[PointMsg] = []
         for edge in edges:
-            # print edge
-
-            p1 = Point()
-            p1.x = edge.x1
-            p1.y = edge.y1
-            p1.z = 0.0
-            p2 = Point()
-            p2.x = edge.x2
-            p2.y = edge.y2
-            p2.z = 0.0
-
+            p1, p2 = edge.getPointMsg()
             path_markers.append(p1)
             path_markers.append(p2)
-
         marker.points = path_markers
-
         return marker
-
-    def publishDelaunayEdgesVisual(self, edges):
-        if not edges:
-            return
-
-        marker = Marker()
-        marker.header.frame_id = "map"
-        marker.lifetime = DurationMsg(sec=1)
-        marker.ns = "publishDelaunayLinesVisual"
-
-        marker.type = marker.LINE_LIST
-        marker.action = marker.ADD
-        marker.scale.x = 0.05
-
-        marker.pose.orientation.w = 1.0
-
-        marker.color.a = 0.5
-        marker.color.r = 1.0
-        marker.color.b = 1.0
-
-        path_markers: List[Point] = []
-
-        for edge in edges:
-            # print edge
-
-            p1 = Point()
-            p1.x = edge.x1
-            p1.y = edge.y1
-            p1.z = 0.0
-            p2 = Point()
-            p2.x = edge.x2
-            p2.y = edge.y2
-            p2.z = 0.0
-
-            path_markers.append(p1)
-            path_markers.append(p2)
-
-        marker.points = path_markers
-
-        self.delaunayLinesVisualPub.publish(marker)
         
 
 def main(args=sys.argv[1:]):

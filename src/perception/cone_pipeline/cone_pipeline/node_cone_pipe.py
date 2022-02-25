@@ -202,7 +202,7 @@ class ConePipeline(Node):
                     elif (point.nMeasurments > 3 and point.covMin(1)) or point.global_z < 0.2 or point.global_z > 0.7:
                         self.conesKDTree.remove(point)
                         self.conesKDTree.rebalance()
-                if point.global_z < 0.2 or point.global_z > 0.7:
+                if point.global_z < 0.2 or point.global_z > 0.65:
                     self.conesKDTree.remove(point)
                     self.conesKDTree.rebalance()
 
