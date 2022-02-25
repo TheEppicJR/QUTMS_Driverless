@@ -10,12 +10,14 @@ import random
 import math
 import copy
 import numpy as np
+from .kdtree import Node as kdNode
+from .point import PointWithCov, Edge, Triangle
 class RRT():
     """
     Class for RRT Planning
     """
 
-    def __init__(self, start, planDistance, obstacleList, expandDis=0.5, turnAngle=30, maxIter=1000, rrtTargets = None):
+    def __init__(self, start, planDistance, triangles, points, safedistance, expandDis=0.5, turnAngle=30, maxIter=1000, rrtTargets = None):
 
         self.start = Node(start[0], start[1], start[2])
         self.startYaw = start[2]
@@ -28,7 +30,9 @@ class RRT():
         # print(self.maxDepth)
 
         self.maxIter = maxIter
-        self.obstacleList = obstacleList
+        self.triangles = triangles
+        self.points = points
+        self.safedistance = safedistance
         self.rrtTargets = rrtTargets
         # self.end = Node(0, planDistance)
 
@@ -67,7 +71,7 @@ class RRT():
                 # self.doubleNodeCount += 1
                 continue
 
-            if self.__CollisionCheck(newNode, self.obstacleList):
+            if self.__CollisionCheck(newNode):
                 # nearinds = self.find_near_nodes(newNode)
                 # newNode = self.choose_parent(newNode, nearinds)
                 self.nodeList.append(newNode)
@@ -266,8 +270,8 @@ class RRT():
         minind = dlist.index(min(dlist))
         return minind
 
-    def __CollisionCheck(self, node, obstacleList):
-        for (ox, oy, size) in obstacleList:
+    def __CollisionCheck(self, node):
+        if self.points.
             dx = ox - node.x
             dy = oy - node.y
             d = dx * dx + dy * dy

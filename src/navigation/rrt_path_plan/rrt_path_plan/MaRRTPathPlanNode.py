@@ -14,9 +14,9 @@ import message_filters
 # import ROS2 message libraries
 from sensor_msgs.msg import Image
 from std_msgs.msg import Header
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import Point as PointMsg
 from visualization_msgs.msg import Marker, MarkerArray
-from builtin_interfaces.msg import Duration
+from builtin_interfaces.msg import Duration as DurationMsg
 from nav_msgs.msg import Odometry
 
 import cProfile
@@ -29,8 +29,8 @@ from fs_msgs.msg import ControlCommand, Track
 from .ma_rrt import RRT
 
 # import required sub modules
-from .point import PointWithCov
-from . import kdtree
+from .point import PointWithCov, Edge, Triangle, Point
+from .kdtree import create, KDNode
 
 
 # For odometry message
@@ -68,9 +68,22 @@ class MaRRTPathPlanNode(Node):
         self.waypointsPublishInterval = 1.0 / waypointsFrequency
         self.lastPublishWaypointsTime = 0
 
-        # All Subs and pubs
-        self.create_subscription(PointWithCovarianceStampedArray, "/cone_pipe/cone_detection_cov", self.conesCallback, 10)
-        self.create_subscription(Odometry, "/testing_only/odom", self.odometryCallback, 10)
+        self.logger = self.get_logger()
+
+        self.create_subscription(PointWithCovarianceStampedArray, "/cone_pipe/cone_detection_cov", self.mapCallback, 10) 
+
+        self.track_markers: Publisher = self.create_publisher(MarkerArray, "/cone_pipe/track_marker", 1)
+
+        self.delaunayLinesVisualPub: Publisher = self.create_publisher(Marker, "/cone_pipe/delaunay_lines", 1)
+        self.leftLinesVisualPub: Publisher = self.create_publisher(Marker, "/cone_pipe/left_line", 1)
+        self.rightLinesVisualPub: Publisher = self.create_publisher(Marker, "/cone_pipe/right_line", 1)
+        self.startLinesVisualPub: Publisher = self.create_publisher(Marker, "/cone_pipe/start_line", 1)
+        self.delLinesVisualPub: Publisher = self.create_publisher(Marker, "/cone_pipe/del_line", 1)
+        self.qsLinesVisualPub: Publisher = self.create_publisher(Marker, "/cone_pipe/qs_line", 1)
+
+        odom_sub = message_filters.Subscriber(self, Odometry, "/testing_only/odom")
+        self.actualodom = message_filters.Cache(odom_sub, 1000) # needs to be the more than the max latency of perception in ms
+
 
         # Create publishers
         self.waypointsPub: Publisher = self.create_publisher(WaypointsArray, "/waypoints", 1)
@@ -80,7 +93,6 @@ class MaRRTPathPlanNode(Node):
         self.bestBranchVisualPub: Publisher = self.create_publisher(Marker, "/visual/best_tree_branch", 1)
         self.newWaypointsVisualPub: Publisher = self.create_publisher(Marker, "/visual/new_waypoints", 1)
         self.filteredBranchVisualPub: Publisher = self.create_publisher(Marker, "/visual/filtered_tree_branch", 1)
-        self.delaunayLinesVisualPub: Publisher = self.create_publisher(Marker, "/visual/delaunay_lines", 1)
         self.waypointsVisualPub: Publisher = self.create_publisher(MarkerArray, "/visual/waypoints", 1)
 
         self.carPosX = 0.0
@@ -91,18 +103,142 @@ class MaRRTPathPlanNode(Node):
         self.savedWaypoints = []
         self.preliminaryloopclosure = False
         self.loopclosure = False
-        self.trackEdges: List[Edge] = []
-        self.conesKDTree: KDNode = None
 
         self.rrt = None
 
         self.filteredBestBranch = []
         self.discardAmount = 0
 
-        # print("MaRRTPathPlanNode Constructor has been called")
+        self.printmarkers: bool = True
+
+        LOGGER.info("---Cone Pipeline Node Initalised---")
+        self.logger.debug("---Cone Pipeline Node Initalised---")
+
+        print("MaRRTPathPlanNode Constructor has been called")
 
     def __del__(self):
         print('MaRRTPathPlanNode: Destructor called.')
+
+    def mapCallback(self, track_msg: PointWithCovarianceStampedArray):
+        self.map = track_msg.points
+        quecones = self.getDelaunayEdges(self.map)
+        #self.publishDelaunayEdgesVisual()
+        if quecones:
+            self.getEdges()
+
+    def getEdges(self):
+        leftHandEdges: List[Edge] = []
+        rightHandEdges: List[Edge] = []
+        discardedEdges: List[Edge] = []
+        startingLineEdges: List[Edge] = []
+        qsLineEdges: List[Edge] = []
+        for triangle in self.triangleList:
+            for edge in triangle.getEdges():
+                if not edge.calledFor:
+                    x, y = edge.getMiddlePoint()
+                    ne: Edge = self.edgeKDTree.search_knn(Point(x, y), 1)[0][0].data
+                    if not ne.calledFor:
+                        if edge.length() > 10: discardedEdges.append(edge)
+                        elif edge.color == 0: leftHandEdges.append(edge)
+                        elif edge.color == 1: rightHandEdges.append(edge)
+                        elif edge.color == 2 or edge.color == 3: qsLineEdges.append(edge)
+                        elif edge.color == 4: startingLineEdges.append(edge)
+                        else: discardedEdges.append(edge)
+                        edge.calledFor = True
+                        ne.calledFor = True
+                    
+        leftHandMsg = self.trackEdgesVisual(leftHandEdges, 0)
+        rightHandMsg = self.trackEdgesVisual(rightHandEdges, 1)
+        discardedEdgesMsg = self.trackEdgesVisual(discardedEdges, 5)
+        startingEdgesMsg = self.trackEdgesVisual(startingLineEdges, 3)
+        qsEdgesMsg = self.trackEdgesVisual(qsLineEdges, 2)
+        allEdgesMsg = self.trackEdgesVisual(self.edgeList, 5)
+
+        if leftHandMsg is not None:
+            self.leftLinesVisualPub.publish(leftHandMsg)
+        if rightHandMsg is not None:
+            self.rightLinesVisualPub.publish(rightHandMsg)
+        if discardedEdgesMsg is not None:
+            self.delLinesVisualPub.publish(discardedEdgesMsg)
+        if startingEdgesMsg is not None:
+            self.startLinesVisualPub.publish(startingEdgesMsg)
+        if qsEdgesMsg is not None:
+            self.qsLinesVisualPub.publish(qsEdgesMsg)
+        if allEdgesMsg is not None:
+            self.delaunayLinesVisualPub.publish(allEdgesMsg)
+
+
+    def getDelaunayEdges(self, frontCones):
+        if len(frontCones) < 4: # no sense to calculate delaunay
+            return False
+
+        conePoints = np.zeros((len(frontCones), 2))
+        coneList: List[PointWithCov] = []
+        triangleList: List[Triangle] = []
+        edgeList: List[Edge] = []
+
+        for i in range(len(frontCones)):
+            cone = frontCones[i]
+            conePoints[i] = ([cone.position.x, cone.position.y])
+            coneList.append(PointWithCov(0, 0, 0, None, cone.color, cone.header, cone.position.x, cone.position.y, cone.position.z, np.array(cone.covariance).reshape((3,3))))
+
+        tri = Delaunay(conePoints)
+        self.coneKDTree = create(coneList)
+        
+        for simp in tri.simplices:
+            p1 = self.coneKDTree.search_knn(Point(conePoints[simp[0]][0], conePoints[simp[0]][1]), 1)[0][0].data
+            p2 = self.coneKDTree.search_knn(Point(conePoints[simp[1]][0], conePoints[simp[1]][1]), 1)[0][0].data
+            p3 = self.coneKDTree.search_knn(Point(conePoints[simp[2]][0], conePoints[simp[2]][1]), 1)[0][0].data
+            edgeList.append(Edge(p1, p2))
+            edgeList.append(Edge(p2, p3))
+            edgeList.append(Edge(p3, p1))
+            triangleList.append(Triangle(p1, p2, p3))
+
+        self.triangleList: List[Triangle] = triangleList
+        self.edgeList: List[Edge] = edgeList
+        self.edgeKDTree = create(edgeList)
+        self.triangleKDTree = create(triangleList)
+        return True
+
+
+    def trackEdgesVisual(self, edges: List[Edge], cc: int):
+        if not edges:
+            return None
+
+        marker = Marker()
+        marker.header.frame_id = "map"
+        marker.lifetime = DurationMsg(sec=1)
+        marker.ns = "publishTrackLinesVisual"
+
+        marker.type = marker.LINE_LIST
+        marker.action = marker.ADD
+        marker.scale.x = 0.05
+
+        marker.pose.orientation.w = 1.0
+
+        marker.color.a = 0.5
+        if cc == 0:
+            marker.color.b = 1.0
+        elif cc == 1:
+            marker.color.r = 1.0
+            marker.color.g = 1.0
+            marker.color.b = 0.0
+        elif cc == 2 or cc == 3 or cc == 4:
+            marker.color.r = 1.0
+            marker.color.g = 0.7
+            marker.color.b = 0.0
+        else:
+            marker.color.r = 0.0
+            marker.color.g = 0.0
+            marker.color.b = 0.0
+
+        path_markers: List[PointMsg] = []
+        for edge in edges:
+            p1, p2 = edge.getPointMsg()
+            path_markers.append(p1)
+            path_markers.append(p2)
+        marker.points = path_markers
+        return marker
 
     def odometryCallback(self, odom_msg: Odometry):
         orientation_q = odom_msg.pose.pose.orientation
@@ -113,16 +249,6 @@ class MaRRTPathPlanNode(Node):
         self.carPosY = odom_msg.pose.pose.position.y
         self.carPosYaw = yaw
 
-
-    def conesCallback(self, cones):
-        coneList: List[PointWithCov] = []
-
-        for i in range(len(cones.points)):
-            cone = cones.points[i]
-            coneList.append(PointWithCov(0, 0, 0, None, cone.color, cone.header, cone.position.x, cone.position.y, cone.position.z, np.array(cone.covariance).reshape((3,3))))
-        self.coneKDTree = kdtree.create(coneList)
-        self.map = cones.points
-
     def sampleTree(self):
 
         if self.loopclosure and len(self.savedWaypoints) > 0:
@@ -130,19 +256,19 @@ class MaRRTPathPlanNode(Node):
             return
 
 
-        if not self.map:
+        if self.coneKDTree is None or self.coneKDTree.data is None:
             return
 
 
         frontConesDist = 12
-        frontCones = self.getFrontConeObstacles(self.map, frontConesDist)
+        frontCones: List[PointWithCov] = self.getFrontConeObstacles(frontConesDist)
 
         coneObstacleSize = 1.1
         coneObstacleList = []
         rrtConeTargets = []
         coneTargetsDistRatio = 0.5
         for cone in frontCones:
-            if cone.position.z < 0.5 and cone.position.z > 0.3:
+            if cone.global_z < 0.5 and cone.position.z > 0.3:
                 coneObstacleList.append((cone.position.x, cone.position.y, coneObstacleSize))
 
                 coneDist = self.dist(self.carPosX, self.carPosY, cone.position.x, cone.position.y)
@@ -164,7 +290,7 @@ class MaRRTPathPlanNode(Node):
         self.publishTreeVisual(nodeList, leafNodes)
 
         frontConesBiggerDist = 18
-        largerGroupFrontCones = self.getFrontConeObstacles(self.map, frontConesBiggerDist)
+        largerGroupFrontCones: List[PointWithCov] = self.getFrontConeObstacles(frontConesBiggerDist)
 
         # BestBranch
         bestBranch = self.findBestBranch(leafNodes, nodeList, largerGroupFrontCones, coneObstacleSize, expandDistance, planDistance)
@@ -285,32 +411,6 @@ class MaRRTPathPlanNode(Node):
 
         return waypoints
 
-    def getDelaunayEdges(self, frontCones):
-        if len(frontCones) < 4: # no sense to calculate delaunay
-            return
-
-        conePoints = np.zeros((len(frontCones), 2))
-
-        for i in range(len(frontCones)):
-            cone = frontCones[i]
-            conePoints[i] = ([cone.position.x, cone.position.y])
-
-        tri = Delaunay(conePoints)
-
-        delaunayEdges = []
-        for simp in tri.simplices:
-
-            for i in range(3):
-                j = i + 1
-                if j == 3:
-                    j = 0
-                edge = Edge(conePoints[simp[i]][0], conePoints[simp[i]][1], conePoints[simp[j]][0], conePoints[simp[j]][1])
-
-                if edge not in delaunayEdges and edge.length() < 7.5:
-                    delaunayEdges.append(edge)
-
-        return delaunayEdges
-
     def dist(self, x1, y1, x2, y2, shouldSqrt = True):
         distSq = (x1 - x2) ** 2 + (y1 - y2) ** 2
         return math.sqrt(distSq) if shouldSqrt else distSq
@@ -360,7 +460,7 @@ class MaRRTPathPlanNode(Node):
 
         savedWaypointsMarker = Marker()
         savedWaypointsMarker.header.frame_id = "map"
-        savedWaypointsMarker.lifetime = Duration(sec=1)
+        savedWaypointsMarker.lifetime = DurationMsg(sec=1)
         savedWaypointsMarker.ns = "saved-publishWaypointsVisuals"
         savedWaypointsMarker.id = 1
 
@@ -388,7 +488,7 @@ class MaRRTPathPlanNode(Node):
         if newWaypoints is not None:
             newWaypointsMarker = Marker()
             newWaypointsMarker.header.frame_id = "map"
-            newWaypointsMarker.lifetime = Duration(sec=1)
+            newWaypointsMarker.lifetime = DurationMsg(sec=1)
             newWaypointsMarker.ns = "new-publishWaypointsVisuals"
             newWaypointsMarker.id = 2
 
@@ -491,7 +591,7 @@ class MaRRTPathPlanNode(Node):
 
         marker = Marker()
         marker.header.frame_id = "map"
-        marker.lifetime = Duration(sec=1)
+        marker.lifetime = DurationMsg(sec=1)
         marker.ns = "publishDelaunayLinesVisual"
 
         marker.type = marker.LINE_LIST
@@ -525,20 +625,9 @@ class MaRRTPathPlanNode(Node):
 
         self.delaunayLinesVisualPub.publish(marker)
 
-    def isSideTrack(self, cone):
-        if self.conesKDTree is not None and self.conesKDTree.data is not None:
-            pt = PointWithCov(0, 0, 0, None, 4, Header(), cone.position.x, cone.position.y, 0.0, None)
-            knn = self.coneKDTree.search_knn(pt, 1)
-            if len(knn) > 0:
-                if knn[0][0].dist(pt) < 1:
-                    if knn[0][0].color == 0:
-                        return True, True
-                    elif knn[0][0].color == 0:
-                        return True, False
-        return False, False
 
 
-    def findBestBranch(self, leafNodes, nodeList, largerGroupFrontCones, coneObstacleSize, expandDistance, planDistance):
+    def findBestBranch(self, leafNodes, nodeList, largerGroupFrontCones: List[PointWithCov], coneObstacleSize, expandDistance, planDistance):
         if not leafNodes:
             return
 
@@ -548,18 +637,6 @@ class MaRRTPathPlanNode(Node):
         bothSidesImproveFactor = 3
         minAcceptableBranchRating = 80 # fits good fsg18
 
-        largeGroupFrontCones = []
-        leftConesc = []
-        rightConesc = []
-        for cone in largerGroupFrontCones:
-            side, isL = self.isSideTrack(cone)
-            if side:
-                if isL:
-                    leftConesc.append(cone)
-                else:
-                    rightConesc.append(cone)
-            else:
-                largeGroupFrontCones.append(cone)
 
         leafRatings = []
         for leaf in leafNodes:
@@ -568,11 +645,11 @@ class MaRRTPathPlanNode(Node):
             while node.parent is not None:
                 nodeRating = 0
 
-                leftCones = leftConesc
-                rightCones = rightConesc
+                leftCones = []
+                rightCones = []
 
-                for cone in largeGroupFrontCones:
-                    coneDistSq = ((cone.position.x - node.x) ** 2 + (cone.position.y - node.y) ** 2)
+                for cone in largerGroupFrontCones:
+                    coneDistSq = ((cone.global_x - node.x) ** 2 + (cone.global_y - node.y) ** 2)
 
                     if coneDistSq < coneDistanceLimitSq:
                         actualDist = math.sqrt(coneDistSq)
@@ -633,7 +710,7 @@ class MaRRTPathPlanNode(Node):
     def publishBestBranchVisual(self, nodeList, leafNode):
         marker = Marker()
         marker.header.frame_id = "map"
-        marker.lifetime = Duration(nanosec=200000000)
+        marker.lifetime = DurationMsg(nanosec=200000000)
         marker.ns = "publishBestBranchVisual"
 
         marker.type = marker.LINE_LIST
@@ -676,7 +753,7 @@ class MaRRTPathPlanNode(Node):
 
         marker = Marker()
         marker.header.frame_id = "map"
-        marker.lifetime = Duration(nanosec=200000000)
+        marker.lifetime = DurationMsg(nanosec=200000000)
         marker.ns = "publisshFilteredBranchVisual"
 
         marker.type = marker.LINE_LIST
@@ -726,7 +803,7 @@ class MaRRTPathPlanNode(Node):
         treeMarker.color.a = 0.7
         treeMarker.color.g = 0.7
 
-        treeMarker.lifetime = Duration(nanosec=200000000)
+        treeMarker.lifetime = DurationMsg(nanosec=200000000)
 
         path_markers: List[Point] = []
         path_markers2: List[Point] = []
@@ -752,7 +829,7 @@ class MaRRTPathPlanNode(Node):
         # leaves nodes marker
         leavesMarker = Marker()
         leavesMarker.header.frame_id = "map"
-        leavesMarker.lifetime = Duration(nanosec=200000000)
+        leavesMarker.lifetime = DurationMsg(nanosec=200000000)
         leavesMarker.ns = "rrt-leaves"
 
         leavesMarker.type = leavesMarker.SPHERE_LIST
@@ -778,8 +855,8 @@ class MaRRTPathPlanNode(Node):
         # publis marker array
         self.treeVisualPub.publish(markerArray)
 
-    def getFrontConeObstacles(self, map, frontDist):
-        if not map:
+    def getFrontConeObstacles(self, frontDist):
+        if self.coneKDTree is None or self.coneKDTree.data is None:
             return []
 
         headingVector = self.getHeadingVector()
@@ -792,10 +869,13 @@ class MaRRTPathPlanNode(Node):
 
         frontDistSq = frontDist ** 2
 
-        frontConeList = []
-        for cone in map:
-            if (headingVectorOrt[0] * (cone.position.y - carPosBehindPoint[1]) - headingVectorOrt[1] * (cone.position.x - carPosBehindPoint[0])) < 0:
-                if ((cone.position.x - self.carPosX) ** 2 + (cone.position.y - self.carPosY) ** 2) < frontDistSq:
+        nearcones = self.coneKDTree.search_nn_dist_point(self.carPosX, self.carPosY, frontDist+0.75)
+
+        frontConeList: List[PointWithCov] = []
+        for conedat in nearcones:
+            cone: PointWithCov = conedat[0].data
+            if (headingVectorOrt[0] * (cone.global_y - carPosBehindPoint[1]) - headingVectorOrt[1] * (cone.global_x - carPosBehindPoint[0])) < 0:
+                if ((cone.global_x - self.carPosX) ** 2 + (cone.global_y - self.carPosY) ** 2) < frontDistSq:
                     frontConeList.append(cone)
         return frontConeList
 
@@ -805,46 +885,15 @@ class MaRRTPathPlanNode(Node):
         headingVector = np.dot(carRotMat, headingVector)
         return headingVector
 
-    def getConesInRadius(self, map, x, y, radius):
-        coneList = []
+    def getConesInRadius(self, x, y, radius):
+        coneList: List[PointWithCov] = []
+        nearcones = self.coneKDTree.search_nn_dist_point(x, y, radius)
         radiusSq = radius * radius
-        for cone in map:
-            if ((cone.position.x - x) ** 2 + (cone.position.y - y) ** 2) < radiusSq:
+        for conedat in nearcones:
+            cone: PointWithCov = conedat[0].data
+            if ((cone.global_x - x) ** 2 + (cone.global_y - y) ** 2) < radiusSq:
                 coneList.append(cone)
         return coneList
-
-class Edge():
-    def __init__(self, x1, y1, x2, y2, color: int = 4):
-        self.x1 = x1
-        self.y1 = y1
-        self.x2 = x2
-        self.y2 = y2
-        self.color = color
-        self.intersection = None
-
-    def getMiddlePoint(self):
-        return (self.x1 + self.x2) / 2, (self.y1 + self.y2) / 2
-
-    def length(self):
-        return math.sqrt((self.x1 - self.x2) ** 2 + (self.y1 - self.y2) ** 2)
-
-    def getPartsLengthRatio(self):
-
-        part1Length = math.sqrt((self.x1 - self.intersection[0]) ** 2 + (self.y1 - self.intersection[1]) ** 2)
-        part2Length = math.sqrt((self.intersection[0] - self.x2) ** 2 + (self.intersection[1] - self.y2) ** 2)
-
-        return max(part1Length, part2Length) / min(part1Length, part2Length)
-
-    def __eq__(self, other):
-        return (self.x1 == other.x1 and self.y1 == other.y1 and self.x2 == other.x2 and self.y2 == other.y2
-             or self.x1 == other.x2 and self.y1 == other.y2 and self.x2 == other.x1 and self.y2 == other.y1)
-
-    def __str__(self):
-        return "(" + str(round(self.x1, 2)) + "," + str(round(self.y1,2)) + "),(" + str(round(self.x2, 2)) + "," + str(round(self.y2,2)) + ")"
-
-    def __repr__(self):
-        return str(self)
-
 
 
 def main(args=sys.argv[1:]):

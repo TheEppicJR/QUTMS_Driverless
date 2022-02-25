@@ -16,6 +16,8 @@ import math
 from collections import deque
 from functools import wraps
 
+from .point import Point
+
 __author__ = u'Stefan Kögl <stefan@skoegl.net>'
 __version__ = '0.16'
 __website__ = 'https://github.com/stefankoegl/kdtree'
@@ -407,6 +409,40 @@ class KDNode(Node):
         return sum([self.axis_dist(point, i) for i in r])
 
 
+    def search_knn_point(self, x, y, k, dist=None):
+        """ Return the k nearest neighbors of point and their distances
+
+        point must be an actual point, not a node.
+
+        k is the number of results to return. The actual results can be less
+        (if there aren't more nodes to return) or more in case of equal
+        distances.
+
+        dist is a distance function, expecting two points and returning a
+        distance value. Distance values can be any comparable type.
+
+        The result is an ordered list of (node, distance) tuples.
+        """
+
+        point = Point(x, y)
+
+        if k < 1:
+            raise ValueError("k must be greater than 0.")
+
+        if dist is None:
+            get_dist = lambda n: n.dist(point)
+        else:
+            get_dist = lambda n: dist(n.data, point)
+
+        results = []
+
+        self._search_node(point, k, results, get_dist, itertools.count())
+
+        # We sort the final result by the distance in the tuple
+        # (<KdNode>, distance).
+        return [node for _, node in sorted(results, reverse=True)]
+
+
     def search_knn(self, point, k, dist=None):
         """ Return the k nearest neighbors of point and their distances
 
@@ -523,6 +559,22 @@ class KDNode(Node):
             if self.right is not None:
                 self.right._search_nn_dist(point, dist, results, get_dist)
 
+
+    @require_axis
+    def search_nn_dist_point(self, x, y, distance, best=None):
+        """
+        Search the n nearest nodes of the given point which are within given
+        distance
+
+        point must be a location, not a node. A list containing the n nearest
+        nodes to the point within the distance will be returned.
+        """
+        point = Point(x, y)
+        results = []
+        get_dist = lambda n: n.dist(point)
+
+        self._search_nn_dist(point, distance, results, get_dist)
+        return results
 
     @require_axis
     def search_nn_dist(self, point, distance, best=None):

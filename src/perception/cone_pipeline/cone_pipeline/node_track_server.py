@@ -70,15 +70,6 @@ class ConePipeline(Node):
         if quecones:
             self.getEdges()
 
-
-    def orderLines(self, lines):
-        usedLines = []
-        orderedLines = []
-        for i in range(len(lines)):
-            line = lines[i]
-            if line not in usedLines:
-                pass
-
     def getEdges(self):
         usedEdges = []
         leftHandEdges: List[Edge] = []
