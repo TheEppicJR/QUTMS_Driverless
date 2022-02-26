@@ -272,13 +272,13 @@ class MaRRTPathPlanNode(Node):
         rrtConeTargets = []
         coneTargetsDistRatio = 0.5
         for cone in frontCones:
-            if cone.global_z < 0.5 and cone.position.z > 0.3:
-                coneObstacleList.append((cone.position.x, cone.position.y, coneObstacleSize))
+            if cone.global_z < 0.5 and cone.global_z > 0.3:
+                coneObstacleList.append((cone.global_x, cone.global_y, coneObstacleSize))
 
-                coneDist = self.dist(self.carPosX, self.carPosY, cone.position.x, cone.position.y)
+                coneDist = self.dist(self.carPosX, self.carPosY, cone.global_x, cone.global_y)
 
                 if coneDist > frontConesDist * coneTargetsDistRatio:
-                    rrtConeTargets.append((cone.position.x, cone.position.y, coneObstacleSize))
+                    rrtConeTargets.append((cone.global_x, cone.global_y, coneObstacleSize))
 
         # Set Initial parameters
         start = [self.carPosX, self.carPosY, self.carPosYaw]
@@ -887,9 +887,7 @@ class MaRRTPathPlanNode(Node):
         nearcones = self.coneKDTree.search_nn_dist_point(self.carPosX, self.carPosY, frontDist+0.75)
 
         frontConeList: List[PointWithCov] = []
-        for conedat in nearcones:
-            print(conedat) # this next line simetimes causes an error, this is to debug that
-            cone: PointWithCov = conedat[0].data
+        for cone in nearcones:
             if (headingVectorOrt[0] * (cone.global_y - carPosBehindPoint[1]) - headingVectorOrt[1] * (cone.global_x - carPosBehindPoint[0])) < 0:
                 if ((cone.global_x - self.carPosX) ** 2 + (cone.global_y - self.carPosY) ** 2) < frontDistSq:
                     frontConeList.append(cone)

@@ -208,7 +208,7 @@ class ConePipeline(Node):
                         self.conesKDTree.remove(point)
                         self.conesKDTree.rebalance()
                 if point.global_z < 0.1 or point.global_z > 0.65:
-                    #print(point.global_z)
+                    print(point.global_z)
                     self.conesKDTree.remove(point)
                     self.conesKDTree.rebalance()
 
@@ -234,7 +234,7 @@ class ConePipeline(Node):
             for point in points.points:
                 p = PointWithCov(point.position.x, point.position.y, point.position.z, np.array(point.covariance).reshape((3,3)), 4, point.header)
                 p.translate(x, y, z, theta, odomcov)
-                if point.position.z < 0.25 and point.position.z > 0.15:
+                if point.position.z < 0.45 and point.position.z > 0.15:
                     conelist.append(p)
                     if msgs:
                         markers.append(p.getCov(msgid, True))

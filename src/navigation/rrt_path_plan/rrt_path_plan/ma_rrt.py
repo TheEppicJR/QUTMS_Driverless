@@ -201,7 +201,7 @@ class RRT():
             # for each edge of the near triangle see if it intersects a edge of the triangle
             # im not exhaustivly certain this is 100% mathmatically correct but i think it is a valid efficent way to check
             for edge in triangle.getEdges():
-                if edge.intersect(Point(node.x, node.y), Point(node.parent[0], node.parent[1])) and edge.color < 4:
+                if edge.intersect(Point(node.x, node.y), Point(node.parent[0], node.parent[1])) and edge.color < 5:
                     return False  # collision
         return True  # safe
 
