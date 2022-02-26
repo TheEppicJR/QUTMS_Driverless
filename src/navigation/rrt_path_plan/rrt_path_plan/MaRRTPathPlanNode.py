@@ -82,8 +82,7 @@ class MaRRTPathPlanNode(Node):
         self.delLinesVisualPub: Publisher = self.create_publisher(Marker, "/cone_pipe/del_line", 1)
         self.qsLinesVisualPub: Publisher = self.create_publisher(Marker, "/cone_pipe/qs_line", 1)
 
-        odom_sub = message_filters.Subscriber(self, Odometry, "/testing_only/odom")
-        self.actualodom = message_filters.Cache(odom_sub, 1000) # needs to be the more than the max latency of perception in ms
+        self.create_subscription(Odometry, "/testing_only/odom", self.odometryCallback, 10)
 
 
         # Create publishers
@@ -104,6 +103,8 @@ class MaRRTPathPlanNode(Node):
         self.savedWaypoints = []
         self.preliminaryloopclosure = False
         self.loopclosure = False
+
+        self.coneKDTree: KDNode = None
 
         self.rrt = None
 
@@ -170,7 +171,7 @@ class MaRRTPathPlanNode(Node):
 
 
     def getDelaunayEdges(self, frontCones):
-        if len(frontCones) < 4: # no sense to calculate delaunay
+        if len(frontCones) < 3: # no sense to calculate delaunay
             return False
 
         conePoints = np.zeros((len(frontCones), 2))
@@ -254,10 +255,12 @@ class MaRRTPathPlanNode(Node):
 
         if self.loopclosure and len(self.savedWaypoints) > 0:
             self.publishWaypoints()
+            print("failed early")
             return
 
 
         if self.coneKDTree is None or self.coneKDTree.data is None:
+            print("no cone data")
             return
 
 
@@ -285,10 +288,10 @@ class MaRRTPathPlanNode(Node):
         expandAngle = 20
 
         # rrt planning
-        rrt = RRT(start, planDistance, obstacleList=coneObstacleList, expandDis=expandDistance, turnAngle=expandAngle, maxIter=iterationNumber, rrtTargets = rrtConeTargets)
+        rrt = RRT(start, planDistance, self.triangleKDTree, self.coneKDTree, coneObstacleSize, expandDis=expandDistance, turnAngle=expandAngle, maxIter=iterationNumber, rrtTargets = rrtConeTargets)
         nodeList, leafNodes = rrt.Planning()
 
-        self.publishTreeVisual(nodeList.returnElements(), leafNodes)
+        self.publishTreeVisual(nodeList, leafNodes)
 
         frontConesBiggerDist = 18
         largerGroupFrontCones: List[PointWithCov] = self.getFrontConeObstacles(frontConesBiggerDist)
@@ -369,7 +372,7 @@ class MaRRTPathPlanNode(Node):
             for point in newSavedPoints:
                 newWaypoints.remove(point)
 
-    def getWaypointsFromEdges(self, filteredBranch: List(rrtNode), delaunayEdges):
+    def getWaypointsFromEdges(self, filteredBranch, delaunayEdges):
         if not delaunayEdges:
             return
 
@@ -456,8 +459,8 @@ class MaRRTPathPlanNode(Node):
     def publishWaypointsVisuals(self, newWaypoints = None):
 
         markerArray = MarkerArray()
-        path_markers: List[Point] = []
-        path_markers2: List[Point] = []
+        path_markers: List[PointMsg] = []
+        path_markers2: List[PointMsg] = []
         markers: List[Marker] = []
 
         savedWaypointsMarker = Marker()
@@ -477,7 +480,7 @@ class MaRRTPathPlanNode(Node):
         savedWaypointsMarker.color.b = 1.0
 
         for waypoint in self.savedWaypoints:
-            p = Point()
+            p = PointMsg()
             p.x = waypoint[0]
             p.y = waypoint[1]
             p.z = 0.0
@@ -505,7 +508,7 @@ class MaRRTPathPlanNode(Node):
             newWaypointsMarker.color.b = 1.0
 
             for waypoint in newWaypoints:
-                p = Point()
+                p = PointMsg()
                 p.x = waypoint[0]
                 p.y = waypoint[1]
                 p.z = 0.0
@@ -546,7 +549,7 @@ class MaRRTPathPlanNode(Node):
         # return (C.y-A.y) * (B.x-A.x) > (B.y-A.y) * (C.x-A.x)
         return (C[1]-A[1]) * (B[0]-A[0]) > (B[1]-A[1]) * (C[0]-A[0])
 
-    def getFilteredBestBranch(self, bestBranch: List(rrtNode)):
+    def getFilteredBestBranch(self, bestBranch):
         if not bestBranch:
             return
 
@@ -604,16 +607,16 @@ class MaRRTPathPlanNode(Node):
         marker.color.r = 1.0
         marker.color.b = 1.0
 
-        path_markers: List[Point] = []
+        path_markers: List[PointMsg] = []
 
         for edge in edges:
             # print edge
 
-            p1 = Point()
+            p1 = PointMsg()
             p1.x = edge.x1
             p1.y = edge.y1
             p1.z = 0.0
-            p2 = Point()
+            p2 = PointMsg()
             p2.x = edge.x2
             p2.y = edge.y2
             p2.z = 0.0
@@ -689,18 +692,19 @@ class MaRRTPathPlanNode(Node):
 
         node = leafNodes[maxRatingInd]
 
-        if maxRating < minAcceptableBranchRating:
+        if False:#maxRating < minAcceptableBranchRating:
             return
 
         self.publishBestBranchVisual(nodeList, node)
 
-        reverseBranch = List[rrtNode]
+        # it gets mad if i type these
+        reverseBranch = []#List[rrtNode]
         reverseBranch.append(node)
         while node.parent is not None:
             node: rrtNode = nodeList.search_nn_point(node.parent[0], node.parent[1])[0].data
             reverseBranch.append(node)
 
-        directBranch = List[rrtNode]
+        directBranch = []#List[rrtNode]
         for n in reversed(reverseBranch):
             directBranch.append(n)
 
@@ -726,25 +730,32 @@ class MaRRTPathPlanNode(Node):
         marker.color.r = 1.0
 
         node = leafNode
-        path_markers: List[Point] = []
+        path_markers: List[PointMsg] = []
 
         parentNodeInd = node.parent
         while parentNodeInd is not None:
-            parentNode = nodeList[parentNodeInd]
-            p = Point()
-            p.x = node.x
-            p.y = node.y
-            p.z = 0.0
-            path_markers.append(p)
+            parentNodeRaw = nodeList.search_nn_point(node.parent[0], node.parent[1])
+            if parentNodeRaw is not None and parentNodeRaw[0].data is not None:
+                parentNode: rrtNode = parentNodeRaw[0].data
+                p = PointMsg()
+                p.x = node.x
+                p.y = node.y
+                p.z = 0.0
+                path_markers.append(p)
 
-            p = Point()
-            p.x = parentNode.x
-            p.y = parentNode.y
-            p.z = 0.0
-            path_markers.append(p)
+                p = PointMsg()
+                p.x = parentNode.x
+                p.y = parentNode.y
+                p.z = 0.0
+                path_markers.append(p)
 
-            parentNodeInd = node.parent
-            node = parentNode
+                parentNodeInd = node.parent
+                node = parentNode
+                if node.parent is None:
+                    parentNodeInd = None
+            else:
+                parentNodeInd = None
+
         marker.points = path_markers
 
         self.bestBranchVisualPub.publish(marker)
@@ -768,11 +779,11 @@ class MaRRTPathPlanNode(Node):
         marker.color.a = 0.7
         marker.color.b = 1.0
 
-        path_markers: List[Point] = []
+        path_markers: List[PointMsg] = []
 
         for i in range(len(self.filteredBestBranch)):
             node = self.filteredBestBranch[i]
-            p = Point()
+            p = PointMsg()
             p.x = node.x
             p.y = node.y
             p.z = 0.0
@@ -785,9 +796,9 @@ class MaRRTPathPlanNode(Node):
         marker.points = path_markers
         self.filteredBranchVisualPub.publish(marker)
 
-    def publishTreeVisual(self, nodeList, leafNodes):
+    def publishTreeVisual(self, nodeList: KDNode, leafNodes):
 
-        if not nodeList and not leafNodes:
+        if not nodeList.returnElements() and not leafNodes:
             return
 
         markerArray = MarkerArray()
@@ -808,21 +819,22 @@ class MaRRTPathPlanNode(Node):
 
         treeMarker.lifetime = DurationMsg(nanosec=200000000)
 
-        path_markers: List[Point] = []
-        path_markers2: List[Point] = []
+        path_markers: List[PointMsg] = []
+        path_markers2: List[PointMsg] = []
         markers: List[Marker] = []
 
-        for node in nodeList:
+        for node in nodeList.returnElements():
             if node.parent is not None:
-                p = Point()
+                p = PointMsg()
                 p.x = node.x
                 p.y = node.y
                 p.z = 0.0
                 path_markers.append(p)
 
-                p = Point()
-                p.x = nodeList[node.parent].x
-                p.y = nodeList[node.parent].y
+                p = PointMsg()
+                parentNode: rrtNode = nodeList.search_nn_point(node.parent[0], node.parent[1])[0].data
+                p.x = parentNode.x
+                p.y = parentNode.y
                 p.z = 0.0
                 path_markers.append(p)
 
@@ -846,7 +858,7 @@ class MaRRTPathPlanNode(Node):
         leavesMarker.color.b = 0.1
 
         for node in leafNodes:
-            p = Point()
+            p = PointMsg()
             p.x = node.x
             p.y = node.y
             p.z = 0.0
@@ -876,6 +888,7 @@ class MaRRTPathPlanNode(Node):
 
         frontConeList: List[PointWithCov] = []
         for conedat in nearcones:
+            print(conedat) # this next line simetimes causes an error, this is to debug that
             cone: PointWithCov = conedat[0].data
             if (headingVectorOrt[0] * (cone.global_y - carPosBehindPoint[1]) - headingVectorOrt[1] * (cone.global_x - carPosBehindPoint[0])) < 0:
                 if ((cone.global_x - self.carPosX) ** 2 + (cone.global_y - self.carPosY) ** 2) < frontDistSq:
@@ -928,8 +941,8 @@ def main(args=sys.argv[1:]):
 
     LOGGER.info(f'args = {args}')
 
-    profiler = cProfile.Profile()
-    profiler.enable()
+    # profiler = cProfile.Profile()
+    # profiler.enable()
     
     # begin ros node
     rclpy.init(args=args)
@@ -952,9 +965,9 @@ def main(args=sys.argv[1:]):
 
     rclpy.shutdown()
     thread.join()
-    profiler.disable()
-    stats = pstats.Stats(profiler).sort_stats(pstats.SortKey.TIME)
-    stats.dump_stats(filename='needs_profiling.prof')
+    # profiler.disable()
+    # stats = pstats.Stats(profiler).sort_stats(pstats.SortKey.TIME)
+    # stats.dump_stats(filename='needs_profiling.prof')
 
 
 if __name__ == '__main__':

@@ -101,7 +101,7 @@ class RRT():
             newNode = self.steerConstrained(rnd, nearestNode)
 
             # due to angle constraints it is possible that similar node is generated
-            if newNode in self.nodeList:
+            if self.nodeList.search_nn_point(newNode.x, newNode.y)[1] < 0.05:
                 continue
 
             if self.__CollisionCheck(newNode):
@@ -195,13 +195,13 @@ class RRT():
         if len(self.points.search_nn_dist_point(node.x, node.y, self.safedistance)) > 0:
             return False
         # get the closest triangle to the midpoint of the line
-        triangle: Triangle = self.triangles.search_nn_point(node.x, node.y, 1)[0].data
+        triangle: Triangle = self.triangles.search_nn_point(node.x, node.y)[0].data
         # make sure a nonetype dosent fuck us
         if triangle is not None:
             # for each edge of the near triangle see if it intersects a edge of the triangle
             # im not exhaustivly certain this is 100% mathmatically correct but i think it is a valid efficent way to check
             for edge in triangle.getEdges():
-                if edge.intersect(Point(node.x, node.y), Point(node.parent[0], node.parent[1])):
+                if edge.intersect(Point(node.x, node.y), Point(node.parent[0], node.parent[1])) and edge.color < 4:
                     return False  # collision
         return True  # safe
 
