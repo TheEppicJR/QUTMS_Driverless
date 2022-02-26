@@ -180,9 +180,9 @@ class MaRRTPathPlanNode(Node):
         edgeList: List[Edge] = []
 
         for i in range(len(frontCones)):
-            cone: PointWithCov = frontCones[i]
-            conePoints[i] = ([cone.global_x, cone.global_y])
-            coneList.append(PointWithCov(0, 0, 0, None, cone.color, cone.header, cone.global_x, cone.global_y, cone.global_z, np.array(cone.global_cov).reshape((3,3))))
+            cone: PointWithCovarianceStamped = frontCones[i]
+            conePoints[i] = ([cone.position.x, cone.position.y])
+            coneList.append(PointWithCov(0, 0, 0, None, cone.color, cone.header, cone.position.x, cone.position.y, cone.position.z, np.array(cone.covariance).reshape((3,3))))
 
         tri = Delaunay(conePoints)
         self.coneKDTree = create(coneList)
