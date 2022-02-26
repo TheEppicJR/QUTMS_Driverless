@@ -538,6 +538,25 @@ class KDNode(Node):
 
         return next(iter(self.search_knn(point, 1, dist)), None)
 
+    @require_axis
+    def search_nn_point(self, x, y, dist=None):
+        """
+        Search the nearest node of the given point
+
+        point must be an actual point, not a node. The nearest node to the
+        point is returned. If a location of an actual node is used, the Node
+        with this location will be returned (not its neighbor).
+
+        dist is a distance function, expecting two points and returning a
+        distance value. Distance values can be any comparable type.
+
+        The result is a (node, distance) tuple.
+        """
+
+        point = Point(x, y)
+
+        return next(iter(self.search_knn(point, 1, dist)), None)
+
 
     def _search_nn_dist(self, point, dist, results, get_dist):
         if not self:

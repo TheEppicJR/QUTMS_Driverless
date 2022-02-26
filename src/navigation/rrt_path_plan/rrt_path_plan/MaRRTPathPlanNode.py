@@ -27,6 +27,7 @@ from driverless_msgs.msg import Cone, ConeDetectionStamped, Waypoint, WaypointsA
 from fs_msgs.msg import ControlCommand, Track
 
 from .ma_rrt import RRT
+from .ma_rrt import Node as rrtNode
 
 # import required sub modules
 from .point import PointWithCov, Edge, Triangle, Point
@@ -287,7 +288,7 @@ class MaRRTPathPlanNode(Node):
         rrt = RRT(start, planDistance, obstacleList=coneObstacleList, expandDis=expandDistance, turnAngle=expandAngle, maxIter=iterationNumber, rrtTargets = rrtConeTargets)
         nodeList, leafNodes = rrt.Planning()
 
-        self.publishTreeVisual(nodeList, leafNodes)
+        self.publishTreeVisual(nodeList.returnElements(), leafNodes)
 
         frontConesBiggerDist = 18
         largerGroupFrontCones: List[PointWithCov] = self.getFrontConeObstacles(frontConesBiggerDist)
@@ -368,7 +369,7 @@ class MaRRTPathPlanNode(Node):
             for point in newSavedPoints:
                 newWaypoints.remove(point)
 
-    def getWaypointsFromEdges(self, filteredBranch, delaunayEdges):
+    def getWaypointsFromEdges(self, filteredBranch: List(rrtNode), delaunayEdges):
         if not delaunayEdges:
             return
 
@@ -383,7 +384,8 @@ class MaRRTPathPlanNode(Node):
             maxEdgePartsRatio = 3
 
             intersectedEdges = []
-            for edge in delaunayEdges:
+            for edge in self.edgeList:
+                # this can definitly be improved for speed i just have no idea what it is trying to accomplish
 
                 b1 = np.array([edge.x1, edge.y1])
                 b2 = np.array([edge.x2, edge.y2])
@@ -544,7 +546,7 @@ class MaRRTPathPlanNode(Node):
         # return (C.y-A.y) * (B.x-A.x) > (B.y-A.y) * (C.x-A.x)
         return (C[1]-A[1]) * (B[0]-A[0]) > (B[1]-A[1]) * (C[0]-A[0])
 
-    def getFilteredBestBranch(self, bestBranch):
+    def getFilteredBestBranch(self, bestBranch: List(rrtNode)):
         if not bestBranch:
             return
 
@@ -553,12 +555,12 @@ class MaRRTPathPlanNode(Node):
         maxDiscardAmountForReset = 2
 
         if not self.filteredBestBranch:
-            self.filteredBestBranch = list(bestBranch)
+            self.filteredBestBranch: List(rrtNode) = list(bestBranch)
         else:
             changeRate = 0
             shouldDiscard = False
             for i in range(len(bestBranch)):
-                node = bestBranch[i]
+                node: rrtNode = bestBranch[i]
                 filteredNode = self.filteredBestBranch[i]
 
                 dist = math.sqrt((node.x - filteredNode.x) ** 2 + (node.y - filteredNode.y) ** 2)
@@ -574,8 +576,6 @@ class MaRRTPathPlanNode(Node):
                 changeRate += (everyPointDistChangeLimit - dist)
 
             if not shouldDiscard:
-            #     return
-            # else:
                 for i in range(len(bestBranch)):
                     self.filteredBestBranch[i].x = self.filteredBestBranch[i].x * (1 - newPointFilter) + newPointFilter * bestBranch[i].x
                     self.filteredBestBranch[i].y = self.filteredBestBranch[i].y * (1 - newPointFilter) + newPointFilter * bestBranch[i].y
@@ -627,7 +627,7 @@ class MaRRTPathPlanNode(Node):
 
 
 
-    def findBestBranch(self, leafNodes, nodeList, largerGroupFrontCones: List[PointWithCov], coneObstacleSize, expandDistance, planDistance):
+    def findBestBranch(self, leafNodes: List[rrtNode], nodeList: KDNode, largerGroupFrontCones: List[PointWithCov], coneObstacleSize: float, expandDistance: float, planDistance: float):
         if not leafNodes:
             return
 
@@ -660,10 +660,13 @@ class MaRRTPathPlanNode(Node):
 
                         nodeRating += (coneDistLimit - actualDist)
                         
-                        if self.isLeftCone(node, nodeList[node.parent], cone):
-                            leftCones.append(cone)
-                        else:
-                            rightCones.append(cone)
+                        parentNodeRaw: KDNode = nodeList.search_nn_point(node.parent[0], node.parent[1])[0]
+                        if parentNodeRaw is not None and parentNodeRaw.data is not None:
+                            parentNode: rrtNode = parentNodeRaw.data
+                            if self.isLeftCone(node, parentNode, cone):
+                                leftCones.append(cone)
+                            else:
+                                rightCones.append(cone)
 
                 if ((len(leftCones) == 0 and len(rightCones)) > 0 or (len(leftCones) > 0 and len(rightCones) == 0)):
                     nodeRating /= bothSidesImproveFactor
@@ -677,7 +680,7 @@ class MaRRTPathPlanNode(Node):
 
                 branchRating += nodeRating * nodeFactor
                 # branchRating += nodeRating
-                node = nodeList[node.parent]
+                node: rrtNode = nodeList.search_nn_point(node.parent[0], node.parent[1])[0].data
 
             leafRatings.append(branchRating)
 
@@ -691,21 +694,21 @@ class MaRRTPathPlanNode(Node):
 
         self.publishBestBranchVisual(nodeList, node)
 
-        reverseBranch = []
+        reverseBranch = List[rrtNode]
         reverseBranch.append(node)
         while node.parent is not None:
-            node = nodeList[node.parent]
+            node: rrtNode = nodeList.search_nn_point(node.parent[0], node.parent[1])[0].data
             reverseBranch.append(node)
 
-        directBranch = []
+        directBranch = List[rrtNode]
         for n in reversed(reverseBranch):
             directBranch.append(n)
 
         return directBranch
 
-    def isLeftCone(self, node, parentNode, cone):
+    def isLeftCone(self, node: rrtNode, parentNode: rrtNode, cone: PointWithCov):
         # //((b.X - a.X)*(cone.Y - a.Y) - (b.Y - a.Y)*(cone.X - a.X)) > 0;
-        return ((node.x - parentNode.x) * (cone.position.y - parentNode.y) - (node.y - parentNode.y) * (cone.position.x - parentNode.x)) > 0
+        return ((node.x - parentNode.x) * (cone.global_y - parentNode.y) - (node.y - parentNode.y) * (cone.global_x - parentNode.x)) > 0
 
     def publishBestBranchVisual(self, nodeList, leafNode):
         marker = Marker()

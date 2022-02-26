@@ -36,6 +36,8 @@ class Point:
     def to_tuple(self) -> Tuple:
         return (self.x, self.y)
 
+def ccw(A: Point, B: Point, C: Point):
+    return (C.y-A.y) * (B.x-A.x) > (B.y-A.y) * (C.x-A.x)
 
 class PointWithCov:
     def __init__(self,
@@ -212,6 +214,11 @@ class Edge():
         p2.y = self.y2
         p2.z = 0.0
         return p1, p2
+
+    def intersect(self, A: Point, B: Point):
+        c: Point = Point(self.x1, self.y1)
+        d: Point = Point(self.x2, self.y2)
+        return ccw(A,c,d) != ccw(B,c,d) and ccw(A,B,c) != ccw(A,B,d)
 
     def getMiddlePoint(self):
         return (self.x1 + self.x2) / 2, (self.y1 + self.y2) / 2
