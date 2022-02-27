@@ -20,6 +20,9 @@ bags
 # C extensions
 *.so
 
+# Python Profileing logs
+*.prof
+
 # TensorRT
 !libplugins.so
 

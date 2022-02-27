@@ -57,7 +57,7 @@ class ConePipeline(Node):
         self.vision_markers: Publisher = self.create_publisher(MarkerArray, "/cone_pipe/vision_marker", 1)
         self.filtered_markers: Publisher = self.create_publisher(MarkerArray, "/cone_pipe/filtered_marker", 1)
 
-        odom_sub = message_filters.Subscriber(self, Odometry, "/testing_only/odom")
+        odom_sub = message_filters.Subscriber(self, Odometry, "/odometry/global") # "/testing_only/odom"
         self.actualodom = message_filters.Cache(odom_sub, 1000) # needs to be the more than the max latency of perception in ms
 
         self.printmarkers: bool = True
@@ -72,13 +72,13 @@ class ConePipeline(Node):
     def getNearestOdom(self, stamp):
         # need to switch this over to a position from a EKF with covariance
         locodom: Odometry = self.actualodom.getElemAfterTime(Time.from_msg(stamp))
-        cov = np.identity(3) * 0.0025 # standin covariance for ekf assuming the variance is sigma = 5cm with no covariance
+        #cov = np.identity(6) * 0.0025 # standin covariance for ekf assuming the variance is sigma = 5cm with no covariance
         # if the nearest Odom in the cache is more than 0.05 sec off then just throw it away
         if locodom is not None:
             #print(Time.from_msg(stamp) - Time.from_msg(locodom.header.stamp))
             if Time.from_msg(stamp) - Time.from_msg(locodom.header.stamp) > Duration(nanoseconds=0.05*(10**9)):
-                return None, cov
-        return locodom, cov
+                return None
+        return locodom
 
     def fuseCone(self, point):
         # find the closest cone in the cone tree
@@ -218,22 +218,16 @@ class ConePipeline(Node):
         if len(points.points) > 0:
             msgs = self.printmarkers and self.lidar_markers.get_subscription_count() > 0
             header = points.points[0].header
-            odomloc, odomcov = self.getNearestOdom(header.stamp)
+            odomloc = self.getNearestOdom(header.stamp)
             if odomloc is None:
                 return None
-            orientation_q = odomloc.pose.pose.orientation
-            orientation_list = [orientation_q.w, orientation_q.x, orientation_q.y, orientation_q.z]
-            (roll, pitch, theta)  = quat2euler(orientation_list)
-            x = odomloc.pose.pose.position.x
-            y = odomloc.pose.pose.position.y
-            z = odomloc.pose.pose.position.z
             
             conelist: List[PointWithCov] = []
             markers: List[Marker] = []
             msgid = 0
             for point in points.points:
                 p = PointWithCov(point.position.x, point.position.y, point.position.z, np.array(point.covariance).reshape((3,3)), 4, point.header)
-                p.translate(x, y, z, theta, odomcov)
+                p.translate(odomloc)
                 if point.position.z < 0.45 and point.position.z > 0.15:
                     conelist.append(p)
                     if msgs:
@@ -250,22 +244,16 @@ class ConePipeline(Node):
         if len(points.points) > 0:
             msgs = self.printmarkers and self.vision_markers.get_subscription_count() > 0
             header = points.points[0].header
-            odomloc, odomcov = self.getNearestOdom(header.stamp)
+            odomloc= self.getNearestOdom(header.stamp)
             if odomloc is None:
                 return None
-            orientation_q = odomloc.pose.pose.orientation
-            orientation_list = [orientation_q.w, orientation_q.x, orientation_q.y, orientation_q.z]
-            (roll, pitch, theta)  = quat2euler(orientation_list)
-            x = odomloc.pose.pose.position.x
-            y = odomloc.pose.pose.position.y
-            z = odomloc.pose.pose.position.z
             
             conelist: List[PointWithCov] = []
             markers: List[Marker] = []
             msgid = 0
             for point in points.points:
                 p = PointWithCov(point.position.x, point.position.y, point.position.z, np.array(point.covariance).reshape((3,3)), point.color, point.header)
-                p.translate(x, y, z, theta, odomcov)
+                p.translate(odomloc)
                 conelist.append(p)
                 if msgs:
                     markers.append(p.getCov(msgid, True))

@@ -6,7 +6,9 @@ from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point as PointMsg
 from std_msgs.msg import Header
 from builtin_interfaces.msg import Duration
+from nav_msgs.msg import Odometry
 from math import sqrt, sin, cos
+from transforms3d.euler import quat2mat
 
 class Point:
     def __init__(self, x: float, y: float) -> None:
@@ -101,14 +103,21 @@ class PointWithCov():
         else:
             self.color = 4
 
-    def translate(self, x, y, z, theta, g_cov):
-        s, c = sin(theta), cos(theta)
-        rotation_matrix = np.array([[c, -1*s, 0],[s, c, 0], [0, 0, 1]])
+    def translate(self, odommsg: Odometry):
+        poscov = np.array(odommsg.pose.covariance).reshape((6,6))
+        coneLocation = np.array([self.loc_x, self.loc_y, self.loc_z])
+        orientation_q = odommsg.pose.pose.orientation
+        orientation_list = [orientation_q.w, orientation_q.x, orientation_q.y, orientation_q.z]
+        rotation_matrix = quat2mat(orientation_list)
         new_cov = rotation_matrix @ self.loc_cov @ rotation_matrix.T
-        self.global_cov = new_cov + g_cov
-        self.global_x = x + self.loc_x * c - self.loc_y * s
-        self.global_y = y + self.loc_y * c + self.loc_x * s
-        self.global_z = z + self.loc_z
+        self.global_cov = new_cov + poscov[0:3, 0:3]
+        x = odommsg.pose.pose.position.x
+        y = odommsg.pose.pose.position.y
+        z = odommsg.pose.pose.position.z
+        globalloc = rotation_matrix @ coneLocation
+        self.global_x = x + globalloc[0]
+        self.global_y = y + globalloc[1]
+        self.global_z = z + globalloc[2]
         self.coords = (self.global_x, self.global_y)
         self.x, self.y = self.global_x, self.global_y
 

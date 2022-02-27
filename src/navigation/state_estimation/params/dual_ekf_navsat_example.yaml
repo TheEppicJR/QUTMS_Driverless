@@ -8,11 +8,11 @@ ekf_filter_node_odom:
     transform_time_offset: 0.0
     transform_timeout: 0.0
     print_diagnostics: true
-    debug: true
+    debug: false
 
     map_frame: map
     odom_frame: odom
-    base_link_frame: base_link
+    base_link_frame: fsds/FSCar
     world_frame: odom
 
     twist0: gss
@@ -77,11 +77,11 @@ ekf_filter_node_map:
     transform_time_offset: 0.0
     transform_timeout: 0.0
     print_diagnostics: true
-    debug: true
+    debug: false
 
     map_frame: map
     odom_frame: odom
-    base_link_frame: base_link
+    base_link_frame: fsds/FSCar
     world_frame: map
 
     twist0: gss
@@ -157,7 +157,7 @@ navsat_transform:
     magnetic_declination_radians: 0.0429351  # For lat/long 55.944831, -3.186998
     yaw_offset: 1.570796327  # IMU reads 0 facing magnetic north, not east
     zero_altitude: false
-    broadcast_utm_transform: true
+    broadcast_utm_transform: false
     publish_filtered_gps: true
     use_odometry_yaw: false
     wait_for_datum: false
