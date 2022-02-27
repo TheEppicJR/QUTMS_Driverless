@@ -66,6 +66,12 @@ class ConePipeline(Node):
 
         self.bufferKDTree: KDNode = None
 
+        self.z_datum: float = 0
+
+        # this is really the wrong way to do this but I just need a solution for now
+        self.z_datum_avg: float = 0
+        self.z_readings: float = 1
+
         LOGGER.info("---Cone Pipeline Node Initalised---")
         self.logger.debug("---Cone Pipeline Node Initalised---")
 
@@ -91,6 +97,9 @@ class ConePipeline(Node):
         else:
             self.bufferCone(point)
             
+    def updateZDatum(self, zHeight: float):
+        self.z_readings += 1
+        self.z_datum_avg = (self.z_datum_avg*(self.z_readings-1)+zHeight)/self.z_readings
 
     def bufferCone(self, point):
         # if we already have a list of possible cones then look through that tree for something close
@@ -169,8 +178,8 @@ class ConePipeline(Node):
                     conelist_cov.append(pubpt_cov)
 
                     if msgs:
-                        markers.append(cone.getCov(msgid, False))
-                        markers.append(cone.getMarker(msgid+1))
+                        markers.append(cone.getCov(msgid, False, self.z_datum_avg))
+                        markers.append(cone.getMarker(msgid+1, self.z_datum_avg))
                     msgid += 2
             if msgs:
                 mkr = MarkerArray()
@@ -204,11 +213,11 @@ class ConePipeline(Node):
                         knn[1][0].data.update(point)
                         self.conesKDTree.remove(point)
                         self.conesKDTree.rebalance()
-                    elif (point.nMeasurments > 3 and point.covMin(1)) or point.global_z < 0.2 or point.global_z > 0.7:
+                    elif (point.nMeasurments > 3 and point.covMin(1)) or point.global_z-self.z_datum < -0.15 or point.global_z-self.z_datum > 0.15: # 0.1 and 0.6 for sim
                         self.conesKDTree.remove(point)
                         self.conesKDTree.rebalance()
-                if point.global_z < 0.1 or point.global_z > 0.65:
-                    print(point.global_z)
+                if point.global_z-self.z_datum < -0.15 or point.global_z-self.z_datum > 0.15: # 0.1 and 0.6 for sim
+                    print(f"X: {point.global_x}, Y: {point.global_y}, Z: {point.global_z}, Z_datum: {self.z_datum}, dZ: {point.global_z-self.z_datum}")
                     self.conesKDTree.remove(point)
                     self.conesKDTree.rebalance()
 
@@ -219,9 +228,13 @@ class ConePipeline(Node):
             msgs = self.printmarkers and self.lidar_markers.get_subscription_count() > 0
             header = points.points[0].header
             odomloc = self.getNearestOdom(header.stamp)
+            
             if odomloc is None:
                 return None
             
+            self.z_datum = odomloc.pose.pose.position.z
+            self.updateZDatum(self.z_datum)
+
             conelist: List[PointWithCov] = []
             markers: List[Marker] = []
             msgid = 0
@@ -231,8 +244,8 @@ class ConePipeline(Node):
                 if point.position.z < 0.45 and point.position.z > 0.15:
                     conelist.append(p)
                     if msgs:
-                        markers.append(p.getCov(msgid, True))
-                        markers.append(p.getMarker(msgid+1))
+                        markers.append(p.getCov(msgid, True, self.z_datum_avg))
+                        markers.append(p.getMarker(msgid+1, self.z_datum_avg))
                     msgid += 2
             if msgs:
                 mkr = MarkerArray()
@@ -247,6 +260,9 @@ class ConePipeline(Node):
             odomloc= self.getNearestOdom(header.stamp)
             if odomloc is None:
                 return None
+
+            self.z_datum = odomloc.pose.pose.position.z
+            self.updateZDatum(self.z_datum)
             
             conelist: List[PointWithCov] = []
             markers: List[Marker] = []
@@ -256,8 +272,8 @@ class ConePipeline(Node):
                 p.translate(odomloc)
                 conelist.append(p)
                 if msgs:
-                    markers.append(p.getCov(msgid, True))
-                    markers.append(p.getMarker(msgid + 1))
+                    markers.append(p.getCov(msgid, True, self.z_datum_avg))
+                    markers.append(p.getMarker(msgid + 1, self.z_datum_avg))
                 msgid += 2
             if msgs:
                 mkr = MarkerArray()

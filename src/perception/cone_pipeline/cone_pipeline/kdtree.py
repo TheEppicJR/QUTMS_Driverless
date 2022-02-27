@@ -15,6 +15,7 @@ import operator
 import math
 from collections import deque
 from functools import wraps
+from typing import List
 
 from .point import Point
 
@@ -373,7 +374,7 @@ class KDNode(Node):
         return all(c.is_balanced for c, _ in self.children)
 
 
-    def returnElements(self):
+    def returnElements(self):# -> List[Point]:
         """
         Returns list of all nodes
         """
@@ -685,40 +686,3 @@ def level_order(tree, include_all=False):
 
         if include_all or node.right:
             q.append(node.right or node.__class__())
-
-
-
-def visualize(tree, max_level=100, node_width=10, left_padding=5):
-    """ Prints the tree to stdout """
-
-    height = min(max_level, tree.height()-1)
-    max_width = pow(2, height)
-
-    per_level = 1
-    in_level  = 0
-    level     = 0
-
-    for node in level_order(tree, include_all=True):
-
-        if in_level == 0:
-            print()
-            print()
-            print(' '*left_padding, end=' ')
-
-        width = int(max_width*node_width/per_level)
-
-        node_str = (str(node.data) if node else '').center(width)
-        print(node_str, end=' ')
-
-        in_level += 1
-
-        if in_level == per_level:
-            in_level   = 0
-            per_level *= 2
-            level     += 1
-
-        if level > height:
-            break
-
-    print()
-    print()
