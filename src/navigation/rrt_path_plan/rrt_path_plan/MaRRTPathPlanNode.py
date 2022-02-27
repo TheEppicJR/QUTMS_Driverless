@@ -171,13 +171,18 @@ class MaRRTPathPlanNode(Node):
 
 
     def getDelaunayEdges(self, frontCones):
-        if len(frontCones) < 3: # no sense to calculate delaunay
+        if len(frontCones) < 2: # no sense to calculate delaunay
             return False
+        
 
         conePoints = np.zeros((len(frontCones), 2))
         coneList: List[PointWithCov] = []
         triangleList: List[Triangle] = []
         edgeList: List[Edge] = []
+
+        if len(frontCones) < 3: # no sense to calculate delaunay
+            conePoints = np.zeros((len(frontCones)+1, 2))
+            conePoints[2] = ([0, 0])
 
         for i in range(len(frontCones)):
             cone: PointWithCovarianceStamped = frontCones[i]
@@ -264,6 +269,7 @@ class MaRRTPathPlanNode(Node):
             return
 
 
+        starttime = time.time()
         frontConesDist = 12
         frontCones: List[PointWithCov] = self.getFrontConeObstacles(frontConesDist)
 
@@ -282,16 +288,16 @@ class MaRRTPathPlanNode(Node):
 
         # Set Initial parameters
         start = [self.carPosX, self.carPosY, self.carPosYaw]
-        iterationNumber = 1000
+        iterationNumber = 100
         planDistance = 12
-        expandDistance = 1
-        expandAngle = 20
+        expandDistance = 1.5
+        expandAngle = 15
 
         # rrt planning
-        rrt = RRT(start, planDistance, self.triangleKDTree, self.coneKDTree, coneObstacleSize, expandDis=expandDistance, turnAngle=expandAngle, maxIter=iterationNumber, rrtTargets = rrtConeTargets)
-        nodeList, leafNodes = rrt.Planning()
+        rrt = RRT(start, planDistance, self.triangleKDTree, self.coneKDTree, self.edgeKDTree, coneObstacleSize, expandDis=expandDistance, turnAngle=expandAngle, maxIter=iterationNumber, rrtTargets = rrtConeTargets)
+        nodeList, leafNodes, failednodes = rrt.Planning()
 
-        self.publishTreeVisual(nodeList, leafNodes)
+        self.publishTreeVisual(nodeList, leafNodes, failednodes)
 
         frontConesBiggerDist = 18
         largerGroupFrontCones: List[PointWithCov] = self.getFrontConeObstacles(frontConesBiggerDist)
@@ -304,22 +310,16 @@ class MaRRTPathPlanNode(Node):
             filteredBestBranch = self.getFilteredBestBranch(bestBranch)
 
             if filteredBestBranch:
-                # Delaunay
-                delaunayEdges = self.getDelaunayEdges(frontCones)
-
-                self.publishDelaunayEdgesVisual(delaunayEdges)
-
 
                 newWaypoints = []
 
-                if delaunayEdges:
-
-                    newWaypoints = self.getWaypointsFromEdges(filteredBestBranch, delaunayEdges)
+                newWaypoints = self.getWaypointsFromEdges(filteredBestBranch)
 
                 if newWaypoints:
                     self.mergeWaypoints(newWaypoints)
 
                 self.publishWaypoints(newWaypoints)
+        print(f"Took {time.time()-starttime} sec")
 
 
     def mergeWaypoints(self, newWaypoints):
@@ -372,9 +372,7 @@ class MaRRTPathPlanNode(Node):
             for point in newSavedPoints:
                 newWaypoints.remove(point)
 
-    def getWaypointsFromEdges(self, filteredBranch, delaunayEdges):
-        if not delaunayEdges:
-            return
+    def getWaypointsFromEdges(self, filteredBranch):
 
         waypoints = []
         for i in range (len(filteredBranch) - 1):
@@ -387,7 +385,8 @@ class MaRRTPathPlanNode(Node):
             maxEdgePartsRatio = 3
 
             intersectedEdges = []
-            for edge in self.edgeList:
+            nearedges = self.edgeKDTree.search_nn_dist_point((node1.x + node2.x)/2, (node1.y  +node2.y)/2, 3)
+            for edge in nearedges:
                 # this can definitly be improved for speed i just have no idea what it is trying to accomplish
 
                 b1 = np.array([edge.x1, edge.y1])
@@ -632,6 +631,7 @@ class MaRRTPathPlanNode(Node):
 
     def findBestBranch(self, leafNodes: List[rrtNode], nodeList: KDNode, largerGroupFrontCones: List[PointWithCov], coneObstacleSize: float, expandDistance: float, planDistance: float):
         if not leafNodes:
+            print("no leaf nodes")
             return
 
         coneDistLimit = 4.0
@@ -796,7 +796,7 @@ class MaRRTPathPlanNode(Node):
         marker.points = path_markers
         self.filteredBranchVisualPub.publish(marker)
 
-    def publishTreeVisual(self, nodeList: KDNode, leafNodes):
+    def publishTreeVisual(self, nodeList: KDNode, leafNodes, failedNodes):
 
         if not nodeList.returnElements() and not leafNodes:
             return
@@ -817,10 +817,11 @@ class MaRRTPathPlanNode(Node):
         treeMarker.color.a = 0.7
         treeMarker.color.g = 0.7
 
-        treeMarker.lifetime = DurationMsg(nanosec=200000000)
+        treeMarker.lifetime = DurationMsg(nanosec=2000000000)
 
         path_markers: List[PointMsg] = []
         path_markers2: List[PointMsg] = []
+        path_markers3: List[PointMsg] = []
         markers: List[Marker] = []
 
         for node in nodeList.returnElements():
@@ -844,7 +845,7 @@ class MaRRTPathPlanNode(Node):
         # leaves nodes marker
         leavesMarker = Marker()
         leavesMarker.header.frame_id = "map"
-        leavesMarker.lifetime = DurationMsg(nanosec=200000000)
+        leavesMarker.lifetime = DurationMsg(nanosec=2000000000)
         leavesMarker.ns = "rrt-leaves"
 
         leavesMarker.type = leavesMarker.SPHERE_LIST
@@ -864,7 +865,32 @@ class MaRRTPathPlanNode(Node):
             p.z = 0.0
             path_markers2.append(p)
 
+        leavesMarker.points = path_markers2
         markers.append(leavesMarker)
+
+        # leaves nodes marker
+        failedMarker = Marker()
+        failedMarker.header.frame_id = "map"
+        failedMarker.lifetime = DurationMsg(nanosec=2000000000)
+        failedMarker.ns = "rrt-leaves"
+        failedMarker.type = leavesMarker.SPHERE_LIST
+        failedMarker.action = leavesMarker.ADD
+        failedMarker.pose.orientation.w = 1.0
+        failedMarker.scale.x = 0.15
+        failedMarker.scale.y = 0.15
+        failedMarker.scale.z = 0.15
+        failedMarker.color.a = 0.5
+        failedMarker.color.b = 0.0
+
+        for node in failedNodes:
+            p = PointMsg()
+            p.x = node.x
+            p.y = node.y
+            p.z = 0.0
+            path_markers3.append(p)
+
+        failedMarker.points = path_markers3
+        markers.append(failedMarker)
 
         markerArray.markers = markers
         # publis marker array
@@ -939,8 +965,8 @@ def main(args=sys.argv[1:]):
 
     LOGGER.info(f'args = {args}')
 
-    # profiler = cProfile.Profile()
-    # profiler.enable()
+    profiler = cProfile.Profile()
+    profiler.enable()
     
     # begin ros node
     rclpy.init(args=args)
@@ -963,9 +989,9 @@ def main(args=sys.argv[1:]):
 
     rclpy.shutdown()
     thread.join()
-    # profiler.disable()
-    # stats = pstats.Stats(profiler).sort_stats(pstats.SortKey.TIME)
-    # stats.dump_stats(filename='needs_profiling.prof')
+    profiler.disable()
+    stats = pstats.Stats(profiler).sort_stats(pstats.SortKey.TIME)
+    stats.dump_stats(filename='needs_profiling.prof')
 
 
 if __name__ == '__main__':

@@ -27,6 +27,7 @@ class Node():
         self.yaw: float = yaw
         self.cost: float = 0.0
         self.parent = None
+        self.coords = (self.x, self.y)
 
     def __str__(self):
         return str(round(self.x, 2)) + "," + str(round(self.y,2)) + "," + str(math.degrees(self.yaw)) + "," + str(self.cost)
@@ -47,7 +48,7 @@ class Node():
         return 2
 
     def __getitem__(self, i):
-        return (self.x, self.y)[i]
+        return self.coords[i]
     
     def to_tuple(self) -> Tuple:
         return (self.x, self.y)
@@ -57,11 +58,12 @@ class RRT():
     Class for RRT Planning
     """
 
-    def __init__(self, start, planDistance, triangles: KDNode, points: KDNode, safedistance: float, expandDis=0.5, turnAngle=30, maxIter=1000, rrtTargets = None):
+    def __init__(self, start, planDistance, triangles: KDNode, points: KDNode, edges: KDNode, safedistance: float, expandDis=0.5, turnAngle=30, maxIter=1000, rrtTargets = None):
 
         self.start = Node(start[0], start[1], start[2])
         self.startYaw = start[2]
         self.nodeList: KDNode = create([self.start])
+        self.faildnodes: List[Node] = []
 
         self.planDistance = planDistance
         self.expandDis = expandDis
@@ -72,6 +74,7 @@ class RRT():
         self.maxIter = maxIter
         self.triangles: KDNode = triangles
         self.points: KDNode = points
+        self.edges: KDNode = edges
         self.safedistance: float = safedistance
         self.rrtTargets = rrtTargets
 
@@ -85,15 +88,22 @@ class RRT():
     def Planning(self):
         
         self.leafNodes = []
+        curnodes: List[Node] = []
+        curnodes.append(self.start)
 
         for i in range(self.maxIter):
-            rnd = self.get_random_point_from_target_list()
+            if len(curnodes) < 3:
+                nnindex = None
+                rnd = self.get_random_point_from_target_list()
+                nearestNodeRaw: kdNode = self.nodeList.search_nn_point(rnd[0], rnd[1])[0]
+                if nearestNodeRaw is None or nearestNodeRaw.data is None:
+                    continue
 
-            nearestNodeRaw: kdNode = self.nodeList.search_nn_point(rnd[0], rnd[1])[0]
-            if nearestNodeRaw is None or nearestNodeRaw.data is None:
-                continue
-
-            nearestNode: Node = nearestNodeRaw.data
+                nearestNode: Node = nearestNodeRaw.data
+            else:
+                nnindex = random.randint(0, len(curnodes)-1)
+                nearestNode: Node = curnodes[nnindex]
+                rnd = self.get_random_point_rel(nearestNode.x, nearestNode.y, nearestNode.yaw)
 
             if (nearestNode.cost >= self.planDistance):
                 continue
@@ -105,16 +115,21 @@ class RRT():
                 continue
 
             if self.__CollisionCheck(newNode):
+                curnodes.append(newNode)
                 self.nodeList.add(newNode)
-                if not self.nodeList.is_balanced:
+                if not self.nodeList.is_balanced2:
                     self.nodeList.rebalance()
 
                 if (newNode.cost >= self.planDistance):
                     self.leafNodes.append(newNode)
+            else:
+                if nnindex is not None:
+                    curnodes.pop(nnindex)
+                self.faildnodes.append(newNode)
 
             
 
-        return self.nodeList, self.leafNodes
+        return self.nodeList, self.leafNodes, self.faildnodes
 
     def steerConstrained(self, rnd, nearestNode: Node):
         # expand tree
@@ -149,12 +164,24 @@ class RRT():
 
         randX = random.uniform(0, self.planDistance)
         randY = random.uniform(-self.planDistance, self.planDistance)
-        rnd = [randX, randY]
+        rnd = np.array([randX, randY])
 
         car_rot_mat = np.array([[math.cos(self.startYaw), -math.sin(self.startYaw)], [math.sin(self.startYaw), math.cos(self.startYaw)]])
-        rotatedRnd = np.dot(car_rot_mat, rnd)
+        rotatedRnd = car_rot_mat @ rnd
 
         rotatedRnd = [rotatedRnd[0] + self.start.x, rotatedRnd[1] + self.start.y]
+        return rotatedRnd
+
+    def get_random_point_rel(self, x, y, yaw):
+
+        randX = random.uniform(0, self.planDistance)
+        randY = random.uniform(-self.planDistance, self.planDistance)
+        rnd = np.array([randX, randY])
+
+        car_rot_mat = np.array([[math.cos(yaw), -math.sin(yaw)], [math.sin(yaw), math.cos(yaw)]])
+        rotatedRnd = car_rot_mat @ rnd
+
+        rotatedRnd = [rotatedRnd[0] + x, rotatedRnd[1] + y]
         return rotatedRnd
 
     def get_random_point_from_target_list(self):
@@ -179,29 +206,17 @@ class RRT():
 
         return finalRnd
 
-    def check_collision_extend(self, nearNode: Node, theta: float, d: float):
-
-        tmpNode: Node = copy.deepcopy(nearNode)
-
-        for i in range(int(d / self.expandDis)):
-            tmpNode.x += self.expandDis * math.cos(theta)
-            tmpNode.y += self.expandDis * math.sin(theta)
-            if not self.__CollisionCheck(tmpNode):
-                return False
-
-        return True
 
     def __CollisionCheck(self, node: Node):
         if len(self.points.search_nn_dist_point(node.x, node.y, self.safedistance)) > 0:
             return False
-        # get the closest triangle to the midpoint of the line
-        triangle: Triangle = self.triangles.search_nn_point(node.x, node.y)[0].data
+        searchrad = math.sqrt((node.x - node.parent[0])**2 + (node.y - node.parent[1])**2)*2
+        linecenterx, linecentery = (node.x + node.parent[0])/2, (node.y + node.parent[1])/2
+        edges = self.edges.search_nn_dist_point(linecenterx, linecentery, searchrad)
         # make sure a nonetype dosent fuck us
-        if triangle is not None:
-            # for each edge of the near triangle see if it intersects a edge of the triangle
-            # im not exhaustivly certain this is 100% mathmatically correct but i think it is a valid efficent way to check
-            for edge in triangle.getEdges():
-                if edge.intersect(Point(node.x, node.y), Point(node.parent[0], node.parent[1])) and edge.color < 5:
+        if edges is not None and len(edges) > 0:
+            for edge in edges:
+                if edge.intersect(Point(node.x, node.y), Point(node.parent[0], node.parent[1])) and edge.color < 2:
                     return False  # collision
         return True  # safe
 

@@ -1,6 +1,5 @@
 # COPIED FROM ZED_CAMERA
 # TODO: figure out a way to share python code among ROS packages
-from dataclasses import dataclass
 import numpy as np
 from typing import Tuple
 from visualization_msgs.msg import Marker
@@ -9,10 +8,10 @@ from std_msgs.msg import Header
 from builtin_interfaces.msg import Duration
 from math import sqrt, sin, cos
 
-@dataclass
 class Point:
-    x: float
-    y: float
+    def __init__(self, x: float, y: float) -> None:
+        self.x: float = x
+        self.y: float = y
 
     def __add__(self, other: "Point") -> "Point":
         return Point(self.x + other.x, self.y + other.y)
@@ -22,8 +21,7 @@ class Point:
 
     def __truediv__(self, divisor: int) -> "Point":
         return Point(int(round(self.x/divisor)), int(round(self.y/divisor)))
-    
-    # NEW METHODS ADDED
+
     def __mul__(self, multiplier: int) -> "Point":
         return Point(self.x*multiplier, self.y*multiplier)
 
@@ -36,10 +34,10 @@ class Point:
     def to_tuple(self) -> Tuple:
         return (self.x, self.y)
 
-def ccw(A: Point, B: Point, C: Point):
+def ccw(A: Point, B: Point, C: Point) -> bool:
     return (C.y-A.y) * (B.x-A.x) > (B.y-A.y) * (C.x-A.x)
 
-class PointWithCov:
+class PointWithCov():
     def __init__(self,
         loc_x: float,
         loc_y: float,
@@ -57,16 +55,17 @@ class PointWithCov:
         self.loc_z: float = loc_z
         self.loc_cov: np.array = loc_cov
         self.color: int = color
-        self.isyellow = 0
-        self.isblue = 0
-        self.isorange = 0
-        self.isbig = 0
-        self.issmall = 0
+        self.isyellow: int = 0
+        self.isblue: int = 0
+        self.isorange: int = 0
+        self.isbig: int = 0
+        self.issmall: int = 0
         self.global_x: float = global_x
         self.global_y: float = global_y
         self.global_z: float = global_z
         self.global_cov: np.array = global_cov
         self.coords = (self.global_x, self.global_y)
+        self.x, self.y = global_x, global_y
         self.header: Header = header
         self.header.frame_id = "map"
         self.nMeasurments: int = 0
@@ -111,6 +110,7 @@ class PointWithCov:
         self.global_y = y + self.loc_y * c + self.loc_x * s
         self.global_z = z + self.loc_z
         self.coords = (self.global_x, self.global_y)
+        self.x, self.y = self.global_x, self.global_y
 
     def update(self, other:"PointWithCov"):
         m3, c3 = multivariate_multiply([self.global_x, self.global_y, self.global_z], self.global_cov, [other.global_x, other.global_y, other.global_z], other.global_cov)
@@ -119,6 +119,7 @@ class PointWithCov:
         self.global_y = m3[1]
         self.global_z = m3[2]
         self.coords = (self.global_x, self.global_y)
+        self.x, self.y = self.global_x, self.global_y
         self.nMeasurments += 1
         self.updatecolor(other.color)
 
@@ -186,6 +187,7 @@ class Edge():
         self.intersection = None
         self.calledFor = False
         self.getColor()
+        self.x, self.y = self.getMiddlePoint()
 
 
     def getColor(self):
@@ -200,8 +202,10 @@ class Edge():
             self.color = 2
         elif ((self.p1.color == 2 or self.p1.color == 3) and self.p2.color == 1) or ((self.p2.color == 2 or self.p2.color == 3) and self.p1.color == 1):
             self.color = 3
-        else:
+        elif (self.p1.color < 2 and self.p2.color == 4) or (self.p2.color < 2 and self.p1.color == 4):
             self.color = 5
+        else:
+            self.color = 6
         #return self.color
         
     def getPointMsg(self):
