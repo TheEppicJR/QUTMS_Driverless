@@ -213,10 +213,10 @@ class ConePipeline(Node):
                         knn[1][0].data.update(point)
                         self.conesKDTree.remove(point)
                         self.conesKDTree.rebalance()
-                    elif (point.nMeasurments > 3 and point.covMin(1)) or point.global_z-self.z_datum < -0.2 or point.global_z-self.z_datum > 0.8: # 0.1 and 0.6 for sim
+                    elif (point.nMeasurments > 3 and point.covMin(1)) or point.global_z-self.z_datum < -0.3 or point.global_z-self.z_datum > 1.0: # 0.1 and 0.6 for sim
                         self.conesKDTree.remove(point)
                         self.conesKDTree.rebalance()
-                if point.global_z-self.z_datum < -0.2 or point.global_z-self.z_datum > 0.8: # 0.1 and 0.6 for sim
+                if point.global_z-self.z_datum < -0.3 or point.global_z-self.z_datum > 1.0: # 0.1 and 0.6 for sim
                     print(f"X: {point.global_x}, Y: {point.global_y}, Z: {point.global_z}, Z_datum: {self.z_datum}, dZ: {point.global_z-self.z_datum}")
                     self.conesKDTree.remove(point)
                     self.conesKDTree.rebalance()

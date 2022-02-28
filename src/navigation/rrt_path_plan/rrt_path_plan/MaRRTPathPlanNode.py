@@ -712,6 +712,10 @@ class MaRRTPathPlanNode(Node):
 
     def isLeftCone(self, node: rrtNode, parentNode: rrtNode, cone: PointWithCov):
         # //((b.X - a.X)*(cone.Y - a.Y) - (b.Y - a.Y)*(cone.X - a.X)) > 0;
+        if cone.color == 0:
+            return True
+        if cone.color == 1:
+            return False
         return ((node.x - parentNode.x) * (cone.global_y - parentNode.y) - (node.y - parentNode.y) * (cone.global_x - parentNode.x)) > 0
 
     def publishBestBranchVisual(self, nodeList, leafNode):
