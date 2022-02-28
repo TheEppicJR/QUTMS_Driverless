@@ -96,8 +96,8 @@ class ConePipeline(Node):
             self.bufferCone(point)
             
     def updateZDatum(self, zHeight: float):
-        self.z_readings += 1
         self.z_datum = (self.z_datum*(self.z_readings-1)+zHeight)/self.z_readings
+        self.z_readings += 1
 
     def bufferCone(self, point):
         # if we already have a list of possible cones then look through that tree for something close

@@ -361,7 +361,7 @@ class MaRRTPathPlanNode(Node):
                 if (self.preliminaryloopclosure):
                     distDiff = self.dist(firstSavedWaypoint[0], firstSavedWaypoint[1], waypointCandidate[0], waypointCandidate[1])
                     if distDiff < waypointsDistTollerance:
-                        #self.loopclosure = True
+                        self.loopclosure = True
                         print("loopclosure = True")
                         break
 
@@ -563,6 +563,8 @@ class MaRRTPathPlanNode(Node):
             shouldDiscard = False
             for i in range(len(bestBranch)):
                 node: rrtNode = bestBranch[i]
+
+                # sometimes this is empty and it throws a error but idk why
                 filteredNode = self.filteredBestBranch[i]
 
                 dist = math.sqrt((node.x - filteredNode.x) ** 2 + (node.y - filteredNode.y) ** 2)
