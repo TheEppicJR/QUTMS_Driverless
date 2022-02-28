@@ -7,7 +7,7 @@ from geometry_msgs.msg import Point as PointMsg
 from std_msgs.msg import Header
 from builtin_interfaces.msg import Duration
 from nav_msgs.msg import Odometry
-from math import sqrt, sin, cos
+from math import expm1, sqrt, sin, cos
 from transforms3d.euler import quat2mat
 
 class Point:
@@ -264,10 +264,13 @@ class Edge():
         return str(self)
 
 class Triangle():
-    def __init__(self, p1: PointWithCov, p2: PointWithCov, p3: PointWithCov) -> None:
+    def __init__(self, p1: PointWithCov, p2: PointWithCov, p3: PointWithCov, e1: Edge, e2: Edge, e3: Edge) -> None:
         self.p1: PointWithCov = p1
         self.p2: PointWithCov = p2
         self.p3: PointWithCov = p3
+        self.e1: Edge = e1
+        self.e2: Edge = e2
+        self.e3: Edge = e3
         self.calcCentroid()
 
     def calcCentroid(self):
@@ -276,7 +279,10 @@ class Triangle():
         self.z = (self.p1.global_z + self.p2.global_z + self.p3.global_z) / 3
 
     def getEdges(self):
-        return (Edge(self.p1, self.p2), Edge(self.p2, self.p3), Edge(self.p3, self.p1))
+        return (self.e1, self.e2, self.e3)
+
+    def getPoints(self):
+        return (self.p1, self.p2, self.p3)
 
     def __eq__(self, other: "Triangle"):
         return (self.x == other.x and self.y == other.y and self.z == other.z)

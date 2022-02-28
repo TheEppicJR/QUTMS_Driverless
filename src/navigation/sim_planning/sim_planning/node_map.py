@@ -38,6 +38,9 @@ blue = Color("blue")
 col_range = list(blue.range_to(red, 100))
 
 
+def clamp(n, minn, maxn):
+    return max(min(maxn, n), minn)
+
 def approximate_b_spline_path(
     x: list, 
     y: list, 
@@ -103,10 +106,12 @@ class SplineMapper(Node):
         super().__init__("spline_mapper")
 
         # sub to track for all cone locations relative to car start point
-        self.create_subscription(Track, "/testing_only/track", self.map_callback, 10)
+        self.create_subscription(Track, "/cone_pipe/track", self.map_callback, 10)
 
         # publishers
         self.path_marker_publisher: Publisher = self.create_publisher(Marker, "/spline_mapper/path_marker_array", 1)
+        self.rh_marker_publisher: Publisher = self.create_publisher(Marker, "/spline_mapper/rh_marker_array", 1)
+        self.lh_marker_publisher: Publisher = self.create_publisher(Marker, "/spline_mapper/lh_marker_array", 1)
         self.path_publisher: Publisher = self.create_publisher(SplineStamped, "/spline_mapper/path", 1)
 
         self.spline_len: int = spline_len
@@ -122,7 +127,7 @@ class SplineMapper(Node):
         # track cone list is taken as coords relative to the initial car position
         
         if self.track == None: self.track=track_msg.track
-        elif len(self.track) == len(track_msg.track): self.track=track_msg.track
+        elif len(self.track) == len(track_msg.track) or len(self.track) < len(track_msg.track): self.track=track_msg.track
         
         yellow_x: List[float] = []
         yellow_y: List[float] = []
@@ -130,13 +135,13 @@ class SplineMapper(Node):
         blue_y: List[float] = []
         oranges: List[Cone] = []
         for cone in self.track:
-            if cone.color == Cone.YELLOW:
+            if cone.color == 0:
                 yellow_x.append(cone.location.x)
                 yellow_y.append(cone.location.y)
-            elif cone.color == Cone.BLUE:
+            elif cone.color == 1:
                 blue_x.append(cone.location.x)
                 blue_y.append(cone.location.y)
-            elif cone.color == Cone.ORANGE_BIG:
+            elif cone.color == 4:
                 oranges.append(cone)
 
         # 4 orange cones: 2 blue side, 2 yellow side
@@ -156,6 +161,11 @@ class SplineMapper(Node):
                     yellow_x.append(cone.location.x)
                     yellow_y.append(cone.location.y)
 
+        if len(yellow_x) < 4 or len(blue_x) < 4:
+            #print(f"{len(yellow_x)} {len(blue_x)}")
+            #print("not enough cones")
+            return
+
         # retrieves spline lists (x,y)
         yx, yy = approximate_b_spline_path(yellow_x, yellow_y, self.spline_len)
         bx, by = approximate_b_spline_path(blue_x, blue_y, self.spline_len)
@@ -171,6 +181,37 @@ class SplineMapper(Node):
             # angle of tangent at midpoint
             th.append(angle([bx[i], by[i]], [yx[i], yy[i]]))
 
+        
+        ypath_markers: List[Point] = []
+        ypath_colours: List[ColorRGBA] = []
+        for i in range(len(yx)-1):
+            line_point = Point()
+            line_point.x = yx[i]
+            line_point.y = yy[i]
+            line_point.z = 0.0
+            line_colour = ColorRGBA()
+            line_colour.a = 1.0 # alpha
+            line_colour.r = 1.0
+            line_colour.g = 1.0
+            line_colour.b = 0.0
+            ypath_markers.append(line_point)
+            ypath_colours.append(line_colour)
+
+        bpath_markers: List[Point] = []
+        bpath_colours: List[ColorRGBA] = []
+        for i in range(len(bx)-1):
+            line_point = Point()
+            line_point.x = bx[i]
+            line_point.y = by[i]
+            line_point.z = 0.0
+            line_colour = ColorRGBA()
+            line_colour.a = 1.0 # alpha
+            line_colour.r = 0.0
+            line_colour.g = 0.0
+            line_colour.b = 1.0
+            bpath_markers.append(line_point)
+            bpath_colours.append(line_colour)
+
         VEL_ZONE = 10
         path_markers: List[Point] = []
         path_colours: List[ColorRGBA] = []
@@ -185,7 +226,7 @@ class SplineMapper(Node):
             # angle relative to max angle on track
             change_pc = abs(th_change) / MAX_ANGLE * 100
             # set colour proportional to angle
-            col = col_range[round(change_pc)].get_rgb()
+            col = col_range[clamp(round(change_pc), 1, 99)].get_rgb()
 
             for j in range(VEL_ZONE):
                 path_point = SplinePoint()
@@ -210,6 +251,18 @@ class SplineMapper(Node):
         path_msg = SplineStamped(path=path)
         self.path_publisher.publish(path_msg)
 
+        marker = self.makeMarker(path_markers, path_colours)
+        self.path_marker_publisher.publish(marker)
+        rhmarker = self.makeMarker(ypath_markers, ypath_colours)
+        self.rh_marker_publisher.publish(rhmarker)
+        lhmarker = self.makeMarker(bpath_markers, bpath_colours)
+        self.lh_marker_publisher.publish(lhmarker)
+
+
+        LOGGER.info("Time taken: "+ str(time.time()-start))
+
+
+    def makeMarker(self, path_markers, path_colours):
         ## Visualisation marker
         marker = Marker()
         marker.header.frame_id = "map"
@@ -234,11 +287,7 @@ class SplineMapper(Node):
         marker.colors = path_colours
 
         marker.lifetime = Duration(sec=10, nanosec=100000)
-        self.path_marker_publisher.publish(marker)
-
-
-        LOGGER.info("Time taken: "+ str(time.time()-start))
-
+        return marker
 
 def main(args=sys.argv[1:]):
     # defaults args

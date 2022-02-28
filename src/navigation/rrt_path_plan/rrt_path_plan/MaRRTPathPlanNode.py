@@ -25,6 +25,7 @@ import pstats
 # import custom message libraries
 from driverless_msgs.msg import Cone, ConeDetectionStamped, Waypoint, WaypointsArray, PointWithCovarianceStamped, PointWithCovarianceStampedArray
 from fs_msgs.msg import ControlCommand, Track
+from fs_msgs.msg import Cone as FSCone
 
 from .ma_rrt import RRT
 from .ma_rrt import Node as rrtNode
@@ -81,12 +82,14 @@ class MaRRTPathPlanNode(Node):
         self.startLinesVisualPub: Publisher = self.create_publisher(Marker, "/cone_pipe/start_line", 1)
         self.delLinesVisualPub: Publisher = self.create_publisher(Marker, "/cone_pipe/del_line", 1)
         self.qsLinesVisualPub: Publisher = self.create_publisher(Marker, "/cone_pipe/qs_line", 1)
+        self.clLinesVisualPub: Publisher = self.create_publisher(Marker, "/cone_pipe/cl_line", 1)
 
         self.create_subscription(Odometry, "/odometry/global", self.odometryCallback, 10) # "/testing_only/odom"
 
 
         # Create publishers
         self.waypointsPub: Publisher = self.create_publisher(WaypointsArray, "/waypoints", 1)
+        self.trackPub: Publisher = self.create_publisher(Track, "/cone_pipe/track", 1)
 
         # visuals
         self.treeVisualPub: Publisher = self.create_publisher(MarkerArray, "/visual/tree_marker_array", 0)
@@ -105,6 +108,7 @@ class MaRRTPathPlanNode(Node):
         self.loopclosure = False
 
         self.coneKDTree: KDNode = None
+        self.curWaypoints: KDNode = None
 
         self.rrt = None
 
@@ -134,6 +138,7 @@ class MaRRTPathPlanNode(Node):
         discardedEdges: List[Edge] = []
         startingLineEdges: List[Edge] = []
         qsLineEdges: List[Edge] = []
+        clLineEdges: List[Edge] = []
         for triangle in self.triangleList:
             for edge in triangle.getEdges():
                 if not edge.calledFor:
@@ -145,6 +150,7 @@ class MaRRTPathPlanNode(Node):
                         elif edge.color == 1: rightHandEdges.append(edge)
                         elif edge.color == 2 or edge.color == 3: qsLineEdges.append(edge)
                         elif edge.color == 4: startingLineEdges.append(edge)
+                        elif edge.color == 7: clLineEdges.append(edge)
                         else: discardedEdges.append(edge)
                         edge.calledFor = True
                         ne.calledFor = True
@@ -154,6 +160,7 @@ class MaRRTPathPlanNode(Node):
         discardedEdgesMsg = self.trackEdgesVisual(discardedEdges, 5)
         startingEdgesMsg = self.trackEdgesVisual(startingLineEdges, 3)
         qsEdgesMsg = self.trackEdgesVisual(qsLineEdges, 2)
+        clEdgesMsg = self.trackEdgesVisual(clLineEdges, 7)
         allEdgesMsg = self.trackEdgesVisual(self.edgeList, 5)
 
         if leftHandMsg is not None:
@@ -166,6 +173,8 @@ class MaRRTPathPlanNode(Node):
             self.startLinesVisualPub.publish(startingEdgesMsg)
         if qsEdgesMsg is not None:
             self.qsLinesVisualPub.publish(qsEdgesMsg)
+        if clEdgesMsg is not None:
+            self.clLinesVisualPub.publish(clEdgesMsg)
         if allEdgesMsg is not None:
             self.delaunayLinesVisualPub.publish(allEdgesMsg)
 
@@ -179,6 +188,7 @@ class MaRRTPathPlanNode(Node):
         coneList: List[PointWithCov] = []
         triangleList: List[Triangle] = []
         edgeList: List[Edge] = []
+        clEdgeList: List[Edge] = []
 
         if len(frontCones) < 3: # no sense to calculate delaunay
             conePoints = np.zeros((len(frontCones)+1, 2))
@@ -196,16 +206,105 @@ class MaRRTPathPlanNode(Node):
             p1 = self.coneKDTree.search_knn(Point(conePoints[simp[0]][0], conePoints[simp[0]][1]), 1)[0][0].data
             p2 = self.coneKDTree.search_knn(Point(conePoints[simp[1]][0], conePoints[simp[1]][1]), 1)[0][0].data
             p3 = self.coneKDTree.search_knn(Point(conePoints[simp[2]][0], conePoints[simp[2]][1]), 1)[0][0].data
-            edgeList.append(Edge(p1, p2))
-            edgeList.append(Edge(p2, p3))
-            edgeList.append(Edge(p3, p1))
-            triangleList.append(Triangle(p1, p2, p3))
+            edges = [Edge(p1, p2), Edge(p2, p3), Edge(p3, p1)]
+            if self.curWaypoints is not None:
+                for edge in edges:
+                    # if there is a waypoint next to it then make its color 7 (because they are centerline points)
+                    if len(self.curWaypoints.search_nn_dist_point(edge.x, edge.y, 1)) > 0:
+                        edge.color = 7
+                        clEdgeList.append(edge)
+            edgeList.append(edges[0])
+            edgeList.append(edges[1])
+            edgeList.append(edges[2])
+            triangleList.append(Triangle(p1, p2, p3, edges[0], edges[1], edges[2]))
 
         self.triangleList: List[Triangle] = triangleList
         self.edgeList: List[Edge] = edgeList
         self.edgeKDTree = create(edgeList)
         self.triangleKDTree = create(triangleList)
+        if len(clEdgeList) > 4:
+            self.makeTrack(clEdgeList)
         return True
+
+    def makeTrack(self, clEdges: List[Edge]):
+        rhPoints: List[PointWithCov] = []
+        lhPoints: List[PointWithCov] = []
+        for edge in clEdges:
+            for triangle in self.triangleKDTree.search_knn_point(edge.x, edge.y, 2):
+                if edge in triangle.data.getEdges():
+                    for point in triangle.data.getPoints():
+                        if point.color == 1:
+                            if point not in rhPoints:
+                                rhPoints.append(point)
+                        elif point.color == 0:
+                            if point not in lhPoints:
+                                lhPoints.append(point)
+        trackCones: List[FSCone] = []
+        rhConesKD = create(rhPoints)
+        rhnnind = rhPoints.index(rhConesKD.search_nn_point(0,0)[0].data)
+        rhs = rhPoints[rhnnind]
+        rhPoints.pop(rhnnind)
+        while len(rhPoints) > 0:
+            cpoint = rhs
+            pointmsg = PointMsg()
+            pointmsg.x = cpoint.global_x
+            pointmsg.y = cpoint.global_y
+            pointmsg.z = cpoint.global_z
+            coneMsg = FSCone()
+            coneMsg.location = pointmsg
+            coneMsg.color = 1
+
+            trackCones.append(coneMsg)
+            # there is no reason i can explain but if you do 4 points and reverse it as opposed to just doing 3 points normally but it works
+            for point in reversed(rhConesKD.search_knn(rhs, 4)):
+                if point[0].data in rhPoints:
+                    rhs = point[0].data
+            
+            if not rhs == cpoint:
+                ind = rhPoints.index(rhs)
+                rhPoints.pop(ind)
+            else:
+                if len(rhPoints) > 0:
+                    rhs = rhPoints[0]
+                    rhPoints.pop(0)
+                else:
+                    break
+
+
+        lhConesKD = create(lhPoints)
+        lhnnind = lhPoints.index(lhConesKD.search_nn_point(0,0)[0].data)
+        lhs = lhPoints[lhnnind]
+        lhPoints.pop(lhnnind)
+        while len(lhPoints) > 0:
+            cpoint = lhs
+            pointmsg = PointMsg()
+            pointmsg.x = cpoint.global_x
+            pointmsg.y = cpoint.global_y
+            pointmsg.z = cpoint.global_z
+            coneMsg = FSCone()
+            coneMsg.location = pointmsg
+            coneMsg.color = 0
+
+            trackCones.append(coneMsg)
+            for point in reversed(lhConesKD.search_knn(lhs, 4)):
+                if point[0].data in lhPoints:
+                    lhs = point[0].data
+            if not lhs == cpoint:
+                ind = lhPoints.index(lhs)
+                lhPoints.pop(ind)
+            else:
+                if len(lhPoints) > 0:
+                    lhs = lhPoints[0]
+                    lhPoints.pop(0)
+                else:
+                    break
+
+        trackMsg = Track()
+        trackMsg.track = trackCones
+
+        self.trackPub.publish(trackMsg)
+
+
 
 
     def trackEdgesVisual(self, edges: List[Edge], cc: int):
@@ -234,6 +333,8 @@ class MaRRTPathPlanNode(Node):
             marker.color.r = 1.0
             marker.color.g = 0.7
             marker.color.b = 0.0
+        elif cc == 7:
+            marker.color.g = 1.0
         else:
             marker.color.r = 0.0
             marker.color.g = 0.0
@@ -260,7 +361,6 @@ class MaRRTPathPlanNode(Node):
 
         if self.loopclosure and len(self.savedWaypoints) > 0:
             self.publishWaypoints()
-            print("failed early")
             return
 
 
@@ -371,6 +471,16 @@ class MaRRTPathPlanNode(Node):
         if newSavedPoints: # make self.savedWaypoints and newWaypoints having no intersection
             for point in newSavedPoints:
                 newWaypoints.remove(point)
+
+        clPoints: List[Point] = []
+        for waypoint in self.savedWaypoints:
+            clPoints.append(Point(waypoint[0], waypoint[1]))
+
+        if len(clPoints) < 1:
+            self.curWaypoints = None
+        else:
+            self.curWaypoints = create(clPoints)
+
 
     def getWaypointsFromEdges(self, filteredBranch):
 
@@ -561,10 +671,11 @@ class MaRRTPathPlanNode(Node):
         else:
             changeRate = 0
             shouldDiscard = False
-            for i in range(len(bestBranch)):
+            for i in range(len(bestBranch)-1):
                 node: rrtNode = bestBranch[i]
 
                 # sometimes this is empty and it throws a error but idk why
+                #print(f"{i} {len(self.filteredBestBranch)}")
                 filteredNode = self.filteredBestBranch[i]
 
                 dist = math.sqrt((node.x - filteredNode.x) ** 2 + (node.y - filteredNode.y) ** 2)
@@ -580,7 +691,7 @@ class MaRRTPathPlanNode(Node):
                 changeRate += (everyPointDistChangeLimit - dist)
 
             if not shouldDiscard:
-                for i in range(len(bestBranch)):
+                for i in range(len(bestBranch)-1):
                     self.filteredBestBranch[i].x = self.filteredBestBranch[i].x * (1 - newPointFilter) + newPointFilter * bestBranch[i].x
                     self.filteredBestBranch[i].y = self.filteredBestBranch[i].y * (1 - newPointFilter) + newPointFilter * bestBranch[i].y
 

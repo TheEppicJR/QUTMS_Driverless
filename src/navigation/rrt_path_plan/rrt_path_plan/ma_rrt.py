@@ -117,7 +117,7 @@ class RRT():
             if self.__CollisionCheck(newNode):
                 curnodes.append(newNode)
                 self.nodeList.add(newNode)
-                if not self.nodeList.is_balanced2:
+                if len(curnodes) < 3 and not self.nodeList.is_balanced2:
                     self.nodeList.rebalance()
 
                 if (newNode.cost >= self.planDistance):

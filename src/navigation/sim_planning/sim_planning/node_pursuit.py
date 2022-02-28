@@ -146,7 +146,7 @@ class SplinePursuit(Node):
         self.path_img_publisher: Publisher = self.create_publisher(Image, "/pursuit/path_img", 1)
 
         # sub to odometry for car pose + velocity
-        self.create_subscription(Odometry, "/testing_only/odom", self.callback, 10)
+        self.create_subscription(Odometry, "/odometry/global", self.callback, 10)
         self.control_publisher: Publisher = self.create_publisher(ControlCommand, "/control_command", 10)
         self.path_marker_publisher: Publisher = self.create_publisher(Marker, "/local_spline/path_marker", 1)
         self.target_marker_publisher: Publisher = self.create_publisher(Marker, "/local_spline/target_marker", 1)
@@ -216,7 +216,7 @@ class SplinePursuit(Node):
             # velocity control
             # init constants
             Kp_vel: float = 2
-            vel_max: float = 4
+            vel_max: float = 3
             vel_min = vel_max/2
             throttle_max: float = 0.3 # m/s^2
                 
