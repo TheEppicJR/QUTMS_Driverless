@@ -66,10 +66,8 @@ class ConePipeline(Node):
 
         self.bufferKDTree: KDNode = None
 
-        self.z_datum: float = 0
-
         # this is really the wrong way to do this but I just need a solution for now
-        self.z_datum_avg: float = 0
+        self.z_datum: float = 0
         self.z_readings: float = 1
 
         LOGGER.info("---Cone Pipeline Node Initalised---")
@@ -99,7 +97,7 @@ class ConePipeline(Node):
             
     def updateZDatum(self, zHeight: float):
         self.z_readings += 1
-        self.z_datum_avg = (self.z_datum_avg*(self.z_readings-1)+zHeight)/self.z_readings
+        self.z_datum = (self.z_datum*(self.z_readings-1)+zHeight)/self.z_readings
 
     def bufferCone(self, point):
         # if we already have a list of possible cones then look through that tree for something close
@@ -178,8 +176,8 @@ class ConePipeline(Node):
                     conelist_cov.append(pubpt_cov)
 
                     if msgs:
-                        markers.append(cone.getCov(msgid, False, self.z_datum_avg))
-                        markers.append(cone.getMarker(msgid+1, self.z_datum_avg))
+                        markers.append(cone.getCov(msgid, False, self.z_datum))
+                        markers.append(cone.getMarker(msgid+1, self.z_datum))
                     msgid += 2
             if msgs:
                 mkr = MarkerArray()
@@ -232,8 +230,8 @@ class ConePipeline(Node):
             if odomloc is None:
                 return None
             
-            self.z_datum = odomloc.pose.pose.position.z
-            self.updateZDatum(self.z_datum)
+            z_datum = odomloc.pose.pose.position.z
+            self.updateZDatum(z_datum)
 
             conelist: List[PointWithCov] = []
             markers: List[Marker] = []
@@ -244,8 +242,8 @@ class ConePipeline(Node):
                 if point.position.z < 0.45 and point.position.z > 0.15:
                     conelist.append(p)
                     if msgs:
-                        markers.append(p.getCov(msgid, True, self.z_datum_avg))
-                        markers.append(p.getMarker(msgid+1, self.z_datum_avg))
+                        markers.append(p.getCov(msgid, True, self.z_datum))
+                        markers.append(p.getMarker(msgid+1, self.z_datum))
                     msgid += 2
             if msgs:
                 mkr = MarkerArray()
@@ -261,8 +259,8 @@ class ConePipeline(Node):
             if odomloc is None:
                 return None
 
-            self.z_datum = odomloc.pose.pose.position.z
-            self.updateZDatum(self.z_datum)
+            z_datum = odomloc.pose.pose.position.z
+            self.updateZDatum(z_datum)
             
             conelist: List[PointWithCov] = []
             markers: List[Marker] = []
@@ -272,8 +270,8 @@ class ConePipeline(Node):
                 p.translate(odomloc)
                 conelist.append(p)
                 if msgs:
-                    markers.append(p.getCov(msgid, True, self.z_datum_avg))
-                    markers.append(p.getMarker(msgid + 1, self.z_datum_avg))
+                    markers.append(p.getCov(msgid, True, self.z_datum))
+                    markers.append(p.getMarker(msgid + 1, self.z_datum))
                 msgid += 2
             if msgs:
                 mkr = MarkerArray()
