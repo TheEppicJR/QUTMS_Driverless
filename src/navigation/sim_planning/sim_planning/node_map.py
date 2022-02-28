@@ -191,9 +191,9 @@ class SplineMapper(Node):
             line_point.z = 0.0
             line_colour = ColorRGBA()
             line_colour.a = 1.0 # alpha
-            line_colour.r = 1.0
-            line_colour.g = 1.0
-            line_colour.b = 0.0
+            line_colour.r = 0.0
+            line_colour.g = 0.0
+            line_colour.b = 1.0
             ypath_markers.append(line_point)
             ypath_colours.append(line_colour)
 
@@ -206,9 +206,9 @@ class SplineMapper(Node):
             line_point.z = 0.0
             line_colour = ColorRGBA()
             line_colour.a = 1.0 # alpha
-            line_colour.r = 0.0
-            line_colour.g = 0.0
-            line_colour.b = 1.0
+            line_colour.r = 1.0
+            line_colour.g = 1.0
+            line_colour.b = 0.0
             bpath_markers.append(line_point)
             bpath_colours.append(line_colour)
 
