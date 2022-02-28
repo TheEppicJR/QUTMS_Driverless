@@ -15,7 +15,6 @@ import operator
 import math
 from collections import deque
 from functools import wraps
-from typing import List
 
 from .point import Point
 
@@ -32,7 +31,7 @@ class Node(object):
     its subtree"""
 
     def __init__(self, data=None, left=None, right=None):
-        self.data = data
+        self.data: Point = data
         self.left = left
         self.right = right
 
@@ -373,8 +372,23 @@ class KDNode(Node):
 
         return all(c.is_balanced for c, _ in self.children)
 
+    @property
+    def is_balanced2(self):
+        """ Returns True if the (sub)tree is balanced
 
-    def returnElements(self):# -> List[Point]:
+        The tree is balanced if the heights of both subtrees differ at most by
+        1 """
+
+        left_height = self.left.height() if self.left else 0
+        right_height = self.right.height() if self.right else 0
+
+        if abs(left_height - right_height) > 2:
+            return False
+
+        return all(c.is_balanced2 for c, _ in self.children)
+
+
+    def returnElements(self):
         """
         Returns list of all nodes
         """
@@ -393,24 +407,16 @@ class KDNode(Node):
         return create(listOfEle)
 
 
-    def axis_dist(self, point, axis):
-        """
-        Squared distance at the given axis between
-        the current Node and the given point
-        """
-        return math.pow(self.data[axis] - point[axis], 2)
-
-
-    def dist(self, point):
+    def dist(self, point: Point):
         """
         Squared distance between the current Node
         and the given point
+        now in only 2 dimentions
         """
-        r = range(self.dimensions)
-        return sum([self.axis_dist(point, i) for i in r])
+        return (self.data.x - point.x)**2 + (self.data.y - point.y)**2
 
 
-    def search_knn_point(self, x, y, k, dist=None):
+    def search_knn_point(self, x, y, k):
         """ Return the k nearest neighbors of point and their distances
 
         point must be an actual point, not a node.
@@ -418,9 +424,6 @@ class KDNode(Node):
         k is the number of results to return. The actual results can be less
         (if there aren't more nodes to return) or more in case of equal
         distances.
-
-        dist is a distance function, expecting two points and returning a
-        distance value. Distance values can be any comparable type.
 
         The result is an ordered list of (node, distance) tuples.
         """
@@ -430,18 +433,13 @@ class KDNode(Node):
         if k < 1:
             raise ValueError("k must be greater than 0.")
 
-        if dist is None:
-            get_dist = lambda n: n.dist(point)
-        else:
-            get_dist = lambda n: dist(n.data, point)
-
         results = []
 
-        self._search_node(point, k, results, get_dist, itertools.count())
+        self._search_node_fast(point, k, results, itertools.count())
 
         # We sort the final result by the distance in the tuple
         # (<KdNode>, distance).
-        return [node for _, node in sorted(results, reverse=True)]
+        return [node for dist, _, node in sorted(results, reverse=True)]
 
 
     def search_knn(self, point, k, dist=None):
@@ -462,18 +460,61 @@ class KDNode(Node):
         if k < 1:
             raise ValueError("k must be greater than 0.")
 
-        if dist is None:
-            get_dist = lambda n: n.dist(point)
-        else:
-            get_dist = lambda n: dist(n.data, point)
+        # if dist is None:
+        #     get_dist = lambda n: n.dist(point)
+        # else:
+        #     get_dist = lambda n: dist(n.data, point)
 
         results = []
 
-        self._search_node(point, k, results, get_dist, itertools.count())
+        self._search_node_fast(point, k, results, itertools.count())
 
         # We sort the final result by the distance in the tuple
         # (<KdNode>, distance).
         return [(node, -d) for d, _, node in sorted(results, reverse=True)]
+
+    def _search_node_fast(self, point, k, results, counter):
+        if not self:
+            return
+
+        nodeDist = self.dist(point)
+
+        # Add current node to the priority queue if it closer than
+        # at least one point in the queue.
+        #
+        # If the heap is at its capacity, we need to check if the
+        # current node is closer than the current farthest node, and if
+        # so, replace it.
+        item = (-nodeDist, next(counter), self)
+        if len(results) >= k:
+            if -nodeDist > results[0][0]:
+                heapq.heapreplace(results, item)
+        else:
+            heapq.heappush(results, item)
+        # get the splitting plane
+        split_plane = self.data[self.axis]
+        # get the squared distance between the point and the splitting plane
+        # (squared since all distances are squared).
+        plane_dist = point[self.axis] - split_plane
+        plane_dist2 = plane_dist * plane_dist
+
+        # Search the side of the splitting plane that the point is in
+        if point[self.axis] < split_plane:
+            if self.left is not None:
+                self.left._search_node_fast(point, k, results, counter)
+        else:
+            if self.right is not None:
+                self.right._search_node_fast(point, k, results, counter)
+
+        # Search the other side of the splitting plane if it may contain
+        # points closer than the farthest point in the current results.
+        if -plane_dist2 > results[0][0] or len(results) < k:
+            if point[self.axis] < self.data[self.axis]:
+                if self.right is not None:
+                    self.right._search_node_fast(point, k, results, counter)
+            else:
+                if self.left is not None:
+                    self.left._search_node_fast(point, k, results, counter)
 
 
     def _search_node(self, point, k, results, get_dist, counter):
@@ -539,6 +580,22 @@ class KDNode(Node):
 
         return next(iter(self.search_knn(point, 1, dist)), None)
 
+    @require_axis
+    def search_nn_point(self, x, y):
+        """
+        Search the nearest node of the given point
+
+        point must be an actual point, not a node. The nearest node to the
+        point is returned. If a location of an actual node is used, the Node
+        with this location will be returned (not its neighbor).
+
+        The result is a (node, distance) tuple.
+        """
+
+        point = Point(x, y)
+
+        return next(iter(self.search_knn(point, 1)), None)
+
 
     def _search_nn_dist(self, point, dist, results, get_dist):
         if not self:
@@ -560,6 +617,41 @@ class KDNode(Node):
             if self.right is not None:
                 self.right._search_nn_dist(point, dist, results, get_dist)
 
+    def _search_nn_dist_fast(self, point, dist, results):
+        if not self:
+            return
+
+        nodeDist = self.dist(point)
+
+        if nodeDist < dist:
+            results.append(self.data)
+
+        # get the splitting plane
+        split_plane = self.data[self.axis]
+
+        # Search the side of the splitting plane that the point is in
+        if point[self.axis] <= split_plane + dist:
+            if self.left is not None:
+                self.left._search_nn_dist_fast(point, dist, results)
+        if point[self.axis] >= split_plane - dist:
+            if self.right is not None:
+                self.right._search_nn_dist_fast(point, dist, results)
+
+
+    @require_axis
+    def search_nn_dist_point(self, x, y, distance, best=None):
+        """
+        Search the n nearest nodes of the given point which are within given
+        distance
+
+        point must be a location, not a node. A list containing the n nearest
+        nodes to the point within the distance will be returned.
+        """
+        point = Point(x, y)
+        results = []
+
+        self._search_nn_dist_fast(point, distance, results)
+        return results
 
     @require_axis
     def search_nn_dist(self, point, distance, best=None):
@@ -572,9 +664,8 @@ class KDNode(Node):
         """
 
         results = []
-        get_dist = lambda n: n.dist(point)
 
-        self._search_nn_dist(point, distance, results, get_dist)
+        self._search_nn_dist_fast(point, distance, results)
         return results
 
 
@@ -686,3 +777,4 @@ def level_order(tree, include_all=False):
 
         if include_all or node.right:
             q.append(node.right or node.__class__())
+

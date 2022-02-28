@@ -82,7 +82,7 @@ class MaRRTPathPlanNode(Node):
         self.delLinesVisualPub: Publisher = self.create_publisher(Marker, "/cone_pipe/del_line", 1)
         self.qsLinesVisualPub: Publisher = self.create_publisher(Marker, "/cone_pipe/qs_line", 1)
 
-        self.create_subscription(Odometry, "/testing_only/odom", self.odometryCallback, 10)
+        self.create_subscription(Odometry, "/odometry/global", self.odometryCallback, 10) # "/testing_only/odom"
 
 
         # Create publishers
