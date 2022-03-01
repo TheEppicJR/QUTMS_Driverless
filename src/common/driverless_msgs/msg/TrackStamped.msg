@@ -1,7 +1,7 @@
 std_msgs/Header header
-geometry_msgs/Point[] leftHand
-geometry_msgs/Point[] rightHand
+geometry_msgs/Point[] lefthand
+geometry_msgs/Point[] righthand
 geometry_msgs/Point[] centerline
 
-geometry_msgs/Point leftSF
-geometry_msgs/Point rightSF
+geometry_msgs/Point leftsf
+geometry_msgs/Point rightsf

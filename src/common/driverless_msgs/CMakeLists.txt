@@ -27,6 +27,8 @@ set(msg_files
   "msg/Can.msg"
   "msg/PointWithCovarianceStamped.msg"
   "msg/PointWithCovarianceStampedArray.msg"
+  "msg/PointWithCovariance.msg"
+  "msg/PointWithCovarianceArrayStamped.msg"
   "msg/StateWithCovarianceStamped.msg"
   "msg/TrackStamped.msg"
 )
