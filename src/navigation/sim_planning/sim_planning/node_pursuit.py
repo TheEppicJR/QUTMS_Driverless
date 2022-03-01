@@ -236,7 +236,7 @@ class SplinePursuit(Node):
                 calc_throttle = 0
 
             # steering control
-            Kp_ang: float = 1.25
+            Kp_ang: float = 1.5
             ang_max: float = 7.0
             steering_angle = normalize_angle((-atan2(target.y-y, target.x-x)+ak))*5
             #LOGGER.info(f"Target angle: {steering_angle}")

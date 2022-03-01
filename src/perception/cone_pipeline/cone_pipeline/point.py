@@ -160,6 +160,8 @@ class PointWithCov():
         # see if the distance is less than the sum of the two 2 sigma vectors
         return dist < selfTwosig + otherTwosig
 
+    def xydist(self, x, y):
+        return sqrt((self.loc_x-x)**2 + (self.loc_y-y)**2)
 
     def dist(self, other:"PointWithCov"):
         return sqrt((self.global_x-other.global_x)**2+(self.global_y-other.global_y)**2+(self.global_z-other.global_z)**2)

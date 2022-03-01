@@ -232,9 +232,9 @@ class MPCPlanner(Node):
         super().__init__("spline_planner")
 
         # sub to track for all cone locations relative to car start point
-        self.create_subscription(Track, "/testing_only/track", self.map_callback, 10)
+        self.create_subscription(Track, "/cone_pipe/track", self.map_callback, 10)
         # sub to odometry for car pose + velocity
-        self.create_subscription(Odometry, "/testing_only/odom", self.odom_callback, 10)
+        self.create_subscription(Odometry, "/odometry/global", self.odom_callback, 10)
 
         self.mpcsolver = MPCSolver()
         

@@ -28,6 +28,8 @@ class Node():
         self.cost: float = 0.0
         self.parent = None
         self.coords = (self.x, self.y)
+        self.rating: float = 0
+        self.ratingcolor: int = 0
 
     def __str__(self):
         return str(round(self.x, 2)) + "," + str(round(self.y,2)) + "," + str(math.degrees(self.yaw)) + "," + str(self.cost)
@@ -111,7 +113,8 @@ class RRT():
             newNode = self.steerConstrained(rnd, nearestNode)
 
             # due to angle constraints it is possible that similar node is generated
-            if self.nodeList.search_nn_point(newNode.x, newNode.y)[1] < 0.05:
+            nn = self.nodeList.search_nn_point(newNode.x, newNode.y)
+            if nn[1] < 0.03 and abs(newNode.yaw-nn[0].data.yaw) < 5:
                 continue
 
             if self.__CollisionCheck(newNode):

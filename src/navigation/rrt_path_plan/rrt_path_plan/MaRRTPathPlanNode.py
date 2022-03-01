@@ -9,11 +9,8 @@ based on the work of AtsushiSakai(@Atsushi_twi)
 import rclpy
 from rclpy.node import Node
 from rclpy.publisher import Publisher
-from cv_bridge import CvBridge
-import message_filters
 # import ROS2 message libraries
-from sensor_msgs.msg import Image
-from std_msgs.msg import Header
+from std_msgs.msg import ColorRGBA
 from geometry_msgs.msg import Point as PointMsg
 from visualization_msgs.msg import Marker, MarkerArray
 from builtin_interfaces.msg import Duration as DurationMsg
@@ -23,8 +20,8 @@ import cProfile
 import pstats
 
 # import custom message libraries
-from driverless_msgs.msg import Cone, ConeDetectionStamped, Waypoint, WaypointsArray, PointWithCovarianceStamped, PointWithCovarianceStampedArray
-from fs_msgs.msg import ControlCommand, Track
+from driverless_msgs.msg import Waypoint, WaypointsArray, PointWithCovarianceStamped, PointWithCovarianceStampedArray
+from fs_msgs.msg import Track
 from fs_msgs.msg import Cone as FSCone
 
 from .ma_rrt import RRT
@@ -44,19 +41,28 @@ from scipy.spatial import Delaunay
 import numpy as np
 # other python modules
 import math
-from math import sin, cos
+from math import floor, sin, cos
 from typing import List
 import sys
 import os
-import getopt
 import logging
 import datetime
 import pathlib
 import threading
 import time
-
+from colour import Color
 LOGGER = logging.getLogger(__name__)
 
+red = Color("red")
+blue = Color("blue")
+col_range = list(blue.range_to(red, 100))
+
+
+def clamp(n, minn, maxn):
+    return max(min(maxn, n), minn)
+
+def normalise(n, max):
+    return clamp(int((n/max)*100), 1, 99)
 
 class MaRRTPathPlanNode(Node):
     # All variables, placed here are static
@@ -240,9 +246,15 @@ class MaRRTPathPlanNode(Node):
                             if point not in lhPoints:
                                 lhPoints.append(point)
         trackCones: List[FSCone] = []
+
+        if len(rhPoints) < 3 or len(lhPoints) < 3:
+            return
+
         rhConesKD = create(rhPoints)
         rhnnind = rhPoints.index(rhConesKD.search_nn_point(0,0)[0].data)
         rhs = rhPoints[rhnnind]
+        rhstart = rhs
+        rhOrderedList: List[PointWithCov] = []
         rhPoints.pop(rhnnind)
         while len(rhPoints) > 0:
             cpoint = rhs
@@ -255,6 +267,7 @@ class MaRRTPathPlanNode(Node):
             coneMsg.color = 1
 
             trackCones.append(coneMsg)
+            rhOrderedList.append(rhs)
             # there is no reason i can explain but if you do 4 points and reverse it as opposed to just doing 3 points normally but it works
             for point in reversed(rhConesKD.search_knn(rhs, 4)):
                 if point[0].data in rhPoints:
@@ -269,11 +282,24 @@ class MaRRTPathPlanNode(Node):
                     rhPoints.pop(0)
                 else:
                     break
+        if rhOrderedList[0].dist(rhOrderedList[-1]) < 10:
+            cpoint = rhOrderedList[0]
+            pointmsg = PointMsg()
+            pointmsg.x = cpoint.global_x
+            pointmsg.y = cpoint.global_y
+            pointmsg.z = cpoint.global_z
+            coneMsg = FSCone()
+            coneMsg.location = pointmsg
+            coneMsg.color = 1
+
+            trackCones.append(coneMsg)
 
 
         lhConesKD = create(lhPoints)
-        lhnnind = lhPoints.index(lhConesKD.search_nn_point(0,0)[0].data)
+        lhnnind = lhPoints.index(lhConesKD.search_nn_point(rhstart.x, rhstart.y)[0].data)
         lhs = lhPoints[lhnnind]
+        lhstart = lhs
+        lhOrderedList: List[PointWithCov] = []
         lhPoints.pop(lhnnind)
         while len(lhPoints) > 0:
             cpoint = lhs
@@ -286,9 +312,15 @@ class MaRRTPathPlanNode(Node):
             coneMsg.color = 0
 
             trackCones.append(coneMsg)
-            for point in reversed(lhConesKD.search_knn(lhs, 4)):
-                if point[0].data in lhPoints:
-                    lhs = point[0].data
+            lhOrderedList.append(lhs)
+            if len(lhOrderedList) < 2:
+                 for point in reversed(lhConesKD.search_knn(rhOrderedList[1], 4)):
+                    if point[0].data in lhPoints:
+                        lhs = point[0].data
+            else:
+                for point in reversed(lhConesKD.search_knn(lhs, 4)):
+                    if point[0].data in lhPoints:
+                        lhs = point[0].data
             if not lhs == cpoint:
                 ind = lhPoints.index(lhs)
                 lhPoints.pop(ind)
@@ -298,6 +330,18 @@ class MaRRTPathPlanNode(Node):
                     lhPoints.pop(0)
                 else:
                     break
+
+        if lhOrderedList[0].dist(lhOrderedList[-1]) < 10:
+            cpoint = lhOrderedList[0]
+            pointmsg = PointMsg()
+            pointmsg.x = cpoint.global_x
+            pointmsg.y = cpoint.global_y
+            pointmsg.z = cpoint.global_z
+            coneMsg = FSCone()
+            coneMsg.location = pointmsg
+            coneMsg.color = 0
+
+            trackCones.append(coneMsg)
 
         trackMsg = Track()
         trackMsg.track = trackCones
@@ -388,25 +432,25 @@ class MaRRTPathPlanNode(Node):
 
         # Set Initial parameters
         start = [self.carPosX, self.carPosY, self.carPosYaw]
-        iterationNumber = 100
+        iterationNumber = 500
         planDistance = 12
-        expandDistance = 1.5
+        expandDistance = 1
         expandAngle = 15
 
         # rrt planning
         rrt = RRT(start, planDistance, self.triangleKDTree, self.coneKDTree, self.edgeKDTree, coneObstacleSize, expandDis=expandDistance, turnAngle=expandAngle, maxIter=iterationNumber, rrtTargets = rrtConeTargets)
         nodeList, leafNodes, failednodes = rrt.Planning()
 
-        self.publishTreeVisual(nodeList, leafNodes, failednodes)
-
-        frontConesBiggerDist = 18
+        frontConesBiggerDist = 14
         largerGroupFrontCones: List[PointWithCov] = self.getFrontConeObstacles(frontConesBiggerDist)
 
         # BestBranch
         bestBranch = self.findBestBranch(leafNodes, nodeList, largerGroupFrontCones, coneObstacleSize, expandDistance, planDistance)
 
+        self.publishTreeVisual(nodeList, leafNodes, failednodes)
 
-        if bestBranch:
+
+        if bestBranch is not None:
             filteredBestBranch = self.getFilteredBestBranch(bestBranch)
 
             if filteredBestBranch:
@@ -461,7 +505,7 @@ class MaRRTPathPlanNode(Node):
                 if (self.preliminaryloopclosure):
                     distDiff = self.dist(firstSavedWaypoint[0], firstSavedWaypoint[1], waypointCandidate[0], waypointCandidate[1])
                     if distDiff < waypointsDistTollerance:
-                        self.loopclosure = True
+                        #self.loopclosure = True
                         print("loopclosure = True")
                         break
 
@@ -745,7 +789,7 @@ class MaRRTPathPlanNode(Node):
     def findBestBranch(self, leafNodes: List[rrtNode], nodeList: KDNode, largerGroupFrontCones: List[PointWithCov], coneObstacleSize: float, expandDistance: float, planDistance: float):
         if not leafNodes:
             print("no leaf nodes")
-            return
+            return None
 
         coneDistLimit = 4.0
         coneDistanceLimitSq = coneDistLimit * coneDistLimit
@@ -761,40 +805,54 @@ class MaRRTPathPlanNode(Node):
             while node.parent is not None:
                 nodeRating = 0
 
-                leftCones = []
-                rightCones = []
+                leftCones: float = 0
+                rightCones: float = 0
+                if node.ratingcolor == 0:
+                    for cone in largerGroupFrontCones:
+                        coneDistSq = ((cone.global_x - node.x) ** 2 + (cone.global_y - node.y) ** 2)
 
-                for cone in largerGroupFrontCones:
-                    coneDistSq = ((cone.global_x - node.x) ** 2 + (cone.global_y - node.y) ** 2)
+                        if coneDistSq < coneDistanceLimitSq:
+                            actualDist = math.sqrt(coneDistSq)
 
-                    if coneDistSq < coneDistanceLimitSq:
-                        actualDist = math.sqrt(coneDistSq)
+                            if actualDist < coneObstacleSize:
+                                # node can be really close to a cone, cause we have new cones in this comparison, so skip these ones
+                                continue
 
-                        if actualDist < coneObstacleSize:
-                            # node can be really close to a cone, cause we have new cones in this comparison, so skip these ones
-                            continue
+                            nodeRating += (coneDistLimit - actualDist)
+                            
+                            parentNodeRaw: KDNode = nodeList.search_nn_point(node.parent[0], node.parent[1])[0]
+                            if parentNodeRaw is not None and parentNodeRaw.data is not None:
+                                parentNode: rrtNode = parentNodeRaw.data
+                                if self.isLeftCone(node, parentNode, cone):
+                                    leftCones += 1
+                                    if cone.color == 1:
+                                        leftCones +=  0.5
+                                        #nodeRating *= 1.05
+                                        pass
+                                else:
+                                    rightCones += 1
+                                    if cone.color == 0:
+                                        rightCones += 0.5
+                                        #nodeRating *= 1.05
+                                        pass
+                    dif = (1-abs((rightCones-leftCones)/(rightCones+leftCones+1)))
 
-                        nodeRating += (coneDistLimit - actualDist)
-                        
-                        parentNodeRaw: KDNode = nodeList.search_nn_point(node.parent[0], node.parent[1])[0]
-                        if parentNodeRaw is not None and parentNodeRaw.data is not None:
-                            parentNode: rrtNode = parentNodeRaw.data
-                            if self.isLeftCone(node, parentNode, cone):
-                                leftCones.append(cone)
-                            else:
-                                rightCones.append(cone)
+                    if ((leftCones == 0 and rightCones > 0) or (leftCones > 0 and rightCones == 0)):
+                        nodeRating /= (bothSidesImproveFactor)# * dif)
 
-                if ((len(leftCones) == 0 and len(rightCones)) > 0 or (len(leftCones) > 0 and len(rightCones) == 0)):
-                    nodeRating /= bothSidesImproveFactor
-
-                if (len(leftCones) > 0 and len(rightCones) > 0):
-                    nodeRating *= bothSidesImproveFactor
+                    if (leftCones > 0 and rightCones > 0):
+                        nodeRating *= (bothSidesImproveFactor)# * dif)
 
 
-                # make conversion: (expandDistance to planDistance) -> (1 to 2)
-                nodeFactor = (node.cost - expandDistance)/(planDistance - expandDistance) + 1
+                    # make conversion: (expandDistance to planDistance) -> (1 to 2)
+                    nodeFactor = (node.cost - expandDistance)/(planDistance - expandDistance) + 1
 
-                branchRating += nodeRating * nodeFactor
+                    node.ratingcolor = normalise(nodeRating * nodeFactor, 50)
+                    node.rating = nodeRating * nodeFactor
+                    
+                    branchRating += nodeRating * nodeFactor
+                else:
+                    branchRating += node.rating
                 # branchRating += nodeRating
                 node: rrtNode = nodeList.search_nn_point(node.parent[0], node.parent[1])[0].data
 
@@ -806,7 +864,7 @@ class MaRRTPathPlanNode(Node):
         node = leafNodes[maxRatingInd]
 
         if False:#maxRating < minAcceptableBranchRating:
-            return
+            return None
 
         self.publishBestBranchVisual(nodeList, node)
 
@@ -825,10 +883,11 @@ class MaRRTPathPlanNode(Node):
 
     def isLeftCone(self, node: rrtNode, parentNode: rrtNode, cone: PointWithCov):
         # //((b.X - a.X)*(cone.Y - a.Y) - (b.Y - a.Y)*(cone.X - a.X)) > 0;
-        if cone.color == 0:
-            return True
-        if cone.color == 1:
-            return False
+        # if cone.color == 0:
+        #     return True
+        # if cone.color == 1:
+        #     return False
+        # THis determines if you were to follow the path between two nodes if the cone would end up on the left or right
         return ((node.x - parentNode.x) * (cone.global_y - parentNode.y) - (node.y - parentNode.y) * (cone.global_x - parentNode.x)) > 0
 
     def publishBestBranchVisual(self, nodeList, leafNode):
@@ -931,14 +990,12 @@ class MaRRTPathPlanNode(Node):
 
         treeMarker.pose.orientation.w = 1.0
 
-        treeMarker.color.a = 0.7
-        treeMarker.color.g = 0.7
-
         treeMarker.lifetime = DurationMsg(nanosec=2000000000)
 
         path_markers: List[PointMsg] = []
         path_markers2: List[PointMsg] = []
         path_markers3: List[PointMsg] = []
+        path_colors: List[ColorRGBA] = []
         markers: List[Marker] = []
 
         for node in nodeList.returnElements():
@@ -956,7 +1013,23 @@ class MaRRTPathPlanNode(Node):
                 p.z = 0.0
                 path_markers.append(p)
 
+                col = col_range[node.ratingcolor].get_rgb()
+                line_colour = ColorRGBA()
+                line_colour.a = 1.0 # alpha
+                line_colour.r = col[0]
+                line_colour.g = col[1]
+                line_colour.b = col[2]
+                path_colors.append(line_colour)
+                col = col_range[parentNode.ratingcolor].get_rgb()
+                line_colour = ColorRGBA()
+                line_colour.a = 1.0 # alpha
+                line_colour.r = col[0]
+                line_colour.g = col[1]
+                line_colour.b = col[2]
+                path_colors.append(line_colour)
+
         treeMarker.points = path_markers
+        treeMarker.colors = path_colors
         markers.append(treeMarker)
 
         # leaves nodes marker

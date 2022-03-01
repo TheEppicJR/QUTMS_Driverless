@@ -406,8 +406,7 @@ class KDNode(Node):
 
         return create(listOfEle)
 
-
-    def dist(self, point: Point):
+    def dist(self, point: Point) -> float:
         """
         Squared distance between the current Node
         and the given point
@@ -473,7 +472,7 @@ class KDNode(Node):
         # (<KdNode>, distance).
         return [(node, -d) for d, _, node in sorted(results, reverse=True)]
 
-    def _search_node_fast(self, point, k, results, counter):
+    def _search_node_fast(self, point: Point, k: int, results, counter):
         if not self:
             return
 

@@ -211,7 +211,7 @@ class ConePipeline(Node):
                         knn[1][0].data.update(point)
                         self.conesKDTree.remove(point)
                         self.conesKDTree.rebalance()
-                    elif (point.nMeasurments > 3 and point.covMin(1)) or point.global_z-self.z_datum < -0.3 or point.global_z-self.z_datum > 1.0: # 0.1 and 0.6 for sim
+                    elif (point.nMeasurments > 3 and point.covMin(0.1)) or point.global_z-self.z_datum < -0.3 or point.global_z-self.z_datum > 1.0: # 0.1 and 0.6 for sim
                         self.conesKDTree.remove(point)
                         self.conesKDTree.rebalance()
                 if point.global_z-self.z_datum < -0.3 or point.global_z-self.z_datum > 1.0: # 0.1 and 0.6 for sim
@@ -267,12 +267,13 @@ class ConePipeline(Node):
             msgid = 0
             for point in points.points:
                 p = PointWithCov(point.position.x, point.position.y, point.position.z, np.array(point.covariance).reshape((3,3)), point.color, point.header)
-                p.translate(odomloc)
-                conelist.append(p)
-                if msgs:
-                    markers.append(p.getCov(msgid, True, self.z_datum))
-                    markers.append(p.getMarker(msgid + 1, self.z_datum))
-                msgid += 2
+                if p.xydist(0,0) < 15:
+                    p.translate(odomloc)
+                    conelist.append(p)
+                    if msgs:
+                        markers.append(p.getCov(msgid, True, self.z_datum))
+                        markers.append(p.getMarker(msgid + 1, self.z_datum))
+                    msgid += 2
             if msgs:
                 mkr = MarkerArray()
                 mkr.markers = markers
