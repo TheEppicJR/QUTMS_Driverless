@@ -1,9 +1,10 @@
-use spade::{DelaunayTriangulation, Triangulation, Point2};
+use spade::{DelaunayTriangulation, Triangulation, Point2, PositionInTriangulation};
 use PointWithCovariance;
 use nalgebra as na;
 use na::{Vector3, Rotation3, Matrix3, Point};
 use num_derive::FromPrimitive;    
 use num_traits::FromPrimitive;
+mod pathperimitives;
 
 #[derive(FromPrimitive)]
 enum PointColor{
@@ -58,6 +59,15 @@ impl VertexType {
             color: color,
             covariance: cov,
 
+        }
+    }
+    pub fn empty() -> Self {
+
+        Self {
+            position: Point::new(0.0, 0.0);
+            position3d: Point![0.0, 0.0, 0.0],
+            color: PointColor::Unknown,
+            covariance: Matrix3::default(),
         }
     }
 }
@@ -122,6 +132,34 @@ fn get_edges(points: Vec<PointWithCovariance>) -> Triangulation<_> {
         let cov = Matrix3::from_row_slice(point.covariance);
         triangulation.insert(VertexType<x, y, z, color, id, cov>);
     }
+    return triangulation;
 
+}
+
+fn find_track_edges(triangulation_obj: &Triangulation, pathpoints: &Vec<Point>, track: &Track) -> Option<T> {
+    if triangulation_obj::num_vertices() > 4 {
+        // For now im not going to use the Track object to maintain the state
+        // ie its going to be stateless for now, just wipe Track and put in new shit every time
+        // to make it stateless we have to go through and check for points in areas that are relivant and see if they changed and I dont wanna do that rn
+        // Really I should be adding and removing points here so I dont have to iterate through the edges every time
+        for pathpoint in pathpoints.iter() {
+            let pointpos = triangulation_obj::locate(pathpoint);
+            match pointpos {
+                PositionInTriangulation::OnEdge(edgehandle) => {
+                    let mut edge = triangulation_obj::undirected_edge_data_mut(edgehandle);
+                    analyse_edge(triangulation_obj: &Triangulation, edge: &UndirectedEdgeType);
+                }
+
+            }
+        }
+    }
+}
+
+fn analyse_edge(triangulation_obj: &Triangulation, edge: &UndirectedEdgeType) -> Option<T> {
+    
+}
+
+fn color_edge(triangulation_obj: &Triangulation, edge: &UndirectedEdgeType) -> Option<T> {
+    
 }
     
