@@ -11,6 +11,7 @@ use nalgebra as na;
 use na::{Vector3, Rotation3, Matrix3, Point};
 mod edgefinder;
 mod pathperimitives;
+use crate::pathperimitives::Track;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ctx = r2r::Context::create()?;
