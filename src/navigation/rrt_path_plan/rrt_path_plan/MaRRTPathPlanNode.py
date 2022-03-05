@@ -432,7 +432,7 @@ class MaRRTPathPlanNode(Node):
 
         # Set Initial parameters
         start = [self.carPosX, self.carPosY, self.carPosYaw]
-        iterationNumber = 500
+        iterationNumber = 100
         planDistance = 12
         expandDistance = 1
         expandAngle = 15

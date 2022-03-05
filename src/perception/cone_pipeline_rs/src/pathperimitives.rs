@@ -1,9 +1,8 @@
 use nalgebra as na;
-use spade::{DelaunayTriangulation, Triangulation, Point2, PositionInTriangulation, DirectedEdgeHandle, HasPosition};
-use spade::handles::{FixedFaceHandle, FixedDirectedEdgeHandle, VertexHandle, UndirectedEdgeHandle};
-use na::{Vector3, Rotation3, Matrix3, Point};
-use T;
-use num_derive::FromPrimitive;    
+use spade::{DelaunayTriangulation, Triangulation as OtherTriangulation, Point2, HasPosition};
+use spade::handles::{VertexHandle, UndirectedEdgeHandle, DirectedEdgeHandle};
+use na::{Matrix3, Point};
+use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
 #[derive(FromPrimitive)]
@@ -44,9 +43,12 @@ pub enum TileType{
     Offtrack,
 }
 
+pub type PointF2 = Point2<f64>;
+pub type PointF3 = Point<f64, 3>;
+
 pub struct TrackEdge {
-    pub start: VertexType;
-    pub end: VertexType;
+    pub start: VertexType,
+    pub end: VertexType,
 }
 
 impl TrackEdge {
@@ -61,10 +63,10 @@ impl TrackEdge {
 }
 
 pub struct Track {
-    pub left_hand: Vec<TrackEdge>;
-    pub right_hand: Vec<TrackEdge>;
-    pub right_start: VertexType;
-    pub left_start: VertexType;
+    pub left_hand: Vec<TrackEdge>,
+    pub right_hand: Vec<TrackEdge>,
+    pub right_start: VertexType,
+    pub left_start: VertexType,
 
 }
 
@@ -81,18 +83,18 @@ impl Track {
 }
 
 pub struct VertexType {
-    pub position: Point,
-    pub position3: Point!,
+    pub position: PointF2,
+    pub position3: PointF3,
     pub color: PointColor,
-    pub covariance: Matrix3,
+    pub covariance: Matrix3<f64>,
 }
 
 impl VertexType {
-    pub fn new(x: f64, y: f64, z: f64, color: PointColor, id: u32, cov: Matrix3) -> Self {
+    pub fn new(x: f64, y: f64, z: f64, color: PointColor, id: u32, cov: Matrix3<f64>) -> Self {
 
         Self {
-            position: Point::new(x, y),
-            position3: Point![x, y, z],
+            position: PointF2::new(x, y),
+            position3: PointF3::new(x, y, z),
             color: color,
             covariance: cov,
 
@@ -101,8 +103,8 @@ impl VertexType {
     pub fn empty() -> Self {
 
         Self {
-            position: Point::new(0.0, 0.0);
-            position3d: Point![0.0, 0.0, 0.0],
+            position: PointF2::new(0.0, 0.0),
+            position3: PointF3::new(0.0, 0.0, 0.0),
             color: PointColor::Unknown,
             covariance: Matrix3::default(),
         }
@@ -123,6 +125,7 @@ pub struct UndirectedEdgeType {
 
 }
 
+// this is from the example and it probably dosent need to be here
 impl AsRef<UndirectedEdgeType> for UndirectedEdgeType {
     fn as_ref(&self) -> &UndirectedEdgeType {
         self
@@ -144,7 +147,6 @@ impl Default for UndirectedEdgeType {
 #[derive(Default)]
 pub struct DirectedEdgeType {}
 
-#[derive(Clone, Copy, Debug)]
 pub struct FaceType {
     pub tiletype: TileType,
 }
@@ -159,7 +161,13 @@ impl Default for FaceType {
 
 pub type Triangulation = DelaunayTriangulation<VertexType, DirectedEdgeType, UndirectedEdgeType, FaceType>;
 
-pub fn get_edge_color(p1: &VertexHandle, p2: &VertexHandle) -> EdgeColor {
+pub type VertexHandleType<'a> = VertexHandle<'a, VertexType, DirectedEdgeType, UndirectedEdgeType, FaceType>;
+
+pub type UndirectedEdgeHandleType<'a> = UndirectedEdgeHandle<'a, VertexType, DirectedEdgeType, UndirectedEdgeType, FaceType>;
+
+pub type DirectedEdgeHandleType<'a> = DirectedEdgeHandle<'a, VertexType, DirectedEdgeType, UndirectedEdgeType, FaceType>;
+
+pub fn get_edge_color(p1: &VertexHandleType, p2: &VertexHandleType) -> EdgeColor {
     match p1.data().color {
         PointColor::Unknown => {
             match p2.data().color {

@@ -8,10 +8,8 @@ use r2r::driverless_msgs::msg::PointWithCovarianceArrayStamped;
 use r2r::nav_msgs::msg::Odometry;
 use r2r::QosProfile;
 use nalgebra as na;
-use na::{Vector3, Rotation3, Matrix3, Point};
 mod edgefinder;
 mod pathperimitives;
-use crate::pathperimitives::Track;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ctx = r2r::Context::create()?;
@@ -29,8 +27,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut pool = LocalPool::new();
     let spawner = pool.spawner();
 
-    let mut pathpoints: Vec<Point> = Vec::new();
-    let mut trackedges: Track = Track::new();
+    let mut pathpoints: Vec<pathperimitives::PointF2> = Vec::new();
+    let mut trackedges: pathperimitives::Track = pathperimitives::Track::new();
 
     // Run the subscriber in one task, printing the messages
     spawner.spawn_local(async move {
@@ -46,7 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     spawner.spawn_local(async move {
         odom_subscriber
             .for_each(|msg| {
-                println!("got new msg odom: {}", msg.header.stamp);
+                // println!("got new msg odom: {}", msg.header.stamp);
                 future::ready(())
             })
             .await
