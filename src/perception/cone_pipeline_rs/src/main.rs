@@ -10,6 +10,7 @@ use r2r::QosProfile;
 use nalgebra as na;
 mod edgefinder;
 mod pathperimitives;
+mod markermaker;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ctx = r2r::Context::create()?;
