@@ -1,18 +1,22 @@
-use spade::{PositionInTriangulation, Triangulation as OtherTriangulation};
-use spade::handles::{FixedFaceHandle, PossiblyOuterTag, InnerTag, FixedDirectedEdgeHandle};
-use r2r::driverless_msgs::msg::PointWithCovariance;
-use nalgebra as na;
-use na::{Matrix3};
 use super::pathperimitives;
-use pathperimitives::{Triangulation, EdgeColor, Track, DirectedEdgeHandleType, PointColor, VertexType, PointF2, FaceType, UndirectedEdgeType};
+use na::Matrix3;
+use nalgebra as na;
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
+use pathperimitives::{
+    DirectedEdgeHandleType, EdgeColor, FaceType, PointColor, PointF2, TileType, Track,
+    Triangulation, UndirectedEdgeType, VertexType,
+};
+use r2r::driverless_msgs::msg::PointWithCovariance;
+use spade::handles::{
+    FixedDirectedEdgeHandle, FixedFaceHandle, FixedUndirectedEdgeHandle, InnerTag, PossiblyOuterTag,
+};
+use spade::{PositionInTriangulation, Triangulation as OtherTriangulation};
 
 pub fn get_edges(points: Vec<PointWithCovariance>) -> Triangulation {
-
     let mut triangulation: Triangulation = Triangulation::new();
 
-    for point in &points{
+    for point in &points {
         let x = point.position.x;
         let y = point.position.y;
         let z = point.position.z;
@@ -25,11 +29,23 @@ pub fn get_edges(points: Vec<PointWithCovariance>) -> Triangulation {
         triangulation.insert(VertexType::new(x, y, z, color, id, cov));
     }
     return triangulation;
-
 }
 
-pub fn find_track_edges(triangulation_obj: &mut Triangulation, pathpoints: &Vec<PointF2>, track: &Track) -> Option<f64> {
+pub fn color_edges(triangulation_obj: &mut Triangulation) -> Option<f64> {
+    for edgehandle in triangulation_obj.fixed_directed_edges() {
+        color_edge(triangulation_obj, &edgehandle);
+    }
+
+    None
+}
+
+pub fn find_track_edges(
+    triangulation_obj: &mut Triangulation,
+    pathpoints: &Vec<PointF2>,
+    track: &Track,
+) -> Option<f64> {
     if triangulation_obj.num_vertices() > 4 {
+        color_edges(triangulation_obj);
         // For now im not going to use the Track object to maintain the state
         // ie its going to be stateless for now, just wipe Track and put in new shit every time
         // to make it stateless we have to go through and check for points in areas that are relivant and see if they changed and I dont wanna do that rn
@@ -55,37 +71,65 @@ pub fn find_track_edges(triangulation_obj: &mut Triangulation, pathpoints: &Vec<
                 PositionInTriangulation::OutsideOfConvexHull(idkwhatthisis) => {
                     // Need to figure out what to do in this case
                 }
-
             }
         }
     }
-    
     None
 }
 
-fn analyse_face(triangulation_obj: &mut Triangulation, fixed_facehandle: &FixedFaceHandle<InnerTag>) -> Option<f64> {
+fn analyse_face(
+    triangulation_obj: &mut Triangulation,
+    fixed_facehandle: &FixedFaceHandle<InnerTag>,
+) -> Option<f64> {
     let facehandle = triangulation_obj.face(fixed_facehandle.clone());
-    // doing this as a for loop breaks everything
+    let facehandle_fixed = facehandle.fix();
+    // get handdels for all the edges
     let edge_handle_arr = facehandle.adjacent_edges();
-    let mut edge_handles_fixed: [FixedDirectedEdgeHandle; 3] = [edge_handle_arr[0].fix(), edge_handle_arr[1].fix(), edge_handle_arr[2].fix()];
-    for edgehandle in edge_handles_fixed {
-        let mut mut_edge = triangulation_obj.undirected_edge_data_mut(edgehandle.as_undirected());
-        if let EdgeColor::Unknown = mut_edge.edgecolor {
-            color_edge(triangulation_obj, &edgehandle);
-        }
+    // get fixed refrences for all those handles so we arent mutably borrowing them
+    let mut edges_mut: [FixedUndirectedEdgeHandle; 3] = [
+        edge_handle_arr[0].as_undirected().fix(),
+        edge_handle_arr[1].as_undirected().fix(),
+        edge_handle_arr[2].as_undirected().fix(),
+    ];
+    // This code is obfuscated to make it more 'readable'
+    // I would like to do (x[0] == x[1] and x[0] == x[2]) and (x[0] == B or x[0] == Y) but that would mutably borrow more than one at a time, so all I can do is compaire them one by one to the ENUM
+    if (triangulation_obj
+        .undirected_edge_data_mut(edges_mut[0])
+        .edgecolor
+        == EdgeColor::B2B
+        && triangulation_obj
+            .undirected_edge_data_mut(edges_mut[1])
+            .edgecolor
+            == EdgeColor::B2B
+        && triangulation_obj
+            .undirected_edge_data_mut(edges_mut[0])
+            .edgecolor
+            == EdgeColor::B2B)
+        || (triangulation_obj
+            .undirected_edge_data_mut(edges_mut[0])
+            .edgecolor
+            == EdgeColor::Y2Y
+            && triangulation_obj
+                .undirected_edge_data_mut(edges_mut[1])
+                .edgecolor
+                == EdgeColor::Y2Y
+            && triangulation_obj
+                .undirected_edge_data_mut(edges_mut[0])
+                .edgecolor
+                == EdgeColor::Y2Y)
+    {
+        let mut face_data_mut = triangulation_obj.face_data_mut(facehandle_fixed);
+        face_data_mut.tiletype = TileType::Offtrack;
+        return None;
     }
-
 
     None
 }
 
-fn analyse_edge(triangulation_obj: &mut Triangulation, edgehandle: &FixedDirectedEdgeHandle) -> Option<f64> {
-    let mut_edge = triangulation_obj.undirected_edge_data_mut(edgehandle.as_undirected());
-    // If we havent figured out the color of the edge then figure that shit out
-    if let EdgeColor::Unknown = mut_edge.edgecolor {
-        color_edge(triangulation_obj, &edgehandle);
-    }
-    // Redeclare it so that triangulation_obj isnt borrowed mutably
+fn analyse_edge(
+    triangulation_obj: &mut Triangulation,
+    edgehandle: &FixedDirectedEdgeHandle,
+) -> Option<f64> {
     let mut_edge = triangulation_obj.undirected_edge_data_mut(edgehandle.as_undirected());
     // Now depending on color of the edge we can do diffrent things
     match mut_edge.edgecolor {
@@ -116,18 +160,17 @@ fn analyse_edge(triangulation_obj: &mut Triangulation, edgehandle: &FixedDirecte
         EdgeColor::Unknown => {
             let whatever = VertexType::empty();
         }
-
     }
 
     // let first_face_handle = edgehandle.face();
     // let second_face_handle = edgehandle.rev().face();
-    
     None
 }
 
-
-
-fn color_edge(triangulation_obj: &mut Triangulation, edgehandle: &FixedDirectedEdgeHandle) -> Option<f64> {
+fn color_edge(
+    triangulation_obj: &mut Triangulation,
+    edgehandle: &FixedDirectedEdgeHandle,
+) -> Option<f64> {
     let edge = triangulation_obj.directed_edge(*edgehandle); // idk what the * does
     let p1 = edge.from();
     let p2 = edge.to();
@@ -137,4 +180,3 @@ fn color_edge(triangulation_obj: &mut Triangulation, edgehandle: &FixedDirectedE
 
     None
 }
-    

@@ -14,6 +14,7 @@ pub enum PointColor{
     Unknown = 4,
 }
 
+#[derive(PartialEq)]
 pub enum EdgeType{
     LeftHand,
     RightHand,
@@ -23,6 +24,7 @@ pub enum EdgeType{
     StartFinish,
 }
 
+#[derive(PartialEq)]
 pub enum EdgeColor{
     B2B,
     Y2Y,
@@ -37,6 +39,7 @@ pub enum EdgeColor{
     Unknown,
 }
 
+#[derive(PartialEq)]
 pub enum TileType{
     Ontrack,
     Unknown,
