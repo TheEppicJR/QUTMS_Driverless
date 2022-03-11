@@ -1,7 +1,0 @@
-<node name="$(arg name)" pkg="vision_pipeline" type="torch_detector" output="screen">
-        <!-- <remap from="odom" to="pr2_base_odometry/odom" /> this could be used to just remap instead of having a repeater node, but atm the repeater node is still needed to freate the camera data-->
-    </node>
-
-    <node name="$(arg name)" pkg="vision_pipeline" type="zed" output="screen">
-        <!-- atm the repeater node is still needed to freate the camera data-->
-    </node>
