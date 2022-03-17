@@ -29,7 +29,7 @@ class SR_CAN(Node):
     def __init__(self):
         super().__init__("sr_can")
 
-        bus = Bus(interface='socketcan', channel='vcan0', receive_own_messages=True)
+        bus = Bus(interface='socketcan', channel='vcan0', receive_own_messages=False)
 
         self.logger = self.get_logger()
 

@@ -230,7 +230,7 @@ class DetectorNode(Node):
         print("got to publishing stage")
         self.detection_publisher.publish(detection_msg)
         self.detection_publisher_cov.publish(detection_msg_cov)
-        self.debug_img_publisher.publish(cv_bridge.cv2_to_imgmsg(colour_frame))#, encoding="bgra8"))
+        self.debug_img_publisher.publish(cv_bridge.cv2_to_imgmsg(colour_frame, encoding="bgra8"))
 
         logger.debug("Time: " + str(time.time() - start) + "\n") # log time
         print("Time: " + str(time.time() - start) + "\n")
