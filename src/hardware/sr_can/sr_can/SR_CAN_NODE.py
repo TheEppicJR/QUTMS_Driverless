@@ -32,7 +32,8 @@ import logging
 import datetime
 import pathlib
 import threading
-import time
+import struct
+# import time
 
 def sanatizeChName(name: str) -> str:
     return "sr_" + name.lower().replace(" ", "_")
@@ -55,10 +56,10 @@ class Channel_Pub():
         self.pub: Publisher = pub
         self.msgtype: Msgtype = msgtype
 
-    def publish(self, msg: can.Message):
+    def publish(self, msg: can.Message, times: Time):
         
         header = Header()
-        header.stamp = self.get_clock().now()
+        header.stamp = times.to_msg()
         
         if self.msgtype == Msgtype.ENUMS:
             pub_msg = GenericEnum()
@@ -69,13 +70,15 @@ class Channel_Pub():
             pub_msg = GenericSensor()
             pub_msg.header = header
             pub_msg.units = self.channel.base_resolution
-            try:
-                pub_msg.data = float(msg.data)
-                self.pub.publish(pub_msg)
-            except:
-                pub_msg.data = 0.0
-                self.pub.publish(pub_msg)
-                print(f"couldnt convert: {msg.data} cn:{self.channel}")
+            print(type(struct.unpack('Q', bytes(msg.data))[0]))
+            print(struct.unpack('Q', bytes(msg.data))[0])
+            #try:
+            pub_msg.data = float(struct.unpack('Q', bytes(msg.data))[0])#float.fromhex(msg.data) float(msg.data.decode())#
+            self.pub.publish(pub_msg)
+            # except:
+            #     pub_msg.data = 0.0
+            #     self.pub.publish(pub_msg)
+            #     print(f"couldnt convert: {msg.data} cn:{self.channel}")
         else:
             pass
 
@@ -116,7 +119,7 @@ class SR_CAN(Node):
 
     def read_mesages(self, message: can.Message):
         if message.arbitration_id in self.channels.keys():
-            self.channels[message.arbitration_id].publish(message)
+            self.channels[message.arbitration_id].publish(message, self.get_clock().now())
             print(f"{message.arbitration_id}\t{message.channel}\t{message.data}\tPublished")
         else:
             print(f"{message.arbitration_id}\t{message.channel}\t{message.data}\tID not in list")
