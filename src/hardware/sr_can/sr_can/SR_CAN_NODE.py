@@ -55,30 +55,38 @@ class Channel_Pub():
         self.channel: Channel = channel
         self.pub: Publisher = pub
         self.msgtype: Msgtype = msgtype
+        self.reloffset: int = self.channel.offset % 8
+        self.relend: int = self.reloffset + self.channel.length
+        self.unit, self.scale = self.units(self.channel.base_resolution)
+
+    def units(self, res: str):
+        try:
+            splitz = res.split(" ")
+            if len(splitz) == 2:
+                return splitz[1], float(splitz[0])
+            else:
+                return "none", 1.0
+        except:
+            return "none", 1.0
 
     def publish(self, msg: can.Message, times: Time):
         
         header = Header()
         header.stamp = times.to_msg()
+
+        data = msg.data[self.reloffset, self.relend]
         
         if self.msgtype == Msgtype.ENUMS:
             pub_msg = GenericEnum()
             pub_msg.header = header
-            pub_msg.data = int(msg.data)
+            pub_msg.data = int(data)
             self.pub.publish(pub_msg)
         elif self.msgtype == Msgtype.FLOAT:
             pub_msg = GenericSensor()
             pub_msg.header = header
-            pub_msg.units = self.channel.base_resolution
-            print(type(struct.unpack('Q', bytes(msg.data))[0]))
-            print(struct.unpack('Q', bytes(msg.data))[0])
-            #try:
-            pub_msg.data = float(struct.unpack('Q', bytes(msg.data))[0])#float.fromhex(msg.data) float(msg.data.decode())#
+            pub_msg.units = self.unit
+            pub_msg.data = float(int.from_bytes(data)) * self.scale
             self.pub.publish(pub_msg)
-            # except:
-            #     pub_msg.data = 0.0
-            #     self.pub.publish(pub_msg)
-            #     print(f"couldnt convert: {msg.data} cn:{self.channel}")
         else:
             pass
 
@@ -112,13 +120,13 @@ class SR_CAN(Node):
             name: str = f"/daq/{sanatizeChName(channel.name)}"
             pub: Publisher = self.create_publisher(msgtypeclass, name, 1)
             channel_obj = Channel_Pub(channel, pub, msgtype)
-            self.channels[channel.address] = channel_obj
+            self.channels[channel.offset] = channel_obj
 
     def __del__(self):
         print('SR_CAN: Destructor called.')
 
     def read_mesages(self, message: can.Message):
-        if message.arbitration_id in self.channels.keys():
+        if message.arbitration_id == 0:#in self.channels.keys():
             self.channels[message.arbitration_id].publish(message, self.get_clock().now())
             print(f"{message.arbitration_id}\t{message.channel}\t{message.data}\tPublished")
         else:
