@@ -31,6 +31,8 @@ set(msg_files
   "msg/PointWithCovarianceArrayStamped.msg"
   "msg/StateWithCovarianceStamped.msg"
   "msg/TrackStamped.msg"
+  "msg/GenericSensor.msg"
+  "msg/GenericEnum.msg"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
