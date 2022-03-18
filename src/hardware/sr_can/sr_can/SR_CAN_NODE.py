@@ -10,7 +10,7 @@ from driverless_msgs.msg import GenericEnum, GenericSensor
 import can
 # need to make this take the channel params from the json instead
 can.rc['interface'] = 'socketcan'
-can.rc['channel'] = 'vcan0'
+can.rc['channel'] = 'can0'
 can.rc['bitrate'] = 1000000
 from can.interface import Bus
 
@@ -55,7 +55,13 @@ class Channel_Pub():
         if self.msgtype == Msgtype.ENUMS:
             self.pub.publish(int(msg.data))
         elif self.msgtype == Msgtype.FLOAT:
-            self.pub.publish(float(msg.data))
+            try:
+                self.pub.publish(float(msg.data))
+            except:
+                pub_msg = GenericSensor()
+                
+                self.pub.publish(0.0)
+                print(f"couldnt convert: {msg.data} cn:{self.channel}")
         else:
             pass
 
@@ -65,7 +71,7 @@ class SR_CAN(Node):
     def __init__(self):
         super().__init__("sr_can")
 
-        bus = Bus(interface='socketcan', channel='vcan0', receive_own_messages=False)
+        bus = Bus(interface='socketcan', channel='can0', receive_own_messages=False)
 
         channel_descripts, rate = gcp()
 
@@ -79,7 +85,7 @@ class SR_CAN(Node):
 
         self.logger.debug("---Cone Pipeline Node Initalised---")
 
-        notifier = can.Notifier(bus, [can.Logger("recorded.log"), self.read_mesages])
+        notifier = can.Notifier(bus, [can.Logger("recorded.log"), self.read_mesages, can.Printer()])
 
         print("SR_CAN Constructor has been called")
 
