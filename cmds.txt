@@ -1,0 +1,41 @@
+conda activate driverless_env
+
+source install/setup.bash
+
+rm -rf build log install
+
+ros2 service call /reset fs_msgs/srv/Reset
+
+ros2 launch fsds_ros2_bridge fsds_ros2_bridge.launch.py host:=192.168.86.20 rviz:=true
+
+ros2 launch fsds_ros2_bridge fsds_ros2_bridge.launch.py host:=10.250.180.131 rviz:=true
+
+ros2 run rosboard rosboard_node
+
+ros2 run sim_pursuit local_pursuit
+
+ros2 run sim_pursuit detection
+
+ros2 run lidar_pipeline sim_simple
+
+ros2 run vision_pipeline torch_detector
+
+ros2 run cone_pipeline cone_pipe
+
+ros2 run cone_pipeline cone_track
+
+ros2 run rrt_path_plan rrt_plan
+
+ros2 run sim_planning pursuit
+
+ros2 run sim_planning mapper
+
+ros2 run perception_debug cov
+
+ros2 run perception_debug perception_sim
+
+ros2 launch state_estimation state_estimation.launch.py
+
+mamba install -y --file ./src/hardware/sr_can/conda_requirements
+
+ros2 launch rosbridge_server rosbridge_websocket_launch.xml
