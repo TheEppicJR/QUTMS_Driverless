@@ -4,8 +4,12 @@ from enum import Enum
 import rclpy
 from rclpy.node import Node
 from rclpy.publisher import Publisher
+from rclpy.time import Time, Duration
+
 # import ROS2 message libraries
 from driverless_msgs.msg import GenericEnum, GenericSensor
+from std_msgs.msg import Header
+
 
 import can
 # need to make this take the channel params from the json instead
@@ -52,15 +56,25 @@ class Channel_Pub():
         self.msgtype: Msgtype = msgtype
 
     def publish(self, msg: can.Message):
+        
+        header = Header()
+        header.stamp = self.get_clock().now()
+        
         if self.msgtype == Msgtype.ENUMS:
-            self.pub.publish(int(msg.data))
+            pub_msg = GenericEnum()
+            pub_msg.header = header
+            pub_msg.data = int(msg.data)
+            self.pub.publish(pub_msg)
         elif self.msgtype == Msgtype.FLOAT:
+            pub_msg = GenericSensor()
+            pub_msg.header = header
+            pub_msg.units = self.channel.base_resolution
             try:
-                self.pub.publish(float(msg.data))
+                pub_msg.data = float(msg.data)
+                self.pub.publish(pub_msg)
             except:
-                pub_msg = GenericSensor()
-                
-                self.pub.publish(0.0)
+                pub_msg.data = 0.0
+                self.pub.publish(pub_msg)
                 print(f"couldnt convert: {msg.data} cn:{self.channel}")
         else:
             pass
