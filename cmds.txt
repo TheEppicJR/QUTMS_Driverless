@@ -39,3 +39,8 @@ ros2 launch state_estimation state_estimation.launch.py
 mamba install -y --file ./src/hardware/sr_can/conda_requirements
 
 ros2 launch rosbridge_server rosbridge_websocket_launch.xml
+
+# setting up the PEAK
+sudo modprobe vcan
+sudo ip link add dev vcan0 type vcan
+sudo ip link set vcan0 up

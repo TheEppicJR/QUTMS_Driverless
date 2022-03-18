@@ -31,7 +31,7 @@ import threading
 import time
 
 def sanatizeChName(name: str) -> str:
-    return name.lower().replace(" ", "_")
+    return "sr_" + name.lower().replace(" ", "_")
 
 def getMsgtype(name, units):
     if units == '1':
@@ -69,9 +69,9 @@ class SR_CAN(Node):
 
         channel_descripts, rate = gcp()
 
-        self.create_publisher(channel_descripts)
-
         self.channels: Dict[int, Channel_Pub] = {}
+
+        self.create_publishers(channel_descripts)
 
         self.logger = self.get_logger()
 
@@ -79,7 +79,7 @@ class SR_CAN(Node):
 
         self.logger.debug("---Cone Pipeline Node Initalised---")
 
-        notifier = can.Notifier(bus, [can.Logger("recorded.log"), self.read_mesages()])
+        notifier = can.Notifier(bus, [can.Logger("recorded.log"), self.read_mesages])
 
         print("SR_CAN Constructor has been called")
 

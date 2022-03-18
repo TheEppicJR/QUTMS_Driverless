@@ -57,8 +57,8 @@ def main(args=sys.argv[1:]):
     for i in candata['sections']:
         channels, msgdat = generate_topic(i)
         all_channels = all_channels + channels
-        print(msgdat)
-    print(all_channels)
+        #print(msgdat)
+    #print(all_channels)
     # Closing file
     f.close()
     return all_channels, rate
