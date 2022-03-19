@@ -88,7 +88,7 @@ class Channel_Pub():
             pub_msg.units = self.unit
             pub_msg.data = float(int.from_bytes(data, 'big')) * self.scale
             self.pub.publish(pub_msg)
-            print(f"printed float: {pub_msg.data}")
+            #print(f"printed float: {pub_msg.data}")
         else:
             #print(self.msgtype)
             pass
