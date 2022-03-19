@@ -126,9 +126,11 @@ class SR_CAN(Node):
         print('SR_CAN: Destructor called.')
 
     def read_mesages(self, message: can.Message):
-        if message.arbitration_id == 0:#in self.channels.keys():
-            self.channels[message.arbitration_id].publish(message, self.get_clock().now())
+        if message.arbitration_id == 0:
             print(f"{message.arbitration_id}\t{message.channel}\t{message.data}\tPublished")
+            for channelid in range(0, 8):
+                if channelid in self.channels.keys():
+                    self.channels[message.arbitration_id].publish(message, self.get_clock().now())
         else:
             print(f"{message.arbitration_id}\t{message.channel}\t{message.data}\tID not in list")
     
