@@ -21,7 +21,7 @@ class Channel():
         self.multiplier: float = channel_dat['multiplier']
         self.divisor: float = channel_dat['divisor']
         self.adder: float = channel_dat['adder']
-        self.address: int = base_add + self.offset
+        self.address: int = base_add
 
     
     def __repr__(self):
@@ -33,14 +33,20 @@ def generate_topic(msg):
     raw_channels = msg['transmitted channels']['channels']
     message_type = msg['transmitted channels']['message type']
     base_add: int = int(can_settings['base address'], 0)
-    channels: List[Channel] = []
+    all_chan: List[List[Channel]] = []
+    addys: List[int] = []
 
     for chan in raw_channels:
-        chan_obj = Channel(chan, base_add)
-        channels.append(chan_obj)
-        #print(chan_obj)
+        sub_add = base_add + int(chan['identifier']['offset'])
+        addys.append(sub_add)
+        channels: List[Channel] = []
+        for sub_chan in chan['identifier']['channels']:
+            chan_obj = Channel(sub_chan, sub_add)
+            channels.append(chan_obj)
+            #print(chan_obj)
+        all_chan.append(channels)
 
-    return channels, (section, can_settings, message_type)
+    return all_chan, addys, (section, can_settings, message_type)
 
 def main(args=sys.argv[1:]):
     # Opening JSON file

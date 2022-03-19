@@ -88,7 +88,7 @@ class Channel_Pub():
             pub_msg.units = self.unit
             pub_msg.data = float(int.from_bytes(data, 'big')) * self.scale
             self.pub.publish(pub_msg)
-            #print(f"printed float: {pub_msg.data}")
+            print(f"printed float: {pub_msg.data}")
         else:
             #print(self.msgtype)
             pass
@@ -101,9 +101,9 @@ class SR_CAN(Node):
 
         bus = Bus(interface='socketcan', channel='can0', receive_own_messages=False)
 
-        channel_descripts, rate = gcp()
+        channel_descripts, self.addys, rate = gcp()
 
-        self.channels: Dict[int, Channel_Pub] = {}
+        self.channels: Dict[int, Dict[int, Channel_Pub]] = {}
 
         self.create_publishers(channel_descripts)
 
@@ -117,24 +117,27 @@ class SR_CAN(Node):
 
         print("SR_CAN Constructor has been called")
 
-    def create_publishers(self, channel_lst: List[Channel]):
-        for channel in channel_lst:
-            msgtype, msgtypeclass = getMsgtype(channel.name, channel.base_resolution)
-            name: str = f"/daq/{sanatizeChName(channel.name)}"
-            pub: Publisher = self.create_publisher(msgtypeclass, name, 1)
-            channel_obj = Channel_Pub(channel, pub, msgtype)
-            self.channels[channel.offset] = channel_obj
+    def create_publishers(self, channel_lst: List[List[Channel]]):
+        for channelz, chanid in zip(channel_lst, self.addys):
+            sub_channels: Dict[int, Channel_Pub] = {}
+            for channel in channelz:
+                msgtype, msgtypeclass = getMsgtype(channel.name, channel.base_resolution)
+                name: str = f"/daq/{sanatizeChName(channel.name)}"
+                pub: Publisher = self.create_publisher(msgtypeclass, name, 1)
+                channel_obj = Channel_Pub(channel, pub, msgtype)
+                sub_channels[channel.offset] = channel_obj
+            self.channels[chanid] = sub_channels
 
     def __del__(self):
         print('SR_CAN: Destructor called.')
 
     def read_mesages(self, message: can.Message):
-        if message.arbitration_id == 0:
+        if message.arbitration_id in self.addys:
             #print(f"{message.arbitration_id}\t{message.channel}\t{message.data}\tPublished")
             for channelid in range(0, 8):
-                if channelid in self.channels.keys():
+                if channelid in self.channels[message.arbitration_id].keys():
                     #print(f"Printing Channel at offset: {channelid}")
-                    self.channels[channelid].publish(message, self.get_clock().now())
+                    self.channels[message.arbitration_id][channelid].publish(message, self.get_clock().now())
         else:
             print(f"{message.arbitration_id}\t{message.channel}\t{message.data}\tID not in list")
     
