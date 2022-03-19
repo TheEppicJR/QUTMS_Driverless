@@ -27,26 +27,29 @@ class Channel():
     def __repr__(self):
         return 'Channel({}, {}, {}, {})'.format(self.name, self.base_resolution, self.offset, hex(self.address))
 
-def generate_topic(msg):
-    section = msg['section']
-    can_settings = msg['CAN settings']
-    raw_channels = msg['transmitted channels']['channels']
-    message_type = msg['transmitted channels']['message type']
-    base_add: int = int(can_settings['base address'], 0)
+def generate_topic(msgs):
+    
     all_chan: List[List[Channel]] = []
     addys: List[int] = []
+    msgdats = []
 
-    for chan in raw_channels:
-        sub_add = base_add + int(chan['identifier']['offset'])
+    for msg in msgs:
+        section = msg['section']
+        can_settings = msg['CAN settings']
+        raw_channels = msg['transmitted channels']['channels']
+        message_type = msg['transmitted channels']['message type']
+        base_add: int = int(can_settings['base address'], 0)
+        sub_add = base_add + int(msg['identifier']['offset'])
         addys.append(sub_add)
         channels: List[Channel] = []
-        for sub_chan in chan['identifier']['channels']:
+        for sub_chan in msg['identifier']['channels']:
             chan_obj = Channel(sub_chan, sub_add)
             channels.append(chan_obj)
             #print(chan_obj)
         all_chan.append(channels)
+        msgdats.append((section, can_settings, message_type))
 
-    return all_chan, addys, (section, can_settings, message_type)
+    return all_chan, addys, msgdats
 
 def main(args=sys.argv[1:]):
     # Opening JSON file
@@ -60,8 +63,8 @@ def main(args=sys.argv[1:]):
     candata = data['connections']['communications']['CAN 3']
     rate: str = candata['options']['rate']
     all_channels: List[Channel] = []
-    i = candata['sections'][0]
-    channels, addys, msgdat = generate_topic(i)
+    i = candata['sections']
+    channels, addys, msgdats = generate_topic(i)
     all_channels = all_channels + channels
     #print(msgdat)
     #print(all_channels)

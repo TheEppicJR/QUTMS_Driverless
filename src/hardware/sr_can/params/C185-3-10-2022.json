@@ -2244,7 +2244,7 @@
         "sections" : [
           {
             "section" : 1,
-            "name" : "Ian CAN TX2",
+            "name" : "Damper TX",
             "encrypted" : false,
             "password" : false,
             "parameters" : {
@@ -2258,593 +2258,2362 @@
             "CAN settings" : {
               "address format" : "standard",
               "allow fast receive" : false,
-              "base address" : "0x0",
+              "base address" : "0x700",
               "transmission" : "cyclic",
               "transmission rate" : "100 Hz",
               "message length" : 8
             },
             "transmitted channels" : {
-              "message type" : "compound",
+              "message type" : "single",
               "channels" : [
                 {
-                  "identifier" : {
-                    "number" : 0,
-                    "offset" : 0,
-                    "id" : 0,
-                    "id mask" : "0x0000",
-                    "channels" : [
-                      {
-                        "enabled" : false,
-                        "channel" : "5V Aux Supply",
-                        "base resolution" : "0.001 V",
-                        "offset" : 0,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "8V Aux Supply",
-                        "base resolution" : "0.001 V",
-                        "offset" : 2,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Accel Pedal Pos",
-                        "base resolution" : "0.1 angle%",
-                        "offset" : 4,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Aero Pres 2",
-                        "base resolution" : "0.01 kPa",
-                        "offset" : 6,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      }
-                    ]
-                  }
+                  "enabled" : false,
+                  "channel" : "Damper Pos FL",
+                  "base resolution" : "0.00001 m",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
                 },
                 {
-                  "identifier" : {
-                    "number" : 1,
-                    "offset" : 1,
-                    "id" : 1,
-                    "id mask" : "0xFFFF",
-                    "channels" : [
-                      {
-                        "enabled" : false,
-                        "channel" : "Aero Pres 3",
-                        "base resolution" : "0.01 kPa",
-                        "offset" : 0,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Airbox Temperature",
-                        "base resolution" : "0.1 C",
-                        "offset" : 2,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Ambient Pressure",
-                        "base resolution" : "0.01 kPa",
-                        "offset" : 4,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Ambient Temperature",
-                        "base resolution" : "0.1 C",
-                        "offset" : 6,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      }
-                    ]
-                  }
+                  "enabled" : false,
+                  "channel" : "Damper Pos FR",
+                  "base resolution" : "0.00001 m",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
                 },
                 {
-                  "identifier" : {
-                    "number" : 2,
-                    "offset" : 2,
-                    "id" : 2,
-                    "id mask" : "0xFFFF",
-                    "channels" : [
-                      {
-                        "enabled" : false,
-                        "channel" : "Anti Lag State",
-                        "base resolution" : "1",
-                        "offset" : 0,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Anti Lag Switch",
-                        "base resolution" : "1",
-                        "offset" : 2,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Bat Volts C185",
-                        "base resolution" : "0.01 V",
-                        "offset" : 4,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Bat Volts ECU",
-                        "base resolution" : "0.01 V",
-                        "offset" : 6,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      }
-                    ]
-                  }
+                  "enabled" : false,
+                  "channel" : "Damper Pos RL",
+                  "base resolution" : "0.00001 m",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
                 },
                 {
-                  "identifier" : {
-                    "number" : 3,
-                    "offset" : 3,
-                    "id" : 3,
-                    "id mask" : "0xFFFF",
-                    "channels" : [
-                      {
-                        "enabled" : false,
-                        "channel" : "Bat Volts LTC1",
-                        "base resolution" : "0.01 V",
-                        "offset" : 0,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Beacon",
-                        "base resolution" : "1",
-                        "offset" : 2,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Brake Pressure Front",
-                        "base resolution" : "1 kPa",
-                        "offset" : 4,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Brake Pressure Rear",
-                        "base resolution" : "1 kPa",
-                        "offset" : 6,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      }
-                    ]
-                  }
+                  "enabled" : false,
+                  "channel" : "Damper Pos RR",
+                  "base resolution" : "0.00001 m",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 2,
+            "name" : "Diag 1",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x600",
+              "transmission" : "cyclic",
+              "transmission rate" : "5 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "5V Aux Supply",
+                  "base resolution" : "0.001 V",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
                 },
                 {
-                  "identifier" : {
-                    "number" : 4,
-                    "offset" : 4,
-                    "id" : 4,
-                    "id mask" : "0xFFFF",
-                    "channels" : [
-                      {
-                        "enabled" : false,
-                        "channel" : "Brake Switch",
-                        "base resolution" : "1",
-                        "offset" : 0,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Brake Temp Front",
-                        "base resolution" : "1 C",
-                        "offset" : 2,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Brake Temp Rear",
-                        "base resolution" : "1 C",
-                        "offset" : 4,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "C185 Temp",
-                        "base resolution" : "0.1 C",
-                        "offset" : 6,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      }
-                    ]
-                  }
+                  "enabled" : false,
+                  "channel" : "8V Aux Supply",
+                  "base resolution" : "0.001 V",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
                 },
                 {
-                  "identifier" : {
-                    "number" : 5,
-                    "offset" : 5,
-                    "id" : 5,
-                    "id mask" : "0xFFFF",
-                    "channels" : [
-                      {
-                        "enabled" : false,
-                        "channel" : "Comms CAN 1 Diag",
-                        "base resolution" : "1",
-                        "offset" : 0,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Comms RS232 Diag",
-                        "base resolution" : "1",
-                        "offset" : 2,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Coolant Pressure",
-                        "base resolution" : "0.1 kPa",
-                        "offset" : 4,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Coolant Pressure Warning",
-                        "base resolution" : "1",
-                        "offset" : 6,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      }
-                    ]
-                  }
+                  "enabled" : false,
+                  "channel" : "Comms CAN 1 Diag",
+                  "base resolution" : "1",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
                 },
                 {
-                  "identifier" : {
-                    "number" : 6,
-                    "offset" : 6,
-                    "id" : 6,
-                    "id mask" : "0xFFFF",
-                    "channels" : [
-                      {
-                        "enabled" : false,
-                        "channel" : "Coolant Temperature",
-                        "base resolution" : "0.1 C",
-                        "offset" : 0,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Coolant Temperature Warning",
-                        "base resolution" : "1",
-                        "offset" : 2,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Crankcase Pres",
-                        "base resolution" : "0.1 kPa",
-                        "offset" : 4,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Crankcase Pressure Warning",
-                        "base resolution" : "1",
-                        "offset" : 6,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      }
-                    ]
-                  }
+                  "enabled" : false,
+                  "channel" : "Comms RS232 Diag",
+                  "base resolution" : "1",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 3,
+            "name" : "Diag 2",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x601",
+              "transmission" : "cyclic",
+              "transmission rate" : "5 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Bat Volts C185",
+                  "base resolution" : "0.01 V",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
                 },
                 {
-                  "identifier" : {
-                    "number" : 7,
-                    "offset" : 7,
-                    "id" : 7,
-                    "id mask" : "0xFFFF",
-                    "channels" : [
-                      {
-                        "enabled" : false,
-                        "channel" : "Damper Pos FL",
-                        "base resolution" : "0.00001 m",
-                        "offset" : 0,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Damper Pos FR",
-                        "base resolution" : "0.00001 m",
-                        "offset" : 2,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Damper Pos RL",
-                        "base resolution" : "0.00001 m",
-                        "offset" : 4,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Damper Pos RR",
-                        "base resolution" : "0.00001 m",
-                        "offset" : 6,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      }
-                    ]
-                  }
+                  "enabled" : false,
+                  "channel" : "Bat Volts ECU",
+                  "base resolution" : "0.01 V",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
                 },
                 {
-                  "identifier" : {
-                    "number" : 8,
-                    "offset" : 8,
-                    "id" : 8,
-                    "id mask" : "0xFFFF",
-                    "channels" : [
-                      {
-                        "enabled" : false,
-                        "channel" : "Diag Log Eng Hours",
-                        "base resolution" : "0.1",
-                        "offset" : 0,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Driver Gear Lever",
-                        "base resolution" : "0.01 kg",
-                        "offset" : 2,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "ECU Uptime",
-                        "base resolution" : "1 s",
-                        "offset" : 4,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Eng Hours 1",
-                        "base resolution" : "0.1",
-                        "offset" : 6,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      }
-                    ]
-                  }
+                  "enabled" : false,
+                  "channel" : "Bat Volts LTC1",
+                  "base resolution" : "0.01 V",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
                 },
                 {
-                  "identifier" : {
-                    "number" : 9,
-                    "offset" : 9,
-                    "id" : 9,
-                    "id mask" : "0xFFFF",
-                    "channels" : [
-                      {
-                        "enabled" : false,
-                        "channel" : "Engine Efficiency",
-                        "base resolution" : "0.001 ratio",
-                        "offset" : 0,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Engine Load",
-                        "base resolution" : "0.000001 kg",
-                        "offset" : 2,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Engine Load Average",
-                        "base resolution" : "0.001 ratio",
-                        "offset" : 4,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      },
-                      {
-                        "enabled" : false,
-                        "channel" : "Engine Oil Pressure",
-                        "base resolution" : "0.1 kPa",
-                        "offset" : 6,
-                        "length" : 2,
-                        "bitmask" : "0xFFFF",
-                        "signed" : true,
-                        "multiplier" : 1,
-                        "divisor" : 1,
-                        "adder" : 0
-                      }
-                    ]
-                  }
+                  "enabled" : false,
+                  "channel" : "C185 Temp",
+                  "base resolution" : "0.1 C",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 4,
+            "name" : "Wheel Speed",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x602",
+              "transmission" : "cyclic",
+              "transmission rate" : "50 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Wheel Speed FL",
+                  "base resolution" : "0.1 km/h",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Wheel Speed FR",
+                  "base resolution" : "0.1 km/h",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Wheel Speed RL",
+                  "base resolution" : "0.1 km/h",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Wheel Speed RR",
+                  "base resolution" : "0.1 km/h",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 5,
+            "name" : "Brake TX",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x603",
+              "transmission" : "cyclic",
+              "transmission rate" : "100 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Brake Pressure Front",
+                  "base resolution" : "1 kPa",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Brake Pressure Rear",
+                  "base resolution" : "1 kPa",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Brake Switch",
+                  "base resolution" : "1",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Brake Temp Front",
+                  "base resolution" : "1 C",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 6,
+            "name" : "Air",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x604",
+              "transmission" : "cyclic",
+              "transmission rate" : "5 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Aero Pres 2",
+                  "base resolution" : "0.01 kPa",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Airbox Temperature",
+                  "base resolution" : "0.1 C",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Ambient Pressure",
+                  "base resolution" : "0.01 kPa",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Ambient Temperature",
+                  "base resolution" : "0.1 C",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 7,
+            "name" : "Engine Diag 1",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x605",
+              "transmission" : "cyclic",
+              "transmission rate" : "5 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Anti Lag State",
+                  "base resolution" : "1",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Anti Lag Switch",
+                  "base resolution" : "1",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Crankcase Pres",
+                  "base resolution" : "0.1 kPa",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Crankcase Pressure Warning",
+                  "base resolution" : "1",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 8,
+            "name" : "Engine Diag 2 (Coolant)",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x606",
+              "transmission" : "cyclic",
+              "transmission rate" : "5 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Coolant Pressure",
+                  "base resolution" : "0.1 kPa",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Coolant Pressure Warning",
+                  "base resolution" : "1",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Coolant Temperature",
+                  "base resolution" : "0.1 C",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Coolant Temperature Warning",
+                  "base resolution" : "1",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 9,
+            "name" : "Engine Diag 3",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x607",
+              "transmission" : "cyclic",
+              "transmission rate" : "5 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Diag Log Eng Hours",
+                  "base resolution" : "0.1",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "ECU Uptime",
+                  "base resolution" : "1 s",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Eng Hours 1",
+                  "base resolution" : "0.1",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Beacon",
+                  "base resolution" : "1",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 10,
+            "name" : "Engine Diag 4",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x608",
+              "transmission" : "cyclic",
+              "transmission rate" : "50 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Engine Load",
+                  "base resolution" : "0.000001 kg",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Engine Load Average",
+                  "base resolution" : "0.001 ratio",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Accel Pedal Pos",
+                  "base resolution" : "0.1 angle%",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Engine Efficiency",
+                  "base resolution" : "0.001 ratio",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 11,
+            "name" : "Engine Diag 5 (Oil)",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x609",
+              "transmission" : "cyclic",
+              "transmission rate" : "5 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Engine Oil Pressure",
+                  "base resolution" : "0.1 kPa",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Engine Oil Pressure Warning",
+                  "base resolution" : "1",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Engine Oil Temp Warning",
+                  "base resolution" : "1",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Engine Oil Temperature",
+                  "base resolution" : "0.1 C",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 12,
+            "name" : "Engine Diag 6",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x60A",
+              "transmission" : "cyclic",
+              "transmission rate" : "5 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Engine OilPressure Low Switch",
+                  "base resolution" : "1",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Engine Overrun State",
+                  "base resolution" : "1",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Engine Run Hours Total",
+                  "base resolution" : "0.1",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Engine Run Time",
+                  "base resolution" : "1 s",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 13,
+            "name" : "Engine Diag 7 (Engine Speed)",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x60B",
+              "transmission" : "cyclic",
+              "transmission rate" : "50 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Engine Speed",
+                  "base resolution" : "0.1 Hz",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Engine Speed Limit Ignition",
+                  "base resolution" : "0.1 Hz",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Engine Speed Limit State",
+                  "base resolution" : "1",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Engine Speed Reference State",
+                  "base resolution" : "1",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 14,
+            "name" : "Engine Diag 8",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x60C",
+              "transmission" : "cyclic",
+              "transmission rate" : "5 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Engine Speed Warning",
+                  "base resolution" : "1",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Engine State",
+                  "base resolution" : "1",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Exhaust Temperature",
+                  "base resolution" : "0.1 C",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Driver Gear Lever",
+                  "base resolution" : "0.01 kg",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 15,
+            "name" : "Engine Diag 9 (Fuel)",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x60D",
+              "transmission" : "cyclic",
+              "transmission rate" : "50 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Fuel Closed Loop Ctrl B1 Trim",
+                  "base resolution" : "0.001 ratio",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Fuel Closed Loop Diagnostic",
+                  "base resolution" : "1",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Fuel Closed Loop State",
+                  "base resolution" : "1",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Fuel Cut State",
+                  "base resolution" : "1",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 16,
+            "name" : "Engine Diag 10 (Fuel 2)",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x60E",
+              "transmission" : "cyclic",
+              "transmission rate" : "50 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Fuel Cyl1 Pulse Width",
+                  "base resolution" : "0.000001 s",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Fuel Diagnostic",
+                  "base resolution" : "1",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Fuel Injector Duty Cycle",
+                  "base resolution" : "0.001 ratio",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Fuel Level",
+                  "base resolution" : "0.1 l",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 17,
+            "name" : "Engine Diag 11 (Fuel 3)",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x60F",
+              "transmission" : "cyclic",
+              "transmission rate" : "10 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Fuel Mixture Aim",
+                  "base resolution" : "0.01 LA",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Fuel Output Cut Average",
+                  "base resolution" : "0.001 ratio",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Fuel Output Cut Count",
+                  "base resolution" : "1",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Fuel Pressure Sensor",
+                  "base resolution" : "0.1 kPa",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 18,
+            "name" : "Engine Diag 12 (Fuel 4)",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x610",
+              "transmission" : "cyclic",
+              "transmission rate" : "5 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Fuel Pressure Warning",
+                  "base resolution" : "1",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Fuel Pump State",
+                  "base resolution" : "1",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Fuel Purge State",
+                  "base resolution" : "1",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Fuel Temperature",
+                  "base resolution" : "0.1 C",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 19,
+            "name" : "Engine Diag 13 (Fuel 5)",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x611",
+              "transmission" : "cyclic",
+              "transmission rate" : "5 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Fuel Timing",
+                  "base resolution" : "0.1 deg",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Fuel Used M1",
+                  "base resolution" : "0.01 l",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Fuel Volume",
+                  "base resolution" : "0.000001 l",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 20,
+            "name" : "Accel TX",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x612",
+              "transmission" : "cyclic",
+              "transmission rate" : "100 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "G Force Lat",
+                  "base resolution" : "0.01 G",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "G Force Long",
+                  "base resolution" : "0.01 G",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "G Force Vert",
+                  "base resolution" : "0.01 G",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Gear",
+                  "base resolution" : "1",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 21,
+            "name" : "GPS TX 1",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x613",
+              "transmission" : "cyclic",
+              "transmission rate" : "50 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "GPS Altitude",
+                  "base resolution" : "0.1 m",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "GPS Heading",
+                  "base resolution" : "0.01 deg",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "GPS Latitude",
+                  "base resolution" : "0.0000001 deg",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "GPS Longitude",
+                  "base resolution" : "0.0000001 deg",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 22,
+            "name" : "GPS TX 2",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x614",
+              "transmission" : "cyclic",
+              "transmission rate" : "50 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "GPS Date",
+                  "base resolution" : "1",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "GPS Sats Used",
+                  "base resolution" : "1",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "GPS Speed",
+                  "base resolution" : "0.1 km/h",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "GPS Time",
+                  "base resolution" : "0.001",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 23,
+            "name" : "Engine Diag 14 (Ignition 1)",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x615",
+              "transmission" : "cyclic",
+              "transmission rate" : "10 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Ignition Cyl 1 Knock Level",
+                  "base resolution" : "0.001 ratio",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Ignition Cyl 1 Trim Knock",
+                  "base resolution" : "0.1 deg",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Ignition Cyl 2 Knock Level",
+                  "base resolution" : "0.001 ratio",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Ignition Cyl 2 Trim Knock",
+                  "base resolution" : "0.1 deg",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 24,
+            "name" : "Engine Diag 15 (Ignition 2)",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x616",
+              "transmission" : "cyclic",
+              "transmission rate" : "10 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Ignition Cyl 3 Knock Level",
+                  "base resolution" : "0.001 ratio",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Ignition Cyl 3 Trim Knock",
+                  "base resolution" : "0.1 deg",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Ignition Output Cut Average",
+                  "base resolution" : "0.001 ratio",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Ignition Output Cut Count",
+                  "base resolution" : "1",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 25,
+            "name" : "Engine Diag 16 (Ignition 3)",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x617",
+              "transmission" : "cyclic",
+              "transmission rate" : "10 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Ignition Cut State",
+                  "base resolution" : "1",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Ignition Switch",
+                  "base resolution" : "1",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Ignition Timing",
+                  "base resolution" : "0.1 deg",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Ignition Timing State",
+                  "base resolution" : "1",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 26,
+            "name" : "Engine Diag 17 (Launch)",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x618",
+              "transmission" : "cyclic",
+              "transmission rate" : "5 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Launch Diagnostic",
+                  "base resolution" : "1",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Launch State",
+                  "base resolution" : "1",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Launch Switch",
+                  "base resolution" : "1",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 27,
+            "name" : "Engine Diag 18",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x619",
+              "transmission" : "cyclic",
+              "transmission rate" : "5 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Knock State",
+                  "base resolution" : "1",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Knock Warning",
+                  "base resolution" : "1",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Max Eng Oil Temp",
+                  "base resolution" : "0.1 C",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Min Eng Oil Temp",
+                  "base resolution" : "0.1 C",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 28,
+            "name" : "Engine Diag 19 (LTC 1)",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x61A",
+              "transmission" : "cyclic",
+              "transmission rate" : "50 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "La LTC 1",
+                  "base resolution" : "0.001 LA",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "LTC 1 Diag",
+                  "base resolution" : "1",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "LTC 1 Heater Duty",
+                  "base resolution" : "0.001 ratio",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "LTC 1 State",
+                  "base resolution" : "1",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 29,
+            "name" : "Engine Diag 20 (LTC 2)",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x61B",
+              "transmission" : "cyclic",
+              "transmission rate" : "50 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "LTC 1 Ip",
+                  "base resolution" : "0.000001 A",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "LTC 1 Ipn",
+                  "base resolution" : "0.000001 A",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "LTC 1 Ri",
+                  "base resolution" : "1 ohm",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "LTC 1 Temp",
+                  "base resolution" : "0.1 C",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 30,
+            "name" : "Engine Diag 21 (Rad Temp)",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x61C",
+              "transmission" : "cyclic",
+              "transmission rate" : "50 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Rad 1 Inlet Temp",
+                  "base resolution" : "0.1 C",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Rad 1 Outlet Temp",
+                  "base resolution" : "0.1 C",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Rad 2 Inlet Temp",
+                  "base resolution" : "1 C",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Rad 2 Outlet Temp",
+                  "base resolution" : "1 C",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 31,
+            "name" : "Engine Diag 22 (Throttle)",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x61D",
+              "transmission" : "cyclic",
+              "transmission rate" : "50 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Steering Angle",
+                  "base resolution" : "0.1 deg",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Throttle Aim State",
+                  "base resolution" : "1",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Throttle Pedal",
+                  "base resolution" : "0.001 ratio",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Throttle Position",
+                  "base resolution" : "0.001 ratio",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                }
+              ]
+            }
+          },
+          {
+            "section" : 32,
+            "name" : "Diag 4",
+            "encrypted" : false,
+            "password" : false,
+            "parameters" : {
+              "device" : "Transmit Message",
+              "format" : "Fixed Binary",
+              "alignment" : "Normal",
+              "receive timeout" : 2200,
+              "default value on timeout" : true,
+              "diagnostic channel" : ""
+            },
+            "CAN settings" : {
+              "address format" : "standard",
+              "allow fast receive" : false,
+              "base address" : "0x61E",
+              "transmission" : "cyclic",
+              "transmission rate" : "5 Hz",
+              "message length" : 8
+            },
+            "transmitted channels" : {
+              "message type" : "single",
+              "channels" : [
+                {
+                  "enabled" : false,
+                  "channel" : "Neutral Switch",
+                  "base resolution" : "1",
+                  "offset" : 0,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Pit Switch",
+                  "base resolution" : "1",
+                  "offset" : 2,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Traction Switch",
+                  "base resolution" : "1",
+                  "offset" : 4,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
+                },
+                {
+                  "enabled" : false,
+                  "channel" : "Warning Source",
+                  "base resolution" : "1",
+                  "offset" : 6,
+                  "length" : 2,
+                  "bitmask" : "0xFFFF",
+                  "signed" : true,
+                  "multiplier" : 1,
+                  "divisor" : 1,
+                  "adder" : 0
                 }
               ]
             }

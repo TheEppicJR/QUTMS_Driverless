@@ -118,7 +118,6 @@ class SR_CAN(Node):
         self.logger.debug("---Cone Pipeline Node Initalised---")
 
         notifier = can.Notifier(bus, [can.Logger("recorded.log"), self.read_mesages, can.Printer()])
-        self.ind = 0
 
         print("SR_CAN Constructor has been called")
 
@@ -133,24 +132,18 @@ class SR_CAN(Node):
                 sub_channels[channel.offset] = channel_obj
             self.channels[chanid] = sub_channels
 
-    def inc(self):
-        self.ind += 1
-        if self.ind == len(self.addys):
-            self.ind = 0
-
     def __del__(self):
         print('SR_CAN: Destructor called.')
 
     def read_mesages(self, message: can.Message):
-        if message.arbitration_id == 0:
+        if message.arbitration_id in self.addys:
             #print(f"{message.arbitration_id}\t{message.channel}\t{message.data}\tPublished")
             for channelid in range(0, 8):
-                if channelid in self.channels[self.addys[self.ind]].keys():
+                if channelid in self.channels[message.arbitration_id].keys():
                     #print(f"Printing Channel at offset: {channelid}")
-                    self.channels[self.addys[self.ind]][channelid].publish(message, self.get_clock().now())
+                    self.channels[message.arbitration_id][channelid].publish(message, self.get_clock().now())
         else:
-            print(f"{self.addys[self.ind]}\t{message.channel}\t{message.data}\tID not in list")
-        self.inc()
+            print(f"{message.arbitration_id}\t{message.channel}\t{message.data}\tID not in list")
     
 
 
