@@ -81,7 +81,7 @@ class Channel_Pub():
             pub_msg.header = header
             int_data = int.from_bytes(data, 'big')
             if int_data > 32767 or int_data < -32768:
-                print(int_data)
+                #print(int_data)
                 int_data = 0
             pub_msg.data = int_data
             self.pub.publish(pub_msg)
@@ -92,7 +92,7 @@ class Channel_Pub():
             pub_msg.units = self.unit
             pub_msg.data = float(int.from_bytes(data, 'big')) * self.scale
             self.pub.publish(pub_msg)
-            print(f"printed float: {pub_msg.data}")
+            #print(f"printed float: {pub_msg.data}")
         else:
             #print(self.msgtype)
             pass

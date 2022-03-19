@@ -38,11 +38,10 @@ def generate_topic(msgs):
         can_settings = msg['CAN settings']
         raw_channels = msg['transmitted channels']['channels']
         message_type = msg['transmitted channels']['message type']
-        base_add: int = int(can_settings['base address'], 0)
-        sub_add = base_add + int(msg['identifier']['offset'])
+        sub_add: int = int(can_settings['base address'], 0)
         addys.append(sub_add)
         channels: List[Channel] = []
-        for sub_chan in msg['identifier']['channels']:
+        for sub_chan in msg['transmitted channels']['channels']:
             chan_obj = Channel(sub_chan, sub_add)
             channels.append(chan_obj)
             #print(chan_obj)
