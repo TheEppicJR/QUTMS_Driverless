@@ -74,20 +74,23 @@ class Channel_Pub():
         header = Header()
         header.stamp = times.to_msg()
 
-        data = msg.data[self.reloffset, self.relend]
+        data = msg.data[self.reloffset: self.relend]
         
         if self.msgtype == Msgtype.ENUMS:
             pub_msg = GenericEnum()
             pub_msg.header = header
             pub_msg.data = int(data)
             self.pub.publish(pub_msg)
+            #print("printed enum")
         elif self.msgtype == Msgtype.FLOAT:
             pub_msg = GenericSensor()
             pub_msg.header = header
             pub_msg.units = self.unit
-            pub_msg.data = float(int.from_bytes(data)) * self.scale
+            pub_msg.data = float(int.from_bytes(data, 'big')) * self.scale
             self.pub.publish(pub_msg)
+            print(f"printed float: {pub_msg.data}")
         else:
+            #print(self.msgtype)
             pass
 
 class SR_CAN(Node):
@@ -127,10 +130,11 @@ class SR_CAN(Node):
 
     def read_mesages(self, message: can.Message):
         if message.arbitration_id == 0:
-            print(f"{message.arbitration_id}\t{message.channel}\t{message.data}\tPublished")
+            #print(f"{message.arbitration_id}\t{message.channel}\t{message.data}\tPublished")
             for channelid in range(0, 8):
                 if channelid in self.channels.keys():
-                    self.channels[message.arbitration_id].publish(message, self.get_clock().now())
+                    #print(f"Printing Channel at offset: {channelid}")
+                    self.channels[channelid].publish(message, self.get_clock().now())
         else:
             print(f"{message.arbitration_id}\t{message.channel}\t{message.data}\tID not in list")
     
