@@ -60,14 +60,14 @@ def main(args=sys.argv[1:]):
     candata = data['connections']['communications']['CAN 3']
     rate: str = candata['options']['rate']
     all_channels: List[Channel] = []
-    for i in candata['sections']:
-        channels, msgdat = generate_topic(i)
-        all_channels = all_channels + channels
-        #print(msgdat)
+    i = candata['sections'][0]
+    channels, addys, msgdat = generate_topic(i)
+    all_channels = all_channels + channels
+    #print(msgdat)
     #print(all_channels)
     # Closing file
     f.close()
-    return all_channels, rate
+    return all_channels, addys, rate
 
 if __name__ == '__main__':
     main(sys.argv[1:])

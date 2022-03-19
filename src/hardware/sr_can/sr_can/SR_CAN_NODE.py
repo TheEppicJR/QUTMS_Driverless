@@ -79,7 +79,11 @@ class Channel_Pub():
         if self.msgtype == Msgtype.ENUMS:
             pub_msg = GenericEnum()
             pub_msg.header = header
-            pub_msg.data = int(data)
+            int_data = int.from_bytes(data, 'big')
+            if int_data > 32767 or int_data < -32768:
+                print(int_data)
+                int_data = 0
+            pub_msg.data = int_data
             self.pub.publish(pub_msg)
             #print("printed enum")
         elif self.msgtype == Msgtype.FLOAT:
@@ -114,6 +118,7 @@ class SR_CAN(Node):
         self.logger.debug("---Cone Pipeline Node Initalised---")
 
         notifier = can.Notifier(bus, [can.Logger("recorded.log"), self.read_mesages, can.Printer()])
+        self.ind = 0
 
         print("SR_CAN Constructor has been called")
 
@@ -128,18 +133,24 @@ class SR_CAN(Node):
                 sub_channels[channel.offset] = channel_obj
             self.channels[chanid] = sub_channels
 
+    def inc(self):
+        self.ind += 1
+        if self.ind == len(self.addys):
+            self.ind = 0
+
     def __del__(self):
         print('SR_CAN: Destructor called.')
 
     def read_mesages(self, message: can.Message):
-        if message.arbitration_id in self.addys:
+        if message.arbitration_id == 0:
             #print(f"{message.arbitration_id}\t{message.channel}\t{message.data}\tPublished")
             for channelid in range(0, 8):
-                if channelid in self.channels[message.arbitration_id].keys():
+                if channelid in self.channels[self.addys[self.ind]].keys():
                     #print(f"Printing Channel at offset: {channelid}")
-                    self.channels[message.arbitration_id][channelid].publish(message, self.get_clock().now())
+                    self.channels[self.addys[self.ind]][channelid].publish(message, self.get_clock().now())
         else:
-            print(f"{message.arbitration_id}\t{message.channel}\t{message.data}\tID not in list")
+            print(f"{self.addys[self.ind]}\t{message.channel}\t{message.data}\tID not in list")
+        self.inc()
     
 
 
