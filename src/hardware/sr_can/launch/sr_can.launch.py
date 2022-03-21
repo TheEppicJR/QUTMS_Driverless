@@ -27,37 +27,20 @@ from launch.actions import DeclareLaunchArgument
 from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
-    robot_localization_dir = get_package_share_directory('state_estimation')
-    parameters_file_path = os.path.join(robot_localization_dir, 'dual_ekf_navsat_example.yaml')
-    os.environ['FILE_PATH'] = str(robot_localization_dir)
+    # robot_localization_dir = get_package_share_directory('state_estimation')
+    # parameters_file_path = os.path.join(robot_localization_dir, 'dual_ekf_navsat_example.yaml')
+    # os.environ['FILE_PATH'] = str(robot_localization_dir)
     return LaunchDescription([
         launch_ros.actions.Node(
-            package='robot_localization', 
-            executable='ekf_node', 
-            name='ekf_filter_node_odom',
-	        output='screen',
-            parameters=[parameters_file_path],
-            remappings=[('odometry/filtered', 'odometry/local')]           
+            package='sr_can', 
+            executable='sr_can', 
+            name='sr_can_driver',
+            remappings=[]           
            ),
         launch_ros.actions.Node(
-            package='robot_localization', 
+            package='sr', 
             executable='ekf_node', 
             name='ekf_filter_node_map',
-	        output='screen',
-            parameters=[parameters_file_path],
-            remappings=[('odometry/filtered', 'odometry/global')]
-           ),           
-        launch_ros.actions.Node(
-            package='robot_localization', 
-            executable='navsat_transform_node', 
-            name='navsat_transform',
-	        output='screen',
-            parameters=[parameters_file_path],
-            remappings=[('imu/data', 'imu'),
-                        ('gps/fix', 'gps'), 
-                        ('gps/filtered', 'gps/filtered'),
-                        ('odometry/gps', 'odometry/gps'),
-                        ('odometry/filtered', 'odometry/global')]           
-
-           )           
+            remappings=[]
+           )          
 ])

@@ -17,9 +17,9 @@ dependencies:
   - numba
   # for some reason, not installed in base python?
   - typing-extensions
-  - pycuda
+  #- pycuda
   - pip
-  - pytorch
+  #- pytorch
   #- torchvision
   #- torchaudio
   #- cudatoolkit=10.2

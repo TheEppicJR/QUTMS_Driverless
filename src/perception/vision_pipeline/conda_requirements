@@ -1,4 +1,5 @@
 pytorch
+pycuda
 torchvision
 ros-galactic-cv-bridge
 opencv==4.5.2
