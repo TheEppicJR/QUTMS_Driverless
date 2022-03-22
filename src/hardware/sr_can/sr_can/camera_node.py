@@ -32,7 +32,7 @@ class CameraNode(Node):
         super().__init__("sr_cam")
         self.img_publisher: Publisher = self.create_publisher(Image, "/cam/sr_cam", 1)
         # open camera
-        self.cap = cv2.VideoCapture('/dev/video1', cv2.CAP_V4L)
+        self.cap = cv2.VideoCapture('/dev/video0', cv2.CAP_V4L)
         
         # set dimensions
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 2560)
