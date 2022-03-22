@@ -26,7 +26,8 @@ setup(
     entry_points={
         'console_scripts': [
             "sr_can = sr_can.SR_CAN_NODE:main",
-            "gen_channels = sr_can.get_can_ports:main"
+            "gen_channels = sr_can.get_can_ports:main",
+            "sr_cam = sr_can.camera_node:main"
         ],
     },
 )

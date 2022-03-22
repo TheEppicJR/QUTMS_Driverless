@@ -1,6 +1,4 @@
 numpy==1.21.4
 scipy
-numba
-ros-galactic-ros2-socketcan
 ros-galactic-rosbridge-server
 ros-galactic-rosbridge-suite
