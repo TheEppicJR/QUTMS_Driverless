@@ -34,19 +34,18 @@ class CameraNode(Node):
         # open camera
         self.cap = cv2.VideoCapture('/dev/video0', cv2.CAP_V4L)
         
-        # set dimensions
-        #self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 2560)
-        #self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1440)
         if not self.cap.isOpened():
             print("Cannot open camera")
             exit()
         else:
-            print("works maybe?")
+            print("Camera connected")
+
+    def __del__(self):
+        self.cap.release()
+        print('SR_CAM: Destructor called.')
 
     def pubImage(self):
         ret, frame = self.cap.read()
-        #self.cap.release()
-        print(type(frame))
         img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         self.img_publisher.publish(cv_bridge.cv2_to_imgmsg(img, encoding="bgr8"))
 
