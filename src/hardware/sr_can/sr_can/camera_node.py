@@ -46,8 +46,7 @@ class CameraNode(Node):
 
     def pubImage(self):
         ret, frame = self.cap.read()
-        img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        self.img_publisher.publish(cv_bridge.cv2_to_imgmsg(img, encoding="bgr8"))
+        self.img_publisher.publish(cv_bridge.cv2_to_imgmsg(frame, encoding="bgr8"))
 
 def main(args=sys.argv[1:]):
     # defaults args
