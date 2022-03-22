@@ -35,8 +35,13 @@ class CameraNode(Node):
         self.cap = cv2.VideoCapture('/dev/video0', cv2.CAP_V4L)
         
         # set dimensions
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 2560)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1440)
+        #self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 2560)
+        #self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1440)
+        if not self.cap.isOpened():
+            print("Cannot open camera")
+            exit()
+        else:
+            print("works maybe?")
 
     def pubImage(self):
         ret, frame = self.cap.read()
