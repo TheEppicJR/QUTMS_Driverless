@@ -92,7 +92,7 @@ class AnnotatorNode(Node):
         # synchronizer.registerCallback(self.callback)
 
         # self.get_logger().info("Initialised Annotator Node")
-        self.create_subscription(Image, "/fsds/cam2", self.callback, 10)
+        self.create_subscription(Image, "/cam/sr_cam", self.callback, 10)
         self.anno_img_publisher: Publisher = self.create_publisher(Image, "/cam/anno_img", 1)
         
         self.count: int = 1500 ## START WHERE THE MOST RECENT ANNOTATION SET FINISHED

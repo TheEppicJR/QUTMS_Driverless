@@ -4,7 +4,7 @@ launch with `ros2 launch sr_can sr_can.launch.py`
 from launch_ros.actions import Node
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription
-from launch.actions import LogInfo
+from launch.actions import LogInfo, DeclareLaunchArgument
 from launch.launch_description_sources import PythonLaunchDescriptionSource, AnyLaunchDescriptionSource
 from launch.substitutions import ThisLaunchFileDir
 
@@ -16,6 +16,9 @@ def generate_launch_description():
         # IncludeLaunchDescription(
         #     AnyLaunchDescriptionSource([ThisLaunchFileDir(), '/example.launch.py']),
         #     launch_arguments=['rosbridge_websocket_launch.xml'],
+        # ),
+        # DeclareLaunchArgument(
+
         # ),
         Node(
             package='rosboard',
