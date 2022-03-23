@@ -47,7 +47,8 @@ class CameraNode(Node):
     def pubImage(self):
         ret, frame = self.cap.read()
         print(type(frame))
-        self.img_publisher.publish(cv_bridge.cv2_to_imgmsg(frame, encoding="bgr8"))
+        if frame is not None:
+            self.img_publisher.publish(cv_bridge.cv2_to_imgmsg(frame, encoding="bgr8"))
 
 def main(args=sys.argv[1:]):
     # defaults args
