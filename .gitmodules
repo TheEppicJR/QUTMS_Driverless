@@ -13,3 +13,6 @@
 	path = src/common/fs_msgs
 	url = https://github.com/FS-Driverless/fs_msgs.git
 	branch = ros2
+[submodule "src/hardware/ros_openimu"]
+	path = src/hardware/ros_openimu
+	url = https://github.com/TheEppicJR/ros_openimu.git
