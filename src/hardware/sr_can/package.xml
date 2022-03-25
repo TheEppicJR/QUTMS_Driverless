@@ -3,15 +3,14 @@
 <package format="3">
   <name>sr_can</name>
   <version>0.0.0</version>
-  <description>TODO: Package description</description>
+  <description>CAN to ROS2 drivers for the Motec L180</description>
   <maintainer email="mantacast4154@gmail.com">ian</maintainer>
-  <license>TODO: License declaration</license>
+  <license>MIT</license>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_pep257</test_depend>
   <test_depend>python3-pytest</test_depend>
-  <exec_depend>ros2-socketcan</exec_depend>
 
   <export>
     <build_type>ament_python</build_type>
