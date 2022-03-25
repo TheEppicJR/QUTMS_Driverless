@@ -1,6 +1,4 @@
 # import ROS2 libraries
-import imp
-from turtle import st
 import rclpy
 from rclpy.node import Node
 from rclpy.publisher import Publisher
@@ -31,8 +29,8 @@ class ResetNode(Node):
         super().__init__("spline_planner")
 
         self.req = Reset
-        self.rec.wait_on_last_task = True
-        Service.
+        # self.rec.wait_on_last_task = True
+        # self.svr = self.create_service(self.req, "/reset")
         print("Reset")
 
 
