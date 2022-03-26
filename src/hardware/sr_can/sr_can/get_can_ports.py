@@ -38,6 +38,7 @@ def generate_topic(msgs):
         can_settings = msg['CAN settings']
         raw_channels = msg['transmitted channels']['channels']
         message_type = msg['transmitted channels']['message type']
+        msg_name = msg['name']
         sub_add: int = int(can_settings['base address'], 0)
         addys.append(sub_add)
         channels: List[Channel] = []
@@ -46,7 +47,7 @@ def generate_topic(msgs):
             channels.append(chan_obj)
             #print(chan_obj)
         all_chan.append(channels)
-        msgdats.append((section, can_settings, message_type))
+        msgdats.append((section, can_settings, message_type, msg_name))
 
     return all_chan, addys, msgdats
 
@@ -69,7 +70,7 @@ def main(args=sys.argv[1:]):
     #print(all_channels)
     # Closing file
     f.close()
-    return all_channels, addys, rate
+    return all_channels, addys, rate, msgdats
 
 if __name__ == '__main__':
     main(sys.argv[1:])

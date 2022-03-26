@@ -1,6 +1,8 @@
 
 # import ROS2 libraries
 from enum import Enum
+
+from loguru import Message
 import rclpy
 from rclpy.node import Node
 from rclpy.publisher import Publisher
@@ -9,6 +11,7 @@ from rclpy.time import Time, Duration
 # import ROS2 message libraries
 from driverless_msgs.msg import GenericEnum, GenericSensor
 from std_msgs.msg import Header
+from sensor_msgs.msg import NavSatFix
 
 
 import can
@@ -41,6 +44,8 @@ def sanatizeChName(name: str) -> str:
 def getMsgtype(name, units):
     if units == '1':
         return Msgtype.ENUMS, GenericEnum
+    # elif name == "GPS TX 1":
+    #     return Msgtype.GPS, NavSatFix
     return Msgtype.FLOAT, GenericSensor
 
 class Msgtype(Enum):
@@ -97,6 +102,14 @@ class Channel_Pub():
             #print(self.msgtype)
             pass
 
+
+def gpsProcess(message: Message, tt, pub: Publisher):
+    gps_msg = NavSatFix()
+    gps_msg.header = tt.to_msg()
+    gps_msg.altitude = float(int.from_bytes(message.data[2: 4], 'big')) * 0.1
+    gps_msg.latitude = float(int.from_bytes(message.data[4: 6], 'big')) * 0.0000001
+    gps_msg.longitude = float(int.from_bytes(message.data[6: 8], 'big')) * 0.0000001
+    pub.publish(gps_msg)
 class SR_CAN(Node):
     # All variables, placed here are static
 
@@ -105,13 +118,16 @@ class SR_CAN(Node):
 
         bus = Bus(interface='socketcan', channel='can0', receive_own_messages=False)
 
-        channel_descripts, self.addys, rate = gcp()
+        channel_descripts, self.addys, rate, self.msgdats = gcp()
 
         self.channels: Dict[int, Dict[int, Channel_Pub]] = {}
+
+        self.gpschanid = -1
 
         self.create_publishers(channel_descripts)
 
         self.logger = self.get_logger()
+        self.gps_pub: Publisher = self.create_publisher(NavSatFix, "/daq/gps", 1)
 
         #self.delaunayLinesVisualPub: Publisher = self.create_publisher(Marker, "/cone_pipe/delaunay_lines", 1)
 
@@ -122,8 +138,10 @@ class SR_CAN(Node):
         print("SR_CAN Constructor has been called")
 
     def create_publishers(self, channel_lst: List[List[Channel]]):
-        for channelz, chanid in zip(channel_lst, self.addys):
+        for channelz, chanid, msgdat in zip(channel_lst, self.addys, self.msgdats):
             sub_channels: Dict[int, Channel_Pub] = {}
+            if msgdat[3] == "GPS TX 1":
+                self.gpschanid = chanid
             for channel in channelz:
                 msgtype, msgtypeclass = getMsgtype(channel.name, channel.base_resolution)
                 name: str = f"/daq/{sanatizeChName(channel.name)}"
@@ -136,12 +154,15 @@ class SR_CAN(Node):
         print('SR_CAN: Destructor called.')
 
     def read_mesages(self, message: can.Message):
+        tt = self.get_clock().now()
+        if message.arbitration_id == self.gpschanid:
+            gpsProcess(message, tt, self.gps_pub)
         if message.arbitration_id in self.addys:
             #print(f"{message.arbitration_id}\t{message.channel}\t{message.data}\tPublished")
             for channelid in range(0, 8):
                 if channelid in self.channels[message.arbitration_id].keys():
                     #print(f"Printing Channel at offset: {channelid}")
-                    self.channels[message.arbitration_id][channelid].publish(message, self.get_clock().now())
+                    self.channels[message.arbitration_id][channelid].publish(message, tt)
         else:
             print(f"{message.arbitration_id}\t{message.channel}\t{message.data}\tID not in list")
     
