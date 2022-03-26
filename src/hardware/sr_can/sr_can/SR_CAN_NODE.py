@@ -110,6 +110,7 @@ def gpsProcess(message: Message, tt, pub: Publisher):
     gps_msg.latitude = float(int.from_bytes(message.data[4: 6], 'big')) * 0.0000001
     gps_msg.longitude = float(int.from_bytes(message.data[6: 8], 'big')) * 0.0000001
     pub.publish(gps_msg)
+    
 class SR_CAN(Node):
     # All variables, placed here are static
 

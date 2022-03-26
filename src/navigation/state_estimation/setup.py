@@ -13,6 +13,7 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name, ['params/dual_ekf_navsat_example.yaml']),
+        ('share/' + package_name, ['params/dual_ekf_navsat_sr.yaml']),
         (os.path.join('share', package_name), glob('launch/*.launch.py'))
     ],
     install_requires=['setuptools'],
