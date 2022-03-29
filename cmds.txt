@@ -59,6 +59,7 @@ mamba install -y --file ./src/common/ros2_numpy/conda_requirements
 mamba install -y --file ./src/common/rosboard/conda_requirements
 mamba install -y --file ./src/hardware/can_driver/conda_requirements
 mamba install -y --file ./src/hardware/sensors/conda_requirements
+mamba install -y --file ./src/hardware/steering_actuator/conda_requirements
 mamba install -y --file ./src/navigation/controllers/conda_requirements
 mamba install -y --file ./src/navigation/sim_pursuit/conda_requirements
 mamba install -y --file ./src/navigation/sim_planning/conda_requirements
