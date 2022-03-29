@@ -67,5 +67,5 @@ mamba install -y --file ./src/perception/lidar_pipeline/conda_requirements
 mamba install -y --file ./src/perception/lidar_pipeline_2/conda_requirements
 mamba install -y --file ./src/perception/sim_camera/conda_requirements
 mamba install -y --file ./src/navigation/state_estimation/conda_requirements
-mamba install -y --file ./src/hardware/sr_cn/conda_requirements
+mamba install -y --file ./src/hardware/sr_can/conda_requirements
 mamba install -y --file ./src/hardware/ros_openimu/conda_requirements
