@@ -178,7 +178,7 @@ class SBGIMU : public rclcpp::Node {
 				Parse_SBG_ECAN_MSG_UTC_1(const_cast<uint8_t *>(msg.data.data()), &id, &year, &month, &day, &hour, &min,
 										 &sec, &micro_sec);
 
-				this->utc_buffer_msg.time_ref.sec;
+				// this->utc_buffer_msg.time_ref.sec;
 			} break;
 		}
 	}
