@@ -34,6 +34,10 @@ def generate_launch_description():
             executable='sr_cam',
         ),
         Node(
+            package='sr_can',
+            executable='sr_can',
+        ),
+        Node(
             package='ros_openimu',
             executable='sr_imu',
         ),
