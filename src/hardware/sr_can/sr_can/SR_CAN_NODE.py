@@ -106,10 +106,11 @@ def gpsProcess(message: can.Message, tt, pub: Publisher):
     gps_msg = NavSatFix()
     header = Header()
     header.stamp = tt.to_msg()
+    header.frame_id = "base_link"
     gps_msg.header = header
-    gps_msg.altitude = float(int.from_bytes(message.data[2: 4], 'big')) * 0.1
-    gps_msg.latitude = float(int.from_bytes(message.data[4: 6], 'big')) * 0.0000001
-    gps_msg.longitude = float(int.from_bytes(message.data[6: 8], 'big')) * 0.0000001
+    gps_msg.altitude = float(int.from_bytes(message.data[2: 4], 'big')) / 0.1
+    gps_msg.latitude = float(int.from_bytes(message.data[4: 6], 'big')) / 0.0000001
+    gps_msg.longitude = float(int.from_bytes(message.data[6: 8], 'big')) / 0.0000001
     pub.publish(gps_msg)
     
 class SR_CAN(Node):
