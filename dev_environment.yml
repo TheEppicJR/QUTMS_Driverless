@@ -24,7 +24,6 @@ dependencies:
     - colcon-bash
     - colcon-zsh
     - python-can==4.0.0
-    - opencv-python
 variables:
   # fix for WSL RVIZ2
   LIBGL_ALWAYS_INDIRECT:
