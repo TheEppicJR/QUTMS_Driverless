@@ -48,6 +48,8 @@ class CameraNode(Node):
         #print(type(frame))
         if frame is not None:
             self.img_publisher.publish(cv_bridge.cv2_to_imgmsg(frame, encoding="bgr8"))
+        else:
+            print(f"{time.time()} - empty frame")
 
 def main(args=sys.argv[1:]):
     # defaults args
