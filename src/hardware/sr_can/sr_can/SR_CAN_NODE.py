@@ -102,6 +102,12 @@ class Channel_Pub():
             pass
 
 
+def correctangle(ang: int) -> float:
+    if ang < 1800000000:
+        return float(ang) * 0.0000001
+    else:
+        return float(4294967295-ang) * -0.0000001
+
 def gpsProcess(message: can.Message, tt, pub: Publisher, alt: float):
     gps_msg = NavSatFix()
     header = Header()
@@ -109,9 +115,8 @@ def gpsProcess(message: can.Message, tt, pub: Publisher, alt: float):
     header.frame_id = "base_link"
     gps_msg.header = header
     gps_msg.altitude = alt
-    gps_msg.latitude = float(int.from_bytes(message.data[0: 4], 'big')) * 0.0000001
-    gps_msg.longitude = float(int.from_bytes(message.data[4: 8], 'big')) * 0.0000001
-    print(f"{int.from_bytes(message.data[0: 4], 'big')}\t{int.from_bytes(message.data[4: 8], 'big')}\t{gps_msg.altitude}")
+    gps_msg.latitude = correctangle(int.from_bytes(message.data[0: 4], 'big'))
+    gps_msg.longitude = correctangle(int.from_bytes(message.data[4: 8], 'big'))
     pub.publish(gps_msg)
     
 class SR_CAN(Node):
