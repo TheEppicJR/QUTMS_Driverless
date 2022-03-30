@@ -46,12 +46,16 @@ ros2 launch rosbridge_server rosbridge_websocket_launch.xml
 sudo modprobe peak_usb
 sudo ip link set can0 up type can bitrate 1000000
 
+sudo ip link set can1 up type can bitrate 1000000
+
 # setup generic can device
 sudo modprobe vcan
 sudo ip link add dev vcan0 type vcan
 sudo ip link set vcan0 up
 
 python -m can.viewer -c 'can0' -i 'socketcan' -b 1000000
+
+python -m can.viewer -c 'can1' -i 'socketcan' -b 1000000
 
 mamba install -y --file ./src/common/driverless_common/conda_requirements
 mamba install -y --file ./src/common/hsv_thresholder/conda_requirements
