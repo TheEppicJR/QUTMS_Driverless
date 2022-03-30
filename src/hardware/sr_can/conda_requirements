@@ -2,3 +2,5 @@ numpy==1.21.4
 scipy
 ros-galactic-rosbridge-server
 ros-galactic-rosbridge-suite
+ros-galactic-cv-bridge
+
