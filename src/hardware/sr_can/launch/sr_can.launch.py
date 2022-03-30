@@ -25,7 +25,7 @@ def generate_launch_description():
         # DeclareLaunchArgument(
 
         # ),
-        ExecuteProcess(cmd=['ros2', 'launch', 'rosbridge_server', 'rosbridge_websocket_launch.xml'], output='screen'),
+        #ExecuteProcess(cmd=['ros2', 'launch', 'rosbridge_server', 'rosbridge_websocket_launch.xml'], output='screen'),
         Node(
             package='rosboard',
             executable='rosboard_node',
