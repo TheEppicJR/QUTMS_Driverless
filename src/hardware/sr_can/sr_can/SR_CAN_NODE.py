@@ -112,7 +112,7 @@ def gpsProcess(message: can.Message, tt, pub: Publisher, alt: float):
     gps_msg = NavSatFix()
     header = Header()
     header.stamp = tt.to_msg()
-    header.frame_id = "base_link"
+    header.frame_id = "fsds/FSCar"
     gps_msg.header = header
     gps_msg.altitude = alt
     gps_msg.latitude = correctangle(int.from_bytes(message.data[0: 4], 'big'))
