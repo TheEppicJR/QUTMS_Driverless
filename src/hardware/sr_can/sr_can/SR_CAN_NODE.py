@@ -111,7 +111,7 @@ def gpsProcess(message: can.Message, tt, pub: Publisher, alt: float):
     gps_msg.altitude = alt
     gps_msg.latitude = float(int.from_bytes(message.data[0: 4], 'big')) * 0.0000001
     gps_msg.longitude = float(int.from_bytes(message.data[4: 8], 'big')) * 0.0000001
-    print(f"{gps_msg.latitude}\t{gps_msg.longitude}\t{gps_msg.altitude}")
+    print(f"{int.from_bytes(message.data[0: 4], 'big')}\t{int.from_bytes(message.data[4: 8], 'big')}\t{gps_msg.altitude}")
     pub.publish(gps_msg)
     
 class SR_CAN(Node):
@@ -146,7 +146,7 @@ class SR_CAN(Node):
     def create_publishers(self, channel_lst: List[List[Channel]]):
         for channelz, chanid, msgdat in zip(channel_lst, self.addys, self.msgdats):
             sub_channels: Dict[int, Channel_Pub] = {}
-            if msgdat[3] == "GPS TX 1":
+            if msgdat[3] == "Telem GPS TX 1":
                 self.gpschanid = chanid
             if msgdat[3] == "GPS TX 3":
                 self.gpschanidtt = chanid
