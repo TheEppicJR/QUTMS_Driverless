@@ -111,6 +111,7 @@ def gpsProcess(message: can.Message, tt, pub: Publisher, alt: float):
     gps_msg.altitude = alt
     gps_msg.latitude = float(int.from_bytes(message.data[0: 4], 'big')) * 0.0000001
     gps_msg.longitude = float(int.from_bytes(message.data[4: 8], 'big')) * 0.0000001
+    print(f"{gps_msg.latitude}\t{gps_msg.longitude}\t{gps_msg.altitude}")
     pub.publish(gps_msg)
     
 class SR_CAN(Node):
