@@ -137,7 +137,7 @@ class SR_CAN(Node):
 
         self.logger.debug("---Cone Pipeline Node Initalised---")
 
-        notifier = can.Notifier(bus, [can.Logger("recorded.log"), self.read_mesages, can.Printer()])
+        notifier = can.Notifier(bus, [can.Logger("recorded.log"), self.read_mesages]) # , can.Printer()
 
         print("SR_CAN Constructor has been called")
 
