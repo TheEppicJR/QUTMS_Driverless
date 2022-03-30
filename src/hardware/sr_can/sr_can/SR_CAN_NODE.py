@@ -103,7 +103,7 @@ class Channel_Pub():
 
 
 def correctangle(ang: int) -> float:
-    if ang < 1800000000:
+    if float(ang) * 0.0000001 < 180:
         return float(ang) * 0.0000001
     else:
         return float(4294967295-ang) * -0.0000001
@@ -117,7 +117,7 @@ def gpsProcess(message: can.Message, tt, pub: Publisher, alt: float):
     gps_msg.altitude = alt
     gps_msg.latitude = correctangle(int.from_bytes(message.data[0: 4], 'big'))
     gps_msg.longitude = correctangle(int.from_bytes(message.data[4: 8], 'big'))
-    print(f"{gps_msg.latitude}\t{gps_msg.longitude}\t{gps_msg.altitude}")
+    print(f"{gps_msg.latitude}\t{gps_msg.longitude}\t{gps_msg.altitude}\t{int.from_bytes(message.data[0: 4], 'big')}\t{int.from_bytes(message.data[4: 8], 'big')}")
     pub.publish(gps_msg)
     
 class SR_CAN(Node):
