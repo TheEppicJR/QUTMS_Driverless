@@ -2,7 +2,6 @@
 # import ROS2 libraries
 from enum import Enum
 
-from loguru import Message
 import rclpy
 from rclpy.node import Node
 from rclpy.publisher import Publisher
@@ -103,7 +102,7 @@ class Channel_Pub():
             pass
 
 
-def gpsProcess(message: Message, tt, pub: Publisher):
+def gpsProcess(message: can.Message, tt, pub: Publisher):
     gps_msg = NavSatFix()
     gps_msg.header = tt.to_msg()
     gps_msg.altitude = float(int.from_bytes(message.data[2: 4], 'big')) * 0.1
