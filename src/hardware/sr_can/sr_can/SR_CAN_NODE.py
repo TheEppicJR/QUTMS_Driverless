@@ -102,16 +102,15 @@ class Channel_Pub():
             pass
 
 
-def gpsProcess(message: can.Message, tt, pub: Publisher):
+def gpsProcess(message: can.Message, tt, pub: Publisher, alt: float):
     gps_msg = NavSatFix()
     header = Header()
     header.stamp = tt.to_msg()
     header.frame_id = "base_link"
     gps_msg.header = header
-    print(f"{float(int.from_bytes(message.data[4: 6], 'big'))}\t{float(int.from_bytes(message.data[6: 8], 'big'))}\t{float(int.from_bytes(message.data[0: 2], 'big')) * 0.2}")
-    gps_msg.altitude = float(int.from_bytes(message.data[0: 2], 'big')) * 0.2
-    gps_msg.latitude = float(int.from_bytes(message.data[4: 6], 'big')) * 0.0000001
-    gps_msg.longitude = float(int.from_bytes(message.data[6: 8], 'big')) * 0.0000001
+    gps_msg.altitude = alt
+    gps_msg.latitude = float(int.from_bytes(message.data[0: 4], 'big')) * 0.0000001
+    gps_msg.longitude = float(int.from_bytes(message.data[4: 8], 'big')) * 0.0000001
     pub.publish(gps_msg)
     
 class SR_CAN(Node):
@@ -126,7 +125,9 @@ class SR_CAN(Node):
 
         self.channels: Dict[int, Dict[int, Channel_Pub]] = {}
 
-        self.gpschanid = -1
+        self.gpschanid: int = -1
+        self.gpschanidtt: int = -1
+        self.alt: float = 0.0
 
         self.create_publishers(channel_descripts)
 
@@ -146,6 +147,8 @@ class SR_CAN(Node):
             sub_channels: Dict[int, Channel_Pub] = {}
             if msgdat[3] == "GPS TX 1":
                 self.gpschanid = chanid
+            if msgdat[3] == "GPS TX 3":
+                self.gpschanidtt = chanid
             for channel in channelz:
                 msgtype, msgtypeclass = getMsgtype(channel.name, channel.base_resolution)
                 name: str = f"/daq/{sanatizeChName(channel.name)}"
@@ -160,7 +163,9 @@ class SR_CAN(Node):
     def read_mesages(self, message: can.Message):
         tt = self.get_clock().now()
         if message.arbitration_id == self.gpschanid:
-            gpsProcess(message, tt, self.gps_pub)
+            self.alt = float(int.from_bytes(message.data[0: 2], 'big')) * 0.1
+        elif message.arbitration_id == self.gpschanidtt:
+            gpsProcess(message, tt, self.gps_pub, self.alt)
         if message.arbitration_id in self.addys:
             #print(f"{message.arbitration_id}\t{message.channel}\t{message.data}\tPublished")
             for channelid in range(0, 8):
