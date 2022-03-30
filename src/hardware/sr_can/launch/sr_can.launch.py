@@ -3,7 +3,7 @@ launch with `ros2 launch sr_can sr_can.launch.py`
 """
 from launch_ros.actions import Node
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
+from launch.actions import IncludeLaunchDescription, ExecuteProcess
 from launch.actions import LogInfo, DeclareLaunchArgument
 from launch.launch_description_sources import PythonLaunchDescriptionSource, AnyLaunchDescriptionSource
 from launch.substitutions import ThisLaunchFileDir
@@ -25,6 +25,7 @@ def generate_launch_description():
         # DeclareLaunchArgument(
 
         # ),
+        ExecuteProcess(cmd=['ros2', 'launch', 'rosbridge_server', 'rosbridge_websocket_launch.xml'], output='screen'),
         Node(
             package='rosboard',
             executable='rosboard_node',
