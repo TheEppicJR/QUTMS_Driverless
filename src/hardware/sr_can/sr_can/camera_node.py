@@ -1,6 +1,7 @@
 # import ROS2 libraries
 import rclpy
 from rclpy.node import Node
+import cv2
 from cv_bridge import CvBridge
 from rclpy.publisher import Publisher
 from sensor_msgs.msg import Image
@@ -17,8 +18,6 @@ import datetime
 import pathlib
 import threading
 import time
-
-import cv2
 
 # translate ROS image messages to OpenCV
 cv_bridge = CvBridge()
