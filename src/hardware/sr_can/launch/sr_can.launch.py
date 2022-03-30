@@ -42,14 +42,15 @@ def generate_launch_description():
             package='ros_openimu',
             executable='sr_imu',
         ),
-        Node(
-            package='robot_localization', 
-            executable='ekf_node', 
-            name='ekf_filter_node_odom',
-	        output='screen',
-            parameters=[parameters_file_path],
-            remappings=[('odometry/filtered', 'odometry/local')]           
-           ),
+        # there is no GSS so this is useless
+        # Node(
+        #     package='robot_localization', 
+        #     executable='ekf_node', 
+        #     name='ekf_filter_node_odom',
+	    #     output='screen',
+        #     parameters=[parameters_file_path],
+        #     remappings=[('odometry/filtered', 'odometry/local')]           
+        #    ),
         Node(
             package='robot_localization', 
             executable='ekf_node', 
