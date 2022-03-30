@@ -68,12 +68,11 @@ ekf_filter_node_map:
     transform_time_offset: 0.0
     transform_timeout: 0.0
     print_diagnostics: true
-    debug: false
+    debug: true
 
-    map_frame: map
     odom_frame: odom
     base_link_frame: fsds/FSCar
-    world_frame: map
+    world_frame: odom
 
     odom0: odometry/gps
     odom0_config: [true,  true,  true,
