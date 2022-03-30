@@ -70,3 +70,6 @@ mamba install -y --file ./src/perception/sim_camera/conda_requirements
 mamba install -y --file ./src/navigation/state_estimation/conda_requirements
 mamba install -y --file ./src/hardware/sr_can/conda_requirements
 mamba install -y --file ./src/hardware/ros_openimu/conda_requirements
+
+
+sudo apt install libgl1-mesa-glx
