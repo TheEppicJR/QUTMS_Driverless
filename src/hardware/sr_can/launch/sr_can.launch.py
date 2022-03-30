@@ -11,9 +11,6 @@ import os
 from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
-    robot_localization_dir = get_package_share_directory('state_estimation')
-    parameters_file_path = os.path.join(robot_localization_dir, 'dual_ekf_navsat_sr.yaml')
-    os.environ['FILE_PATH'] = str(robot_localization_dir)
     return LaunchDescription([
         LogInfo(msg=[
             'Including launch file located at: ', ThisLaunchFileDir(), '/sr_can.launch.py'
@@ -25,7 +22,7 @@ def generate_launch_description():
         # DeclareLaunchArgument(
 
         # ),
-        #ExecuteProcess(cmd=['ros2', 'launch', 'rosbridge_server', 'rosbridge_websocket_launch.xml'], output='screen'),
+        ExecuteProcess(cmd=['ros2', 'launch', 'rosbridge_server', 'rosbridge_websocket_launch.xml'], output='screen'),
         Node(
             package='rosboard',
             executable='rosboard_node',
@@ -41,35 +38,5 @@ def generate_launch_description():
         Node(
             package='ros_openimu',
             executable='sr_imu',
-        ),
-        # there is no GSS so this is useless
-        Node(
-            package='robot_localization', 
-            executable='ekf_node', 
-            name='ekf_filter_node_odom',
-	        output='screen',
-            parameters=[parameters_file_path],
-            remappings=[('odometry/filtered', 'odometry/local')]           
-           ),
-        Node(
-            package='robot_localization', 
-            executable='ekf_node', 
-            name='ekf_filter_node_map',
-	        output='screen',
-            parameters=[parameters_file_path],
-            remappings=[('odometry/filtered', 'odometry/global')]
-           ),           
-        Node(
-            package='robot_localization', 
-            executable='navsat_transform_node', 
-            name='navsat_transform',
-	        output='screen',
-            parameters=[parameters_file_path],
-            remappings=[('imu/data', 'sr_imu/imu_acc_ar'),
-                        ('gps/fix', 'daq/gps'), 
-                        ('gps/filtered', 'gps/filtered'),
-                        ('odometry/gps', 'odometry/gps'),
-                        ('odometry/filtered', 'odometry/global')]           
-
-           )  
+        )
     ])
