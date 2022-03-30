@@ -23,9 +23,6 @@ from can.interface import Bus
 from .get_can_ports import main as gcp
 from .get_can_ports import Channel
 
-# import cProfile
-# import pstats
-
 
 from typing import List, Dict
 import sys
@@ -33,9 +30,6 @@ import os
 import logging
 import datetime
 import pathlib
-import threading
-import struct
-# import time
 
 def sanatizeChName(name: str) -> str:
     return "sr_" + name.lower().replace(" ", "_")
@@ -206,42 +200,15 @@ def main(args=sys.argv[1:]):
         level=numeric_level,
     )
 
-    # terminal stream
-    # if print_logs:
-    #     stdout_handler = logging.StreamHandler(sys.stdout)
-    #     LOGGER.addHandler(stdout_handler)
-
-    # LOGGER.info(f'args = {args}')
-
-    # profiler = cProfile.Profile()
-    # profiler.enable()
-    
-    # begin ros node
     rclpy.init(args=args)
 
     node = SR_CAN()
-
-    # thread = threading.Thread(target=rclpy.spin, args=(node, ), daemon=True)
-    # thread.start()
-
-    # rate = node.create_rate(100)
-
-    # try:
-    #     while rclpy.ok():
-    #         node.sampleTree()
-    #         rate.sleep()
-    # except KeyboardInterrupt:
-    #     pass
 
     rclpy.spin(node)
     
     node.destroy_node()
 
     rclpy.shutdown()
-    # thread.join()
-    # profiler.disable()
-    # stats = pstats.Stats(profiler).sort_stats(pstats.SortKey.TIME)
-    # stats.dump_stats(filename='needs_profiling.prof')
 
 
 if __name__ == '__main__':
