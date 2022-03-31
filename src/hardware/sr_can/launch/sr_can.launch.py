@@ -38,5 +38,9 @@ def generate_launch_description():
         Node(
             package='ros_openimu',
             executable='sr_imu',
+        ),
+        Node(
+            package='sr_can',
+            executable='sr_common',
         )
     ])
