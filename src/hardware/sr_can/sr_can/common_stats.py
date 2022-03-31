@@ -33,7 +33,7 @@ class Common_Stats(Node):
 
         self.heading_pub: Publisher = self.create_publisher(Vector3Stamped, "/processed/roll_pitch_yaw", 1)
         self.gg_pub: Publisher = self.create_publisher(Vector3Stamped, "/processed/gg", 1)
-        self.create_subscription(Imu, "/cone_pipe/cone_detection_cov", self.imu_callback, 10)
+        self.create_subscription(Imu, "/sr_imu/imu_acc_ar", self.imu_callback, 10)
 
         #self.magheading_pub: Publisher = self.create_publisher(Vector3Stamped, "/processed/mag_roll_pitch_yaw", 1)
         #self.create_subscription(Imu, "/cone_pipe/cone_detection_cov", self.imu_callback, 10)
