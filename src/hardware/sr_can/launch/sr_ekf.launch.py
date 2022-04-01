@@ -1,5 +1,5 @@
 """
-launch with `ros2 launch sr_can sr_can.launch.py`
+launch with `ros2 launch sr_can sr_ekf.launch.py`
 """
 from launch_ros.actions import Node
 from launch import LaunchDescription

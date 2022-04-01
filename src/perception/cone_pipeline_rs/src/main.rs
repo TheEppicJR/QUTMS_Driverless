@@ -22,6 +22,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )?;
     let odom_subscriber = node.subscribe::<Odometry>("/odometry/global", QosProfile::default())?;
     let publisher = node.create_publisher::<r2r::std_msgs::msg::String>("/topic", QosProfile::default())?;
+    let delaunay_publisher = node.create_publisher::<r2r::visualization_msgs::msg::Marker>(
+        "/cone_pipe/markers",
+        QosProfile::default(),
+    )?;
     let mut timer = node.create_wall_timer(std::time::Duration::from_millis(1000))?;
 
     // Set up a simple task executor.
@@ -36,7 +40,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         points_subscriber
             .for_each(|msg| {
                 let mut triangulation = edgefinder::get_edges(msg.points);
-
+                let mut marker_result = markermaker::generate_edges(&triangulation);
+                match marker_result {
+                    Ok(marker) => {
+                        delaunay_publisher.publish(&marker);
+                    }
+                    Err(e) => {
+                        println!("{}", e);
+                    }
+                }
+                
                 future::ready(())
             })
             .await

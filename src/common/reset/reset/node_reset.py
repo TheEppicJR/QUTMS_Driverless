@@ -28,7 +28,7 @@ class ResetNode(Node):
     def __init__(self):
         super().__init__("spline_planner")
 
-        self.req = Reset
+        self.req = Reset()
         # self.rec.wait_on_last_task = True
         # self.svr = self.create_service(self.req, "/reset")
         print("Reset")
