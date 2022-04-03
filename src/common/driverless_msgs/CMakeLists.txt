@@ -33,6 +33,7 @@ set(msg_files
   "msg/TrackStamped.msg"
   "msg/GenericSensor.msg"
   "msg/GenericEnum.msg"
+  "msg/RES.msg"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
