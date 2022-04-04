@@ -40,5 +40,9 @@ def generate_launch_description():
         Node(
             package='vision_pipeline',
             executable='torch_detector',
+        ),
+        Node(
+            package='cone_pipeline',
+            executable='cone_pipe',
         )
     ])

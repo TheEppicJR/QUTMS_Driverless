@@ -1,15 +1,11 @@
 use super::pathperimitives;
 use na::Matrix3;
 use nalgebra as na;
-use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
-use pathperimitives::{
-    DirectedEdgeHandleType, EdgeColor, FaceType, PointColor, PointF2, TileType, Track,
-    Triangulation, UndirectedEdgeType, VertexType,
-};
+use pathperimitives::{EdgeColor, PointColor, PointF2, TileType, Track, Triangulation, VertexType};
 use r2r::driverless_msgs::msg::PointWithCovariance;
 use spade::handles::{
-    FixedDirectedEdgeHandle, FixedFaceHandle, FixedUndirectedEdgeHandle, InnerTag, PossiblyOuterTag,
+    FixedDirectedEdgeHandle, FixedFaceHandle, FixedUndirectedEdgeHandle, InnerTag,
 };
 use spade::{PositionInTriangulation, Triangulation as OtherTriangulation};
 
@@ -42,7 +38,7 @@ pub fn color_edges(triangulation_obj: &mut Triangulation) -> Option<f64> {
 pub fn find_track_edges(
     triangulation_obj: &mut Triangulation,
     pathpoints: &Vec<PointF2>,
-    track: &Track,
+    _track: &Track,
 ) -> Option<f64> {
     if triangulation_obj.num_vertices() > 4 {
         color_edges(triangulation_obj);
@@ -52,7 +48,7 @@ pub fn find_track_edges(
         // Really I should be adding and removing points here so I dont have to iterate through the edges every time
         for pathpoint in pathpoints.iter() {
             // get whatever vertex, edge, or triangle the point is in/on
-            let mut pointpos = triangulation_obj.locate(pathpoint.clone());
+            let pointpos = triangulation_obj.locate(pathpoint.clone());
             // now use one of the analysis methods to start to fill in our understanding of the track
             // we only care if the point is on a line or in a triangle
             match pointpos {
@@ -65,10 +61,10 @@ pub fn find_track_edges(
                 PositionInTriangulation::NoTriangulation => {
                     // Need to return blank shit
                 }
-                PositionInTriangulation::OnVertex(vertexhandle) => {
+                PositionInTriangulation::OnVertex(_vertexhandle) => {
                     // Need to figure out what to do in this case
                 }
-                PositionInTriangulation::OutsideOfConvexHull(idkwhatthisis) => {
+                PositionInTriangulation::OutsideOfConvexHull(_idkwhatthisis) => {
                     // Need to figure out what to do in this case
                 }
             }
@@ -86,7 +82,7 @@ fn analyse_face(
     // get handdels for all the edges
     let edge_handle_arr = facehandle.adjacent_edges();
     // get fixed refrences for all those handles so we arent mutably borrowing them
-    let mut edges_mut: [FixedUndirectedEdgeHandle; 3] = [
+    let edges_mut: [FixedUndirectedEdgeHandle; 3] = [
         edge_handle_arr[0].as_undirected().fix(),
         edge_handle_arr[1].as_undirected().fix(),
         edge_handle_arr[2].as_undirected().fix(),
@@ -134,31 +130,31 @@ fn analyse_edge(
     // Now depending on color of the edge we can do diffrent things
     match mut_edge.edgecolor {
         EdgeColor::B2Y => {
-            let whatever = VertexType::empty();
+            let _whatever = VertexType::empty();
         }
         EdgeColor::B2O | EdgeColor::B2U => {
-            let whatever = VertexType::empty();
+            let _whatever = VertexType::empty();
         }
         EdgeColor::Y2O | EdgeColor::Y2U => {
-            let whatever = VertexType::empty();
+            let _whatever = VertexType::empty();
         }
         EdgeColor::Y2Y => {
-            let whatever = VertexType::empty();
+            let _whatever = VertexType::empty();
         }
         EdgeColor::B2B => {
-            let whatever = VertexType::empty();
+            let _whatever = VertexType::empty();
         }
         EdgeColor::O2O => {
-            let whatever = VertexType::empty();
+            let _whatever = VertexType::empty();
         }
         EdgeColor::U2U => {
-            let whatever = VertexType::empty();
+            let _whatever = VertexType::empty();
         }
         EdgeColor::O2U => {
-            let whatever = VertexType::empty();
+            let _whatever = VertexType::empty();
         }
         EdgeColor::Unknown => {
-            let whatever = VertexType::empty();
+            let _whatever = VertexType::empty();
         }
     }
 

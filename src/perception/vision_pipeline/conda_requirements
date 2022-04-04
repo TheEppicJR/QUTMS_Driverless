@@ -2,7 +2,7 @@ pytorch
 pycuda
 torchvision
 ros-galactic-cv-bridge
-opencv==4.5.2
+opencv>=4.5.2
 numpy==1.21.4
 scipy>=1.4.1
 matplotlib>=3.2.2
