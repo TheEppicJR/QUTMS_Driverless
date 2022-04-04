@@ -210,7 +210,8 @@ pub fn rrt(
 
 pub fn score_children(nodes: &mut Vec<RRTNode>, index: usize) -> Option<usize> {
     let node_cost = nodes[index].cost;
-    for child in &nodes[index].children {
+    let children = &nodes[index].children.clone();
+    for child in children {
         nodes[*child].cost += node_cost;
         score_children(nodes, *child);
     }
