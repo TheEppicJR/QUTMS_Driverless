@@ -13,7 +13,7 @@ pub enum PointColor {
     Unknown = 4,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum EdgeType {
     LeftHand,
     RightHand,
@@ -23,7 +23,7 @@ pub enum EdgeType {
     StartFinish,
 }
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 pub enum EdgeColor {
     B2B,
     Y2Y,
@@ -38,7 +38,7 @@ pub enum EdgeColor {
     Unknown,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum TileType {
     Ontrack,
     Unknown,
@@ -49,6 +49,7 @@ pub type PointF2 = Point2<f64>;
 pub type PointF3 = Point<f64, 3>;
 pub type PointF2M = Point<f64, 2>;
 
+#[derive(Debug, Clone, Copy)]
 pub struct TrackEdge {
     pub start: VertexType,
     pub end: VertexType,
@@ -63,6 +64,7 @@ impl TrackEdge {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Track {
     pub left_hand: Vec<TrackEdge>,
     pub right_hand: Vec<TrackEdge>,
@@ -128,6 +130,7 @@ impl HasPosition for VertexType {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct UndirectedEdgeType {
     pub edgetype: EdgeType,
     pub edgecolor: EdgeColor,
@@ -151,9 +154,10 @@ impl Default for UndirectedEdgeType {
 
 // should make this have a enum to declare if it is a side of the track
 // then the RRT can see not only if the tree has crossed the bounds of the track but see if it is entering or eziting the track
-#[derive(Default)]
+#[derive(Default, Debug, Clone, Copy)]
 pub struct DirectedEdgeType {}
 
+#[derive(Debug, Clone, Copy)]
 pub struct FaceType {
     pub tiletype: TileType,
 }
@@ -165,6 +169,7 @@ impl Default for FaceType {
         }
     }
 }
+
 
 pub type Triangulation =
     DelaunayTriangulation<VertexType, DirectedEdgeType, UndirectedEdgeType, FaceType>;
