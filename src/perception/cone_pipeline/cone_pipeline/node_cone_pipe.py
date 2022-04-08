@@ -9,15 +9,18 @@ import rclpy.logging
 import message_filters
 # import ROS2 message libraries
 from std_msgs.msg import Header
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import Point, Twist
 from visualization_msgs.msg import Marker, MarkerArray
 from nav_msgs.msg import Odometry
 # import custom message libraries
 from driverless_msgs.msg import Cone as QUTCone
-from driverless_msgs.msg import ConeDetectionStamped, PointWithCovarianceStamped, PointWithCovarianceStampedArray
+from driverless_msgs.msg import ConeDetectionStamped, PointWithCovariance, PointWithCovarianceArrayStamped
 
 from typing import List
 
+from tf2_ros import TransformException
+from tf2_ros.buffer import Buffer
+from tf2_ros.transform_listener import TransformListener
 
 # other python modules
 import numpy as np
@@ -47,11 +50,18 @@ class ConePipeline(Node):
 
         self.logger = self.get_logger()
 
-        self.create_subscription(PointWithCovarianceStampedArray, "/lidar/cone_detection_cov", self.lidarCallback, 10) # "/lidar/cone_detection_cov"
-        self.create_subscription(PointWithCovarianceStampedArray, "/vision/cone_detection_cov", self.visionCallback, 10) # "/detector/cone_detection_cov"
+        self.declare_parameter('target_frame', '/fsds/FSCar')
+        self.target_frame = self.get_parameter(
+            'target_frame').get_parameter_value().string_value
+
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(self.tf_buffer, self)
+
+        self.create_subscription(PointWithCovarianceArrayStamped, "/lidar/cone_detection_cov", self.lidarCallback, 10) # "/lidar/cone_detection_cov"
+        self.create_subscription(PointWithCovarianceArrayStamped, "/vision/cone_detection_cov", self.visionCallback, 10) # "/detector/cone_detection_cov"
 
         self.filtered_cones_pub: Publisher = self.create_publisher(ConeDetectionStamped, "/cone_pipe/cone_detection", 1)
-        self.filtered_cones_pub_cov: Publisher = self.create_publisher(PointWithCovarianceStampedArray, "/cone_pipe/cone_detection_cov", 1)
+        self.filtered_cones_pub_cov: Publisher = self.create_publisher(PointWithCovarianceArrayStamped, "/cone_pipe/cone_detection_cov", 1)
 
         self.lidar_markers: Publisher = self.create_publisher(MarkerArray, "/cone_pipe/lidar_marker", 1)
         self.vision_markers: Publisher = self.create_publisher(MarkerArray, "/cone_pipe/vision_marker", 1)
@@ -129,7 +139,7 @@ class ConePipeline(Node):
         else:
             self.bufferKDTree = create([point])
 
-    def fusePoints(self, points):
+    def fusePoints(self, points, header: Header):
         # if we have cones in the cone tree than check if we can fuse our new points with them
         if self.conesKDTree is not None:
             for point in points:
@@ -146,14 +156,14 @@ class ConePipeline(Node):
             curcones = self.conesKDTree.returnElements()
             # create the lists to fill with our elements
             conelist: List[QUTCone] = []
-            conelist_cov: List[PointWithCovarianceStamped] = []
+            conelist_cov: List[PointWithCovariance] = []
             markers: List[Marker] = []
             msgid = 0
             for cone in curcones:
                 # should probabbly put a filter for how many times a cone has actually been spotted
                 if cone.covMax(0.5):
                     # create out messages to be published with the final cones that we found
-                    pubpt_cov = PointWithCovarianceStamped()
+                    pubpt_cov = PointWithCovariance()
                     pubpt = QUTCone()
                     # create a point at the location of the cone
                     point = Point()
@@ -164,7 +174,6 @@ class ConePipeline(Node):
                     pubpt_cov.covariance = cone.global_cov.flatten()
                     # set those parts of the message
                     pubpt_cov.position = point
-                    pubpt_cov.header = cone.header
                     pubpt_cov.color = cone.color
                     pubpt.location = point
                     # set its color
@@ -188,10 +197,13 @@ class ConePipeline(Node):
             coneListPub = ConeDetectionStamped()
             coneListPub.cones = conelist
             # idk what makes sense for setting the header on this detection, this is probably wrong but idc atm
-            coneListPub.header = curcones[0].header
+            coneListPub.header = header
+            coneListPub.header.frame_id = 'odom'
             # create a PointWithCovarianceStampedArray message
-            coneListPubCov = PointWithCovarianceStampedArray()
+            coneListPubCov = PointWithCovarianceArrayStamped()
             coneListPubCov.points = conelist_cov
+            coneListPubCov.header = header
+            coneListPubCov.header.frame_id = 'odom'
             # publish the messages
             self.filtered_cones_pub.publish(coneListPub)
             self.filtered_cones_pub_cov.publish(coneListPubCov)
@@ -219,16 +231,32 @@ class ConePipeline(Node):
                     self.conesKDTree.remove(point)
                     self.conesKDTree.rebalance()
 
-            
+    def curTransform(self, header: Header):
+        # create a list of points to be transformed
+        to_frame_rel = self.target_frame
+        from_frame_rel = header.frame_id
+        try:
+            now = Time.from_msg(header.stamp)
+            trans = self.tf_buffer.lookup_transform(
+                to_frame_rel,
+                from_frame_rel,
+                now)
+            return trans
+        except TransformException as ex:
+            self.get_logger().info(
+                f'Could not transform {to_frame_rel} to {from_frame_rel}: {ex}')
+            return None
         
-    def lidarCallback(self, points: PointWithCovarianceStampedArray):
+    def lidarCallback(self, points: PointWithCovarianceArrayStamped):
         if len(points.points) > 0:
             msgs = self.printmarkers and self.lidar_markers.get_subscription_count() > 0
-            header = points.points[0].header
+            header = points.header
             odomloc = self.getNearestOdom(header.stamp)
             
             if odomloc is None:
                 return None
+
+            curTransform = self.curTransform(header)
             
             z_datum = odomloc.pose.pose.position.z
             self.updateZDatum(z_datum)
@@ -237,7 +265,7 @@ class ConePipeline(Node):
             markers: List[Marker] = []
             msgid = 0
             for point in points.points:
-                p = PointWithCov(point.position.x, point.position.y, point.position.z, np.array(point.covariance).reshape((3,3)), 4, point.header)
+                p = PointWithCov(point.position.x, point.position.y, point.position.z, np.array(point.covariance).reshape((3,3)), 4)
                 p.translate(odomloc)
                 if point.position.z < 0.45 and point.position.z > 0.15:
                     conelist.append(p)
@@ -249,12 +277,12 @@ class ConePipeline(Node):
                 mkr = MarkerArray()
                 mkr.markers = markers
                 self.lidar_markers.publish(mkr)
-            self.fusePoints(conelist)
+            self.fusePoints(conelist, header)
 
-    def visionCallback(self, points: PointWithCovarianceStampedArray):
+    def visionCallback(self, points: PointWithCovarianceArrayStamped):
         if len(points.points) > 0:
             msgs = self.printmarkers and self.vision_markers.get_subscription_count() > 0
-            header = points.points[0].header
+            header = points.header
             odomloc= self.getNearestOdom(header.stamp)
             if odomloc is None:
                 return None
@@ -266,7 +294,7 @@ class ConePipeline(Node):
             markers: List[Marker] = []
             msgid = 0
             for point in points.points:
-                p = PointWithCov(point.position.x, point.position.y, point.position.z, np.array(point.covariance).reshape((3,3)), point.color, point.header)
+                p = PointWithCov(point.position.x, point.position.y, point.position.z, np.array(point.covariance).reshape((3,3)), point.color)
                 if p.xydist(0,0) < 15:
                     p.translate(odomloc)
                     conelist.append(p)
@@ -278,7 +306,7 @@ class ConePipeline(Node):
                 mkr = MarkerArray()
                 mkr.markers = markers
                 self.vision_markers.publish(mkr)
-            self.fusePoints(conelist)
+            self.fusePoints(conelist, header)
 
 
 

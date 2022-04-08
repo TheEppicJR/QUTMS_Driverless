@@ -9,7 +9,7 @@ from geometry_msgs.msg import Point
 from visualization_msgs.msg import Marker, MarkerArray
 from builtin_interfaces.msg import Duration
 # import custom message libraries
-from driverless_msgs.msg import Cone, ConeDetectionStamped, PointWithCovarianceStamped, PointWithCovarianceStampedArray
+from driverless_msgs.msg import Cone, ConeDetectionStamped, PointWithCovariance, PointWithCovarianceArrayStamped
 
 # other python modules
 import time
@@ -36,9 +36,9 @@ def cone_cov(cov, x, y, z):
 def cone_msg(x_coord: float, y_coord: float, z_coord: float) -> Cone: 
     # {Cone.YELLOW, Cone.BLUE, Cone.ORANGE_SMALL}
     location: Point = Point(
-        x=x_coord+1.2,
+        x=x_coord,
         y=y_coord,
-        z=z_coord + 0.2,
+        z=z_coord,
     )
 
     return Cone(
@@ -51,20 +51,18 @@ def cone_msg_cov(
     y_coord: float,
     z_coord: float,
     colour: int,  # {Cone.YELLOW, Cone.BLUE, Cone.ORANGE_SMALL}
-    cov: List[int],
-    header: Header
-) -> PointWithCovarianceStamped:
+    cov: List[int]
+) -> PointWithCovariance:
 
     location: Point = Point(
-        x=x_coord+1.2,
+        x=x_coord,
         y=y_coord,
-        z=z_coord + 0.2,
+        z=z_coord,
     )
 
-    return PointWithCovarianceStamped(
+    return PointWithCovariance(
         position=location,
         color=colour,
-        header=header,
         covariance=cov
     )
 class LidarProcessing(Node):
@@ -74,7 +72,7 @@ class LidarProcessing(Node):
         self.create_subscription(PointCloud2, "/lidar/Lidar1", self.callback, 10)
 
         self.detection_publisher: Publisher = self.create_publisher(ConeDetectionStamped, "lidar/cone_detection", 1)
-        self.detection_publisher_cov: Publisher = self.create_publisher(PointWithCovarianceStampedArray, "/lidar/cone_detection_cov", 1)
+        self.detection_publisher_cov: Publisher = self.create_publisher(PointWithCovarianceArrayStamped, "/lidar/cone_detection_cov", 1)
 
         self.lidarcov = np.array([[ 0.04,  0, 0], [ 0, 0.06, 0], [0, 0,  0.02]])
 
@@ -103,18 +101,19 @@ class LidarProcessing(Node):
         
         # define message component - list of Cone type messages
         detected_cones: List[Cone] = []
-        detected_cones_cov: List[PointWithCovarianceStamped] = []
+        detected_cones_cov: List[PointWithCovariance] = []
 
         for cone in cones:
             detected_cones.append(cone_msg(cone[0], cone[1], cone[2]))
             conecov = cone_cov(self.lidarcov, cone[0], cone[1], cone[2])
-            detected_cones_cov.append(cone_msg_cov(cone[0], cone[1], cone[2], 4, conecov.flatten(), pc2_msg.header))
+            detected_cones_cov.append(cone_msg_cov(cone[0], cone[1], cone[2], 4, conecov.flatten()))
        
         detection_msg = ConeDetectionStamped(
             header=pc2_msg.header,
             cones=detected_cones
         )
-        detection_msg_cov = PointWithCovarianceStampedArray(
+        detection_msg_cov = PointWithCovarianceArrayStamped(
+            header=pc2_msg.header,
             points=detected_cones_cov,
         )
         self.detection_publisher.publish(detection_msg) # publish cone data

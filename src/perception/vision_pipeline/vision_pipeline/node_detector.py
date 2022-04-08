@@ -13,7 +13,7 @@ from sensor_msgs.msg import Image, CameraInfo
 from geometry_msgs.msg import Point
 from std_msgs.msg import Header
 # import custom message libraries
-from driverless_msgs.msg import Cone, ConeDetectionStamped, PointWithCovarianceStamped, PointWithCovarianceStampedArray
+from driverless_msgs.msg import Cone, ConeDetectionStamped, PointWithCovariance, PointWithCovarianceArrayStamped
 
 # other python libraries
 import os
@@ -108,9 +108,9 @@ def cone_msg(
 ) -> Cone:
 
     location = Point(
-        x=distance*cos(radians(bearing))-0.5,
+        x=distance*cos(radians(bearing)),
         y=distance*sin(radians(bearing)),
-        z=distance*sin(radians(elevation)) + 0.8,
+        z=distance*sin(radians(elevation)),
     )
 
     return Cone(
@@ -123,20 +123,18 @@ def cone_msg_cov(
     bearing: float,
     elevation: float,
     colour: int,  # {Cone.YELLOW, Cone.BLUE, Cone.ORANGE_SMALL}
-    cov: List[int],
-    header: Header
+    cov: List[int]
 ) -> Cone:
 
     location = Point(
-        x=distance*cos(radians(bearing))-0.5,
+        x=distance*cos(radians(bearing)),
         y=distance*sin(radians(bearing)),
-        z=distance*sin(radians(elevation)) + 0.8,
+        z=distance*sin(radians(elevation)),
     )
 
-    return PointWithCovarianceStamped(
+    return PointWithCovariance(
         position=location,
         color=colour,
-        header=header,
         covariance=cov
     )
 
@@ -163,7 +161,7 @@ class DetectorNode(Node):
 
         # publishers
         self.detection_publisher: Publisher = self.create_publisher(ConeDetectionStamped, "/vision/cone_detection", 1)
-        self.detection_publisher_cov: Publisher = self.create_publisher(PointWithCovarianceStampedArray, "/vision/cone_detection_cov", 1)
+        self.detection_publisher_cov: Publisher = self.create_publisher(PointWithCovarianceArrayStamped, "/vision/cone_detection_cov", 1)
         self.debug_img_publisher: Publisher = self.create_publisher(Image, "/vision/debug_img", 1)
 
         self.visioncov = np.array([[ 0.4,  0, 0], [ 0, 0.1, 0], [0, 0,  0.05]])
@@ -195,7 +193,7 @@ class DetectorNode(Node):
         depth_frame: np.ndarray = cv_bridge.imgmsg_to_cv2(depth_msg, desired_encoding='32FC1')
 
         detected_cones: List[Cone] = []
-        detected_cones_cov: List[PointWithCovarianceStamped] = []
+        detected_cones_cov: List[PointWithCovariance] = []
         for bounding_box, cone_colour, display_colour in self.get_bounding_boxes_callable(colour_frame):
             if self.enable_cv_filters:
                 # filter by height
@@ -217,14 +215,15 @@ class DetectorNode(Node):
             elevation = cone_elevation(bounding_box, colour_camera_info_msg)
             conecov = cone_cov(self.visioncov, bearing, distance, elevation)
             detected_cones.append(cone_msg(distance, bearing, elevation, cone_colour))
-            detected_cones_cov.append(cone_msg_cov(distance, bearing, elevation, cone_colour, conecov.flatten(), colour_msg.header))
+            detected_cones_cov.append(cone_msg_cov(distance, bearing, elevation, cone_colour, conecov.flatten()))
             draw_box(colour_frame, box=bounding_box, colour=display_colour, distance=distance)
 
         detection_msg = ConeDetectionStamped(
             header=colour_msg.header,
             cones=detected_cones,
         )
-        detection_msg_cov = PointWithCovarianceStampedArray(
+        detection_msg_cov = PointWithCovarianceArrayStamped(
+            header=colour_msg.header,
             points=detected_cones_cov,
         )
         print("got to publishing stage")

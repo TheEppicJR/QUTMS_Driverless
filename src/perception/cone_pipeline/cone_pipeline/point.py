@@ -46,7 +46,6 @@ class PointWithCov():
         loc_z: float,
         loc_cov: np.array,
         color: int,
-        header: Header,
         global_x: float = None,
         global_y: float = None,
         global_z: float = None,
@@ -68,8 +67,6 @@ class PointWithCov():
         self.global_cov: np.array = global_cov
         self.coords = (self.global_x, self.global_y)
         self.x, self.y = global_x, global_y
-        self.header: Header = header
-        self.header.frame_id = "map"
         self.nMeasurments: int = 0
         # have to start with 1 so we dont get a div by zero error
         self.ncMeasurments: int = 1
