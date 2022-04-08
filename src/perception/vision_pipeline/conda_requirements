@@ -1,6 +1,7 @@
-pytorch
+pytorch==1.10.1
 pycuda
-torchvision
+torchvision==0.11.2
+cudatoolkit=10.2
 ros-galactic-cv-bridge
 opencv>=4.5.2
 numpy==1.21.4

@@ -6,10 +6,31 @@ from typing import List, Tuple
 package_name = "vision_pipeline"
 
 
+def generate_yolov5_data_file() -> List[Tuple[str, str]]:
+    data_files: List[Tuple[str, str]] = []
+    install_base = os.path.join("share", package_name)
+    for root, dirs, files in os.walk("yolov5"):
+        install = os.path.join(install_base, root)
+        sources = [os.path.join(root, f) for f in files]
+        for source in sources:
+            print(source)
+        data_files.append((install, sources))
+    return data_files
+
+# generate_yolov5_data_file()
+
 def generate_yolov5_data_files() -> List[Tuple[str, str]]:
     data_files: List[Tuple[str, str]] = []
     install_base = os.path.join("share", package_name)
     for root, dirs, files in os.walk("yolov5"):
+        install = os.path.join(install_base, root)
+        sources = [os.path.join(root, f) for f in files]
+        data_files.append((install, sources))
+    for root, dirs, files in os.walk("yolov5/models"):
+        install = os.path.join(install_base, root)
+        sources = [os.path.join(root, f) for f in files]
+        data_files.append((install, sources))
+    for root, dirs, files in os.walk("yolov5/utils"):
         install = os.path.join(install_base, root)
         sources = [os.path.join(root, f) for f in files]
         data_files.append((install, sources))

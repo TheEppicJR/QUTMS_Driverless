@@ -16,7 +16,7 @@ def generate_launch_description():
             'Including launch file located at: ', ThisLaunchFileDir(), '/devsim.launch.py'
         ]),
         ExecuteProcess(cmd=['ros2', 'launch', 'rosbridge_server', 'rosbridge_websocket_launch.xml']),
-        IncludeLaunchDescription( PythonLaunchDescriptionSource(os.path.join(get_package_share_directory('state_estimation'), 'launch', 'state_estimation.launch.py'))),
+        IncludeLaunchDescription( PythonLaunchDescriptionSource(os.path.join(get_package_share_directory('state_estimation'), 'state_estimation.launch.py'))),
         Node(
             package='rosboard',
             executable='rosboard_node',

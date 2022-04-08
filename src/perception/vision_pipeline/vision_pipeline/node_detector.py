@@ -275,6 +275,8 @@ def main_torch(args=None):
     # loading Pytorch model
     MODEL_PATH = os.path.join(get_package_share_directory("vision_pipeline"), "models", "YBOV1.pt")
     REPO_PATH = os.path.join(get_package_share_directory("vision_pipeline"), "yolov5")
+    p = get_package_share_directory("vision_pipeline")
+    print(f"Loading model from {p}")
     CONFIDENCE = 0.35 # higher = tighter filter 
     model = torch_init(CONFIDENCE, MODEL_PATH, REPO_PATH)
 
