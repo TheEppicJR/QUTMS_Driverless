@@ -164,12 +164,12 @@ class PointWithCov():
         return sqrt((self.global_x-other.global_x)**2+(self.global_y-other.global_y)**2+(self.global_z-other.global_z)**2)
 
     # should add cone color to this
-    def getMarker(self, id: int, z_offset: float):
-        return point_msg(self.global_x, self.global_y, self.global_z-z_offset, id, self.header, self.color)
+    def getMarker(self, id: int, z_offset: float, header: Header):
+        return point_msg(self.global_x, self.global_y, self.global_z-z_offset, id, header, self.color)
 
-    def getCov(self, id: int, buffer: bool, z_offset: float):
+    def getCov(self, id: int, buffer: bool, z_offset: float, header: Header):
         # make a deformed sphere at 3 sigma of the variance in each axis (the diagnal elements of the covariance matrix are squared so we gotta sqrt)
-        return cov_msg(self.global_x, self.global_y, self.global_z-z_offset, id, self.header, 3*sqrt(abs(self.global_cov[0,0])), 3*sqrt(abs(self.global_cov[1,1])), 3*sqrt(abs(self.global_cov[2,2])), buffer)
+        return cov_msg(self.global_x, self.global_y, self.global_z-z_offset, id, header, 3*sqrt(abs(self.global_cov[0,0])), 3*sqrt(abs(self.global_cov[1,1])), 3*sqrt(abs(self.global_cov[2,2])), buffer)
 
     def __len__(self):
         return len(self.coords)
@@ -312,6 +312,7 @@ def point_msg(
 
     marker = Marker()
     marker.header = header
+    # marker.header.frame_id = "map"
     marker.ns = "current_path"
     marker.id = ID
     marker.type = Marker.SPHERE

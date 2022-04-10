@@ -50,7 +50,7 @@ class ConePipeline(Node):
 
         self.logger = self.get_logger()
 
-        self.declare_parameter('target_frame', '/fsds/FSCar')
+        self.declare_parameter('target_frame', 'fsds/FSCar')
         self.target_frame = self.get_parameter(
             'target_frame').get_parameter_value().string_value
 
@@ -148,6 +148,10 @@ class ConePipeline(Node):
         else:
             for point in points:
                 self.bufferCone(point)
+        
+        header1 = Header()
+        header1.stamp = header.stamp
+        header1.frame_id = 'ekf/odom'
         # if we have cones we are sure about than send them out in messages
         if self.conesKDTree is not None and self.conesKDTree.data is not None:
             # make a bool to determine if we are going to spend the time to generate markers
@@ -185,8 +189,8 @@ class ConePipeline(Node):
                     conelist_cov.append(pubpt_cov)
 
                     if msgs:
-                        markers.append(cone.getCov(msgid, False, self.z_datum))
-                        markers.append(cone.getMarker(msgid+1, self.z_datum))
+                        markers.append(cone.getCov(msgid, False, self.z_datum, header1))
+                        markers.append(cone.getMarker(msgid+1, self.z_datum, header1))
                     msgid += 2
             if msgs:
                 mkr = MarkerArray()
@@ -211,7 +215,7 @@ class ConePipeline(Node):
         # need to make a section to remove old points from the buffer
         if self.bufferKDTree is not None and self.bufferKDTree.data is not None:
             for point in self.bufferKDTree.returnElements():
-                if self.get_clock().now() - Duration(nanoseconds=2*10**9) > Time.from_msg(point.header.stamp):
+                if self.get_clock().now() - Duration(nanoseconds=2*10**9) > Time.from_msg(header.stamp):
                     self.bufferKDTree.remove(point)
             self.bufferKDTree.rebalance()
         if self.conesKDTree is not None and self.conesKDTree.data is not None:
@@ -251,12 +255,17 @@ class ConePipeline(Node):
         if len(points.points) > 0:
             msgs = self.printmarkers and self.lidar_markers.get_subscription_count() > 0
             header = points.header
+            header1 = Header()
+            header1.stamp = header.stamp
+            header1.frame_id = 'ekf/odom'
             odomloc = self.getNearestOdom(header.stamp)
             
             if odomloc is None:
                 return None
 
             curTransform = self.curTransform(header)
+            # need to apply this transform to the points but I would also like to take care of orentation in a non nasty way
+            # I would like to just use tf2 for this but the doccumentation is lacking
             
             z_datum = odomloc.pose.pose.position.z
             self.updateZDatum(z_datum)
@@ -270,8 +279,8 @@ class ConePipeline(Node):
                 if point.position.z < 0.45 and point.position.z > 0.15:
                     conelist.append(p)
                     if msgs:
-                        markers.append(p.getCov(msgid, True, self.z_datum))
-                        markers.append(p.getMarker(msgid+1, self.z_datum))
+                        markers.append(p.getCov(msgid, True, self.z_datum, header1))
+                        markers.append(p.getMarker(msgid+1, self.z_datum, header1))
                     msgid += 2
             if msgs:
                 mkr = MarkerArray()
@@ -283,6 +292,9 @@ class ConePipeline(Node):
         if len(points.points) > 0:
             msgs = self.printmarkers and self.vision_markers.get_subscription_count() > 0
             header = points.header
+            header1 = Header()
+            header1.stamp = header.stamp
+            header1.frame_id = 'ekf/odom'
             odomloc= self.getNearestOdom(header.stamp)
             if odomloc is None:
                 return None
@@ -299,8 +311,8 @@ class ConePipeline(Node):
                     p.translate(odomloc)
                     conelist.append(p)
                     if msgs:
-                        markers.append(p.getCov(msgid, True, self.z_datum))
-                        markers.append(p.getMarker(msgid + 1, self.z_datum))
+                        markers.append(p.getCov(msgid, True, self.z_datum, header1))
+                        markers.append(p.getMarker(msgid + 1, self.z_datum, header1))
                     msgid += 2
             if msgs:
                 mkr = MarkerArray()
@@ -316,7 +328,7 @@ def main(args=sys.argv[1:]):
     print_logs = False
 
     # processing args
-    opts, arg = getopt.getopt(args, str(), ['log=', 'print_logs', 'length='])
+    opts, arg = getopt.getopt(args, str(), ['log=', 'print_logs', 'length=', 'ros-args'])
 
     # TODO: provide documentation for different options
     for opt, arg in opts:
@@ -324,6 +336,8 @@ def main(args=sys.argv[1:]):
             loglevel = arg
         elif opt == '--print_logs':
             print_logs = True
+        else:
+            pass
 
     # validating args
     numeric_level = getattr(logging, loglevel.upper(), None)

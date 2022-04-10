@@ -2,18 +2,18 @@
 
 ekf_filter_node_odom:
   ros__parameters:
-    frequency: 100.0
+    frequency: 50.0
     sensor_timeout: 0.1
     two_d_mode: false
     transform_time_offset: 0.0
     transform_timeout: 0.0
-    print_diagnostics: true
+    print_diagnostics: false
     debug: false
 
-    map_frame: map
-    odom_frame: odom
+    map_frame: ekf/map
+    odom_frame: ekf/odom
     base_link_frame: fsds/FSCar
-    world_frame: odom
+    world_frame: ekf/odom
 
     twist0: gss
     twist0_config: [false, false, false,
@@ -71,18 +71,18 @@ ekf_filter_node_odom:
                                   0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     0.0,     0.0,    0.0,    1.0]
 ekf_filter_node_map:
   ros__parameters:
-    frequency: 100.0
+    frequency: 50.0
     sensor_timeout: 0.1
     two_d_mode: false
     transform_time_offset: 0.0
     transform_timeout: 0.0
-    print_diagnostics: true
+    print_diagnostics: false
     debug: false
 
-    map_frame: map
-    odom_frame: odom
+    map_frame: ekf/map
+    odom_frame: ekf/odom
     base_link_frame: fsds/FSCar
-    world_frame: map
+    world_frame: ekf/map
 
     twist0: gss
     twist0_config: [false, false, false,
@@ -152,11 +152,11 @@ ekf_filter_node_map:
 
 navsat_transform:
   ros__parameters:
-    frequency: 100.0
+    frequency: 50.0
     delay: 3.0
     magnetic_declination_radians: 0.0 # 0.0429351  # For lat/long 55.944831, -3.186998
     yaw_offset: 0.0 #1.570796327  # IMU reads 0 facing magnetic north, not east
-    zero_altitude: false
+    zero_altitude: true
     broadcast_utm_transform: false
     publish_filtered_gps: true
     use_odometry_yaw: false

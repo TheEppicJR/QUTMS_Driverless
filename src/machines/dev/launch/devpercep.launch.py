@@ -22,12 +22,12 @@ def generate_launch_description():
             executable='rosboard_node',
         ),
         Node(
-            package='sim_planning',
-            executable='pursuit',
+            package='sim_pursuit',
+            executable='local_pursuit',
         ),
         Node(
-            package='sim_planning',
-            executable='mapper',
+            package='sim_pursuit',
+            executable='detection',
         ),
         Node(
             package='perception_debug',
