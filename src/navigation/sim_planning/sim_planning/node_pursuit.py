@@ -6,10 +6,6 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
 from rclpy.publisher import Publisher
-from geometry_msgs.msg import Point as ROSPoint
-from visualization_msgs.msg import Marker, MarkerArray
-from builtin_interfaces.msg import Duration
-from cv_bridge import CvBridge
 # import ROS2 message libraries
 from nav_msgs.msg import Odometry
 # import custom message libraries
@@ -17,11 +13,10 @@ from driverless_msgs.msg import SplinePoint, SplineStamped, Cone, Waypoint, Wayp
 from fs_msgs.msg import ControlCommand
 
 # other python modules
-from math import sqrt, atan2, pi, sin, cos, atan
-import cv2
+from math import sqrt, atan2, sin, cos
 import numpy as np
-import scipy.interpolate as scipy_interpolate # for spline calcs
-from typing import Tuple, List, Optional
+import scipy.spatial
+from typing import List
 import time
 import sys
 import os
@@ -32,124 +27,121 @@ import pathlib
 
 from transforms3d.euler import quat2euler
 
-
-# import required sub modules
-from driverless_common.point import Point
-
 # initialise logger
 LOGGER = logging.getLogger(__name__)
 
-# translate ROS image messages to OpenCV
-cv_bridge = CvBridge()
 
-DEBUG: bool = False
-
-# image display geometry
-SCALE = 20
-WIDTH = 40*SCALE # 10m either side
-HEIGHT = 40*SCALE # 20m forward
-ORIGIN = Point(0, 0)
-IMG_ORIGIN = Point(int(WIDTH/2), int(HEIGHT/2))
-
-# display colour constants
-Colour = Tuple[int, int, int]
-YELLOW_DISP_COLOUR: Colour = (0, 255, 255) # bgr - yellow
-BLUE_DISP_COLOUR: Colour = (255, 0, 0) # bgr - blue
-ORANGE_DISP_COLOUR: Colour = (0, 165, 255) # bgr - orange
-
-LEFT_CONE_COLOUR = Cone.BLUE
-RIGHT_CONE_COLOUR = Cone.YELLOW
-
-
-def normalize_angle(angle: float) -> float:
+def get_wheel_position(pos_cog: List[float], heading: float) -> List[float]:
     """
-    Normalize an angle to [-pi, pi].
-    :param angle: (float)
-    :return: (float) Angle in radian in [-pi, pi]
+    Gets the position of the steering axle from the car's center of gravity and heading
+    * param pos_cog: [x,y] coords of the car's center of gravity
+    * param heading: car's heading in rads
+    * return: [x,y] position of steering axle
     """
-    while angle > np.pi:
-        angle -= 2.0 * np.pi
+    #https://fs-driverless.github.io/Formula-Student-Driverless-Simulator/v2.1.0/vehicle_model/
+    cog2axle = 0.4 #m
+    x_axle = pos_cog[0] + cos(heading)*cog2axle
+    y_axle = pos_cog[1] + sin(heading)*cog2axle
 
-    while angle < -np.pi:
-        angle += 2.0 * np.pi
+    return [x_axle, y_axle]
 
-    return angle
 
-def robot_pt_to_img_pt(x: float, y: float) -> Point:
+def get_RVWP(car_pos: List[float], path: np.ndarray, rvwp_lookahead: int) -> List[float]:
     """
-    Converts a relative depth from the camera into image coords
-    * param x: x coord
-    * param y: y coord
-    * return: Point int pixel coords
+    Retrieve angle between two points 
+    * param car_pos: [x,y] coords of point 1
+    * param path: [[x0,y0],[x1,y1],...,[xn-1,yn-1]] path points
+    * param rvwpLookahead: how many indices to look ahead in path array for RVWP
+    * return: RVWP position as [x,y]
     """
-    return Point(
-        int(round(WIDTH/2 - y*SCALE)),
-        int(round(HEIGHT - x*SCALE)),
-    )
+    _pos = np.array([[car_pos[0], car_pos[1]]])
+    dists: np.ndarray = scipy.spatial.distance.cdist(path,_pos, 'euclidean')
+    min_index: int = np.where(dists == np.amin(dists))[0][0]
 
-def angle_between_angles(theta: float, phi: float, spread: float) -> bool:
-    a, b = normalize_angle(phi - spread), normalize_angle(phi + spread)
-    if a < b and theta > a and theta < b:
-        return True
-    if a > b and (theta < a or theta > b):
-        return True
-    return False
+    rvwp_index: int = (min_index + rvwp_lookahead) % len(path)
+    rvwp: List[float] = path[rvwp_index]
 
-def dist(a: Point, b: Point) -> float:
-    return sqrt((a.x-b.x)**2 + (a.y-b.y)**2)
+    return rvwp
 
-def cone_to_point(cone: Cone) -> Point:
-    return Point(
-        cone.location.x,
-        cone.location.y,
-    )
 
-def approximate_b_spline_path(
-    x: list, 
-    y: list, 
-    n_path_points: int,
-    degree: int = 3
-) -> Tuple[list, list]:
+def angle(
+    p1: List[float], 
+    p2: List[float]
+) -> float:
     """
-    ADAPTED FROM: https://github.com/AtsushiSakai/PythonRobotics/blob/master/PathPlanning/BSplinePath/bspline_path.py \n
-    Approximate points with a B-Spline path
-    * param x: x position list of approximated points
-    * param y: y position list of approximated points
-    * param n_path_points: number of path points
-    * param degree: (Optional) B Spline curve degree
-    * return: x and y position list of the result path
+    Retrieve angle between two points 
+    * param p1: [x,y] coords of point 1
+    * param p2: [x,y] coords of point 2
+    * return: angle in rads
+    """
+    x_disp = p2[0] - p1[0]
+    y_disp = p2[1] - p1[1]
+    return atan2(y_disp, x_disp)
+
+
+def wrap_to_pi(angle: float) -> float:
+    """
+    Wrap an angle between -pi and pi
+    * param angle: angle in rads
+    * return: angle in rads wrapped to -pi and pi
     """
 
-    t: int = range(len(x))
-    # interpolate for the length of the input cone list
-    x_list = list(scipy_interpolate.splrep(t, x, k=degree))
-    y_list = list(scipy_interpolate.splrep(t, y, k=degree))
+    # https://stackoverflow.com/a/15927914/12206202
+    return (angle + np.pi) % (2 * np.pi) - np.pi
 
-    # add 4 'zero' components to align matrices
-    x_list[1] = x #+ [0.0, 0.0, 0.0, 0.0]
-    y_list[1] = y #+ [0.0, 0.0, 0.0, 0.0]
 
-    ipl_t = np.linspace(0.0, len(x) - 1, n_path_points)
-    spline_x = scipy_interpolate.splev(ipl_t, x_list)
-    spline_y = scipy_interpolate.splev(ipl_t, y_list)
+def get_throttle_and_brake(velocities: List[float], steering_angle: float) -> List[float]:
+    """
+    Decrease velocity proportional to the desired steering angle
+    * param velocities: [x,y] current x & y velocities
+    * param steering_angle: the angle the car needs to turn
+    * return: [calc_throttle, calc_break]
+    """
+    # velocity control
+    # init constants
+    Kp_vel: float = 20
+    vel_max: float = 15
+    vel_min = 1
+    throttle_max: float = 0.5 # m/s^2
+    brake_max = 0.25
 
-    return spline_x, spline_y
+    # get car vel
+    vel_x: float = velocities[0]
+    vel_y: float = velocities[1]
+    vel: float = sqrt(vel_x**2 + vel_y**2)
+    
+    # target velocity proportional to angle
+    target_vel: float = vel_max - abs(steering_angle) * Kp_vel
+    if target_vel < vel_min: target_vel = vel_min
 
+    # increase proportionally as it approaches target
+    throttle_scalar: float = (1 - (vel / target_vel)) 
+    calc_brake = 0.0
+    if throttle_scalar > 0: 
+        calc_throttle = throttle_max * throttle_scalar
+    # if its over maximum, brake propotionally unless under minimum
+    else:
+        calc_throttle = 0
+        if (vel > vel_min):
+            calc_brake = abs(brake_max * throttle_scalar)
+
+    return [calc_throttle, calc_brake]
 
 
 class SplinePursuit(Node):
-    def __init__(self, spline_len: int):
+    def __init__(self):
         super().__init__("spline_planner")
 
-        # sub to track for all cone locations relative to car start point
-        self.create_subscription(Marker, "/visual/filtered_tree_branch", self.path_callback, 10)
-        self.path_img_publisher: Publisher = self.create_publisher(Image, "/pursuit/path_img", 1)
-
+        # sub to path mapper for the desired vehicle path (as an array)
+        self.create_subscription(SplineStamped, "/spline_mapper/path", self.path_callback, 10)
         # sub to odometry for car pose + velocity
-        self.create_subscription(Odometry, "/odometry/global", self.callback, 10)
+        self.create_subscription(Odometry, "/testing_only/odom", self.callback, 10)
+        
+        # publishers
         self.control_publisher: Publisher = self.create_publisher(ControlCommand, "/control_command", 10)
-        self.path_marker_publisher: Publisher = self.create_publisher(Marker, "/local_spline/path_marker", 1)
-        self.target_marker_publisher: Publisher = self.create_publisher(Marker, "/local_spline/target_marker", 1)
+
+        # path is a numpy array with 2 dimensions
+        self.path: np.ndarray = None
 
 
         self.path = None
@@ -157,209 +149,66 @@ class SplinePursuit(Node):
 
         LOGGER.info("---Spline Controller Node Initalised---")
 
+    def path_callback(self, spline_path_msg: SplineStamped):
+        # Only set the desired path once (before the car is moving)
+        if self.path is not None: return
 
-    def path_callback(self, spline_path: Marker):
-        if len(spline_path.points) > 0:
-            self.path = spline_path.points
-            self.last_target_idx = 3
+        # convert List[SplinePoint] to 2D numpy array
+        start: float = time.time()
+        self.path = np.array([[p.location.x, p.location.y] for p in spline_path_msg.path])
+        LOGGER.info("Time taken to convert to np array: "+ str(time.time()-start))
+        LOGGER.info(f"Spline Path Recieved - length: {len(self.path)}")
 
     def callback(self, odom_msg: Odometry):
+        # Only start once the path has been recieved
+        if self.path is None: return
 
-        # target spline markers for rviz
-        x = odom_msg.pose.pose.position.x
-        y = odom_msg.pose.pose.position.y
-        vel_x: float = odom_msg.twist.twist.linear.x
-        vel_y: float = odom_msg.twist.twist.linear.y
-        vel: float = sqrt(vel_x**2 + vel_y**2)
         w = odom_msg.pose.pose.orientation.w
         i = odom_msg.pose.pose.orientation.x
         j = odom_msg.pose.pose.orientation.y
         k = odom_msg.pose.pose.orientation.z
 
         # i, j, k angles in rad
-        (ai, aj, ak) = quat2euler([w, i, j, k])
+        ai, aj, ak = quat2euler([w, i, j, k])
+        heading: float = ak
 
-        debug_img = np.zeros((HEIGHT, WIDTH, 3), dtype=np.uint8)
+        x = odom_msg.pose.pose.position.x
+        y = odom_msg.pose.pose.position.y
 
-        path_markers: List[Marker] = []
+        # get the position of the center of gravity
+        position_cog: List[float] = [x, y]
+        position: List[float] = get_wheel_position(position_cog, heading)
+        
+        # rvwp control
+        rvwpLookahead = 75
 
-        ## APPROACH TARGET
-        if self.path is not None and len(self.path)>0:
-            target: Point = None
-            slow = False
-            L = 2
-            fx = x + L * np.cos(ak)
-            fy = y + L * np.sin(ak)
+        rvwp: List[float] = get_RVWP(position, self.path, rvwpLookahead)
 
-            cx: List[float] = []
-            cy: List[float] = []
-            for tpoint in self.path:
-                cx.append(tpoint.x)
-                cy.append(tpoint.y)
-                line_point = ROSPoint()
-                line_point.x = tpoint.x-x
-                line_point.y = tpoint.y-y
-                line_point.z = 0.0
-                path_markers.append(line_point)
-            
-            # Search nearest point index
-            dx = [fx - icx for icx in cx]
-            dy = [fy - icy for icy in cy]
-            d = np.hypot(dx, dy)
-            target_idx = np.argmin(d)
-            if self.last_target_idx >= target_idx:
-                target_idx = self.last_target_idx
+        # steering control
+        des_heading_ang: float = angle(position, rvwp)
+        steering_angle: float = wrap_to_pi(heading - des_heading_ang)
 
-            target = self.path[target_idx]
+        calc_steering = steering_angle
 
+        vel: List[float] = [odom_msg.twist.twist.linear.x, odom_msg.twist.twist.linear.y]
+        [calc_throttle, calc_break] = get_throttle_and_brake(vel, steering_angle)
 
-            # velocity control
-            # init constants
-            Kp_vel: float = 2
-            vel_max: float = 3
-            vel_min = vel_max/2
-            throttle_max: float = 0.3 # m/s^2
-                
-            
-            # target velocity proportional to angle
-            target_vel: float = vel_max - (abs(normalize_angle((-atan2(target.y-y, target.x-x)+ak)))) * Kp_vel
-            if target_vel < vel_min:
-                target_vel = vel_min
-            #LOGGER.info(f"Target vel: {target_vel}")
+        # publish message
+        control_msg = ControlCommand()
+        control_msg.steering = float(calc_steering)
+        control_msg.throttle = float(calc_throttle)
+        control_msg.brake = float(calc_break)
 
-            # increase proportionally as it approaches target
-            throttle_scalar: float = (1 - (vel / target_vel)) 
-            if throttle_scalar > 0:
-                calc_throttle = throttle_max * throttle_scalar
-            # if its over maximum, cut throttle
-            elif throttle_scalar <= 0:
-                calc_throttle = 0
-
-            # steering control
-            Kp_ang: float = 1.5
-            ang_max: float = 7.0
-            steering_angle = normalize_angle((-atan2(target.y-y, target.x-x)+ak))*5
-            #LOGGER.info(f"Target angle: {steering_angle}")
-            calc_steering = Kp_ang * steering_angle / ang_max
-
-
-            # publish message
-            control_msg = ControlCommand()
-            control_msg.throttle = float(calc_throttle)
-            control_msg.steering = float(calc_steering)
-            control_msg.brake = 0.0
-
-            self.control_publisher.publish(control_msg)
-
-            if self.path_marker_publisher.get_subscription_count() > 0:
-                
-                # add on each cone to published array
-                marker = Marker()
-                marker.header.frame_id = "map"
-                marker.ns = "current_path"
-                marker.id = 0
-                marker.type = Marker.LINE_STRIP
-                marker.action = Marker.ADD
-
-                marker.pose.position = odom_msg.pose.pose.position
-                marker.pose.orientation.x = 0.0
-                marker.pose.orientation.y = 0.0
-                marker.pose.orientation.z = 0.0
-                marker.pose.orientation.w = 1.0
-                # scale out of 1x1x1m
-                marker.scale.x = 0.2
-                marker.scale.y = 0.0
-                marker.scale.z = 0.0
-
-                marker.points = path_markers
-
-                marker.color.a = 1.0 # alpha
-                marker.color.r = 1.0
-                marker.color.g = 0.0
-                marker.color.b = 0.0
-
-                marker.lifetime = Duration(sec=1, nanosec=0)
-
-                # create message for all cones on the track
-                self.path_marker_publisher.publish(marker) # publish marker points data
-            if self.target_marker_publisher.get_subscription_count() > 0:
-
-                target_markers: List[Marker] = []
-                target_markers.append(target)
-
-                marker2 = Marker()
-                marker2.header.frame_id = "map"
-                marker2.ns = "current_path"
-                marker2.id = 0
-                marker2.type = Marker.SPHERE
-                marker2.action = Marker.ADD
-
-                marker2.pose.position = target
-                marker2.pose.orientation.x = 0.0
-                marker2.pose.orientation.y = 0.0
-                marker2.pose.orientation.z = 0.0
-                marker2.pose.orientation.w = 1.0
-                # scal2e out of 1x1x1m
-                marker2.scale.x = 0.2
-                marker2.scale.y = 0.2
-                marker2.scale.z = 0.2
-
-                marker2.points = target_markers
-
-                marker2.color.a = 1.0 # alpha
-                marker2.color.r = 0.0
-                marker2.color.g = 1.0
-                marker2.color.b = 0.0
-                marker2.lifetime = Duration(sec=1, nanosec=0)
-
-                self.target_marker_publisher.publish(marker2)
-
-            if self.path_img_publisher.get_subscription_count() > 0:
-                # draw target
-                target_img_pt = robot_pt_to_img_pt(x-target.x, y-target.y)
-                cv2.drawMarker(
-                    debug_img, 
-                    target_img_pt.to_tuple(),
-                    (0, 0, 255),
-                    markerType=cv2.MARKER_TILTED_CROSS,
-                    markerSize=10,
-                    thickness=2
-                )
-                target_img_angle = atan2(target_img_pt.y - IMG_ORIGIN.y, target_img_pt.x - IMG_ORIGIN.x)
-                # draw angle line
-                cv2.line(
-                    debug_img,
-                    (int(50*cos(target_img_angle) + IMG_ORIGIN.x), int(50*sin(target_img_angle) + IMG_ORIGIN.y)),
-                    IMG_ORIGIN.to_tuple(),
-                    (0, 0, 255)
-                )
-                # add text for targets data
-                cv2.putText(
-                    debug_img, "Targets", (10, HEIGHT-40),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2
-                )
-                text_angle = "Steering: "+str(round(steering_angle, 2))
-                cv2.putText(
-                    debug_img, text_angle, (10, HEIGHT-25),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2
-                )
-                text_vel = "Velocity: "+str(round(target_vel, 2))
-                cv2.putText(
-                    debug_img, text_vel, (10, HEIGHT-10),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2
-                )
-
-                self.path_img_publisher.publish(cv_bridge.cv2_to_imgmsg(debug_img, encoding="bgr8"))
+        self.control_publisher.publish(control_msg)
 
 
 def main(args=sys.argv[1:]):
     # defaults args
     loglevel = 'info'
     print_logs = False
-    spline_len = 200
 
     # processing args
-    opts, arg = getopt.getopt(args, str(), ['log=', 'print_logs', 'length=', 'ros-args'])
+    opts, arg = getopt.getopt(args, str(), ['log=', 'print_logs', 'ros-args'])
 
     # TODO: provide documentation for different options
     for opt, arg in opts:
@@ -367,19 +216,12 @@ def main(args=sys.argv[1:]):
             loglevel = arg
         elif opt == '--print_logs':
             print_logs = True
-        elif opt == '--length':
-            spline_len = arg
-        else:
-            pass
 
     # validating args
     numeric_level = getattr(logging, loglevel.upper(), None)
 
     if not isinstance(numeric_level, int):
         raise ValueError('Invalid log level: %s' % loglevel)
-
-    if not isinstance(spline_len, int):
-        raise ValueError('Invalid range: %s. Must be int' % spline_len)
 
     # setting up logging
     path = str(pathlib.Path(__file__).parent.resolve())
@@ -406,14 +248,14 @@ def main(args=sys.argv[1:]):
     # begin ros node
     rclpy.init(args=args)
 
-    node = SplinePursuit(spline_len)
+    node = SplinePursuit()
     rclpy.spin(node)
     
     node.destroy_node()
 
     rclpy.shutdown()
 
-
+    
 if __name__ == '__main__':
     main(sys.argv[1:])
 
