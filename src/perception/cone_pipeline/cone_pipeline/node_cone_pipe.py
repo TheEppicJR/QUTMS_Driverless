@@ -9,7 +9,7 @@ import rclpy.logging
 import message_filters
 # import ROS2 message libraries
 from std_msgs.msg import Header
-from geometry_msgs.msg import Point, Twist
+from geometry_msgs.msg import Point, Twist, TransformStamped
 from visualization_msgs.msg import Marker, MarkerArray
 from nav_msgs.msg import Odometry
 # import custom message libraries
@@ -18,9 +18,11 @@ from driverless_msgs.msg import ConeDetectionStamped, PointWithCovariance, Point
 
 from typing import List
 
-from tf2_ros import TransformException
+# import tf2
+from tf2_ros import TransformException, TransformBroadcaster
 from tf2_ros.buffer import Buffer
 from tf2_ros.transform_listener import TransformListener
+from tf2_ros.static_transform_broadcaster import StaticTransformBroadcaster
 
 # other python modules
 import numpy as np
@@ -33,7 +35,7 @@ import pathlib
 from transforms3d.euler import quat2euler
 
 # import required sub modules
-from .point import PointWithCov
+from .point import PointWithCov, do_transform_point
 from . import kmeans_clustering as km
 from .kdtree import create, KDNode
 from .kdtree import Node as kdNode
@@ -54,6 +56,10 @@ class ConePipeline(Node):
         self.target_frame = self.get_parameter(
             'target_frame').get_parameter_value().string_value
 
+        self.br = TransformBroadcaster(self)
+        self._tf_publisher = StaticTransformBroadcaster(self)
+        self.odom_callback()
+
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
@@ -62,6 +68,8 @@ class ConePipeline(Node):
 
         self.filtered_cones_pub: Publisher = self.create_publisher(ConeDetectionStamped, "/cone_pipe/cone_detection", 1)
         self.filtered_cones_pub_cov: Publisher = self.create_publisher(PointWithCovarianceArrayStamped, "/cone_pipe/cone_detection_cov", 1)
+
+        # self.create_subscription(Odometry, "/testing_only/odom", self.odom_callback, 1)
 
         self.lidar_markers: Publisher = self.create_publisher(MarkerArray, "/cone_pipe/lidar_marker", 1)
         self.vision_markers: Publisher = self.create_publisher(MarkerArray, "/cone_pipe/vision_marker", 1)
@@ -82,6 +90,21 @@ class ConePipeline(Node):
 
         LOGGER.info("---Cone Pipeline Node Initalised---")
         self.logger.debug("---Cone Pipeline Node Initalised---")
+
+    def odom_callback(self):#, msg: Odometry):
+        t = TransformStamped()
+        t.header.stamp = self.get_clock().now().to_msg()
+        t.header.frame_id = 'car'
+        t.child_frame_id = 'fsds/FSCar'
+        t.transform.translation.x = 0.0
+        t.transform.translation.y = 0.0
+        t.transform.translation.z = 0.0
+        t.transform.rotation.x = 0.0
+        t.transform.rotation.y = 0.0
+        t.transform.rotation.z = 0.0
+        t.transform.rotation.w = 1.0
+        self._tf_publisher.sendTransform(t)
+
 
     def getNearestOdom(self, stamp):
         # need to switch this over to a position from a EKF with covariance
@@ -151,7 +174,7 @@ class ConePipeline(Node):
         
         header1 = Header()
         header1.stamp = header.stamp
-        header1.frame_id = 'ekf/odom'
+        header1.frame_id = 'ekf/map'
         # if we have cones we are sure about than send them out in messages
         if self.conesKDTree is not None and self.conesKDTree.data is not None:
             # make a bool to determine if we are going to spend the time to generate markers
@@ -171,9 +194,7 @@ class ConePipeline(Node):
                     pubpt = QUTCone()
                     # create a point at the location of the cone
                     point = Point()
-                    point.x = cone.global_x
-                    point.y = cone.global_y
-                    point.z = cone.global_z
+                    point.x, point.y, point.z = cone.global_x, cone.global_y, cone.global_z
                     # create the row major 3x3 cov matrix for the message elements
                     pubpt_cov.covariance = cone.global_cov.flatten()
                     # set those parts of the message
@@ -255,17 +276,16 @@ class ConePipeline(Node):
         if len(points.points) > 0:
             msgs = self.printmarkers and self.lidar_markers.get_subscription_count() > 0
             header = points.header
+            header.frame_id = "fsds/FSCar"
             header1 = Header()
             header1.stamp = header.stamp
-            header1.frame_id = 'ekf/odom'
+            header1.frame_id = header.frame_id#'ekf/odom'
             odomloc = self.getNearestOdom(header.stamp)
             
             if odomloc is None:
                 return None
 
             curTransform = self.curTransform(header)
-            # need to apply this transform to the points but I would also like to take care of orentation in a non nasty way
-            # I would like to just use tf2 for this but the doccumentation is lacking
             
             z_datum = odomloc.pose.pose.position.z
             self.updateZDatum(z_datum)
@@ -274,9 +294,10 @@ class ConePipeline(Node):
             markers: List[Marker] = []
             msgid = 0
             for point in points.points:
-                p = PointWithCov(point.position.x, point.position.y, point.position.z, np.array(point.covariance).reshape((3,3)), 4)
+                tpnt = do_transform_point(point.position, curTransform)
+                p = PointWithCov(tpnt.x, tpnt.y, tpnt.z, np.array(point.covariance).reshape((3,3)), 4)
                 p.translate(odomloc)
-                if point.position.z < 0.45 and point.position.z > 0.15:
+                if tpnt.z < 0.45 and tpnt.z > 0.15:
                     conelist.append(p)
                     if msgs:
                         markers.append(p.getCov(msgid, True, self.z_datum, header1))
@@ -292,12 +313,15 @@ class ConePipeline(Node):
         if len(points.points) > 0:
             msgs = self.printmarkers and self.vision_markers.get_subscription_count() > 0
             header = points.header
+            header.frame_id = "fsds/FSCar"
             header1 = Header()
             header1.stamp = header.stamp
-            header1.frame_id = 'ekf/odom'
+            header1.frame_id = header.frame_id#'ekf/odom'
             odomloc= self.getNearestOdom(header.stamp)
             if odomloc is None:
                 return None
+
+            curTransform = self.curTransform(header)
 
             z_datum = odomloc.pose.pose.position.z
             self.updateZDatum(z_datum)
@@ -306,7 +330,8 @@ class ConePipeline(Node):
             markers: List[Marker] = []
             msgid = 0
             for point in points.points:
-                p = PointWithCov(point.position.x, point.position.y, point.position.z, np.array(point.covariance).reshape((3,3)), point.color)
+                tpnt = do_transform_point(point.position, curTransform)
+                p = PointWithCov(tpnt.x, tpnt.y, tpnt.z, np.array(point.covariance).reshape((3,3)), point.color)
                 if p.xydist(0,0) < 15:
                     p.translate(odomloc)
                     conelist.append(p)

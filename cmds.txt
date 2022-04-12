@@ -68,6 +68,7 @@ mamba install -y --file ./src/navigation/controllers/conda_requirements
 mamba install -y --file ./src/navigation/sim_pursuit/conda_requirements
 mamba install -y --file ./src/navigation/sim_planning/conda_requirements
 mamba install -y --file ./src/perception/vision_pipeline/conda_requirements
+mamba install -y --file ./src/perception/cone_pipeline/conda_requirements
 mamba install -y --file ./src/perception/lidar_pipeline/conda_requirements
 mamba install -y --file ./src/perception/lidar_pipeline_2/conda_requirements
 mamba install -y --file ./src/perception/sim_camera/conda_requirements

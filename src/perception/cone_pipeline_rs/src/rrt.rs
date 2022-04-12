@@ -186,10 +186,16 @@ pub fn rrt(
 
     let mut kdtree: KdTree<f64, PointF2M, 2> = KdTree::new();
     for vertex in triangulation.vertices() {
-        kdtree.add(
+        let f = kdtree.add(
             &[vertex.position().x, vertex.position().y],
             vertex.data().position2,
         );
+        match f {
+            Ok(_) => {}
+            Err(e) => {
+                println!("{:?}", e);
+            }
+        }
     }
     for node in &mut nodes {
         let loc = [node.point[0], node.point[1]];

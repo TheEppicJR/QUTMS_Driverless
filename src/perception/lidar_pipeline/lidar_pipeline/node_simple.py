@@ -107,6 +107,8 @@ class LidarProcessing(Node):
             detected_cones.append(cone_msg(cone[0], cone[1], cone[2]))
             conecov = cone_cov(self.lidarcov, cone[0], cone[1], cone[2])
             detected_cones_cov.append(cone_msg_cov(cone[0], cone[1], cone[2], 4, conecov.flatten()))
+        if len(cones) == 0:
+            print("No cones detected")
        
         detection_msg = ConeDetectionStamped(
             header=pc2_msg.header,

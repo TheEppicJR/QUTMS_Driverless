@@ -46,7 +46,7 @@ class Common_Stats(Node):
     def imu_callback(self, imu_reading: Imu):
         heading_msg = Vector3Stamped()
         heading_msg.header = imu_reading.header
-        (heading_msg.vector.x, heading_msg.vector.y, heading_msg.vector.z) = quat2euler([imu_reading.orientation.x, imu_reading.orientation.y, imu_reading.orientation.z, imu_reading.orientation.w])
+        (heading_msg.vector.x, heading_msg.vector.y, heading_msg.vector.z) = quat2euler([imu_reading.orientation.w, imu_reading.orientation.x, imu_reading.orientation.y, imu_reading.orientation.z])
         self.heading_pub.publish(heading_msg)
         gg_msg = Vector3Stamped()
         gg_msg.header = imu_reading.header

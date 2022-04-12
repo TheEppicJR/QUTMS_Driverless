@@ -22,7 +22,13 @@ pub fn get_edges(points: Vec<PointWithCovariance>) -> Triangulation {
             color = colormsg;
         }
         let cov = Matrix3::from_row_slice(&point.covariance);
-        triangulation.insert(VertexType::new(x, y, z, color, id, cov));
+        let f = triangulation.insert(VertexType::new(x, y, z, color, id, cov));
+        match f {
+            Ok(_) => {}
+            Err(e) => {
+                println!("{:?}", e);
+            }
+        }
     }
     return triangulation;
 }
