@@ -31,9 +31,8 @@ pub fn generate_edges(
     }
 
     let mut edge_marker = Marker::default();
-    edge_marker.header.frame_id = "map".to_string();
+    edge_marker.header.frame_id = "ekf/map".to_string();
     edge_marker.header.stamp = get_time()?;
-    edge_marker.ns = "edges".to_string();
     edge_marker.points = marker_points;
     edge_marker.colors = marker_colors;
     return Ok(edge_marker);
@@ -63,9 +62,8 @@ pub fn generate_nodes(
         }
     }
     let mut node_marker = Marker::default();
-    node_marker.header.frame_id = "map".to_string();
+    node_marker.header.frame_id = "ekf/map".to_string();
     node_marker.header.stamp = get_time()?;
-    node_marker.ns = "nodes".to_string();
     node_marker.points = marker_points;
     node_marker.colors = marker_colors;
     return Ok(node_marker);

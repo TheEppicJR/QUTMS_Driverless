@@ -131,47 +131,51 @@ async fn odom_subscriber(
         )?;
         (odom_subscriber, rrt_publisher)
     };
+    let mut cycle = 0;
 
     loop {
         match odom_subscriber.next().await {
             Some(msg) => {
                 println!("Recived odom msg");
-                let pos = msg.pose.pose.position;
-                let pos_point = pathperimitives::PointF2M::new(pos.x, pos.y);
-                let quat = Quaternion::new(
-                    msg.pose.pose.orientation.w,
-                    msg.pose.pose.orientation.x,
-                    msg.pose.pose.orientation.y,
-                    msg.pose.pose.orientation.z,
-                );
-                let euler = Euler::from(quat);
-                let yaw = euler.z.0;
-                let nodes = rrt::rrt(
-                    pos_point,
-                    &triangulation.lock().unwrap().state,
-                    2000,
-                    12.0,
-                    0.5,
-                    0.3141592653589793,
-                    yaw,
-                    0.7,
-                );
+                if cycle % 10 == 0 {
+                    let pos = msg.pose.pose.position;
+                    let pos_point = pathperimitives::PointF2M::new(pos.x, pos.y);
+                    let quat = Quaternion::new(
+                        msg.pose.pose.orientation.w,
+                        msg.pose.pose.orientation.x,
+                        msg.pose.pose.orientation.y,
+                        msg.pose.pose.orientation.z,
+                    );
+                    let euler = Euler::from(quat);
+                    let yaw = euler.z.0;
+                    let nodes = rrt::rrt(
+                        pos_point,
+                        &triangulation.lock().unwrap().state,
+                        2000,
+                        12.0,
+                        0.5,
+                        0.3141592653589793,
+                        yaw,
+                        0.7,
+                    );
 
-                let best_leaf = rrt::get_best_leaf(&nodes);
-                let max_cost = nodes[best_leaf].cost;
-                let marker_result = markermaker::generate_nodes(&nodes, &max_cost);
-                match marker_result {
-                    Ok(marker) => {
-                        let f = rrt_publisher.publish(&marker);
-                        match f {
-                            Ok(_) => println!("Sucesfully published marker"),
-                            Err(e) => println!("Failed to publish marker: {:?}", e),
+                    let best_leaf = rrt::get_best_leaf(&nodes);
+                    let max_cost = nodes[best_leaf].cost;
+                    let marker_result = markermaker::generate_nodes(&nodes, &max_cost);
+                    match marker_result {
+                        Ok(marker) => {
+                            let f = rrt_publisher.publish(&marker);
+                            match f {
+                                Ok(_) => println!("Sucesfully published marker"),
+                                Err(e) => println!("Failed to publish marker: {:?}", e),
+                            }
+                        }
+                        Err(e) => {
+                            println!("Puberr: {}", e);
                         }
                     }
-                    Err(e) => {
-                        println!("Puberr: {}", e);
-                    }
                 }
+                cycle += 1;
             }
             None => {
                 println!("Empty message");

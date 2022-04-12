@@ -298,7 +298,6 @@ class LocalSpline(Node):
             # add on each cone to published array
             marker = Marker()
             marker.header.frame_id = "map"
-            marker.ns = "current_path"
             marker.id = 0
             marker.type = Marker.LINE_STRIP
             marker.action = Marker.ADD

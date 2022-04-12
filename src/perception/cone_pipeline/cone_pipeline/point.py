@@ -714,6 +714,8 @@ def do_transform_point(
     :param transform: The transform
     :returns: The transformed point
     """
+    if transform is None:
+        return point
     _, point = _decompose_affine(
         np.matmul(
             _transform_to_affine(transform),

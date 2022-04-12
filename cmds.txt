@@ -8,7 +8,7 @@ colcon build --symlink-install
 
 ros2 service call /reset fs_msgs/srv/Reset
 
-ros2 launch fsds_ros2_bridge fsds_ros2_bridge.launch.py host:=192.168.86.20 rviz:=true
+ros2 launch fsds_ros2_bridge fsds_ros2_bridge.launch.py host:=192.168.86.23 rviz:=true
 
 ros2 launch fsds_ros2_bridge fsds_ros2_bridge.launch.py host:=10.250.180.131 rviz:=true
 

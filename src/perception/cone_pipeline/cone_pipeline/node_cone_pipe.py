@@ -63,25 +63,21 @@ class ConePipeline(Node):
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
 
-        self.create_subscription(PointWithCovarianceArrayStamped, "/lidar/cone_detection_cov", self.lidarCallback, 10) # "/lidar/cone_detection_cov"
-        self.create_subscription(PointWithCovarianceArrayStamped, "/vision/cone_detection_cov", self.visionCallback, 10) # "/detector/cone_detection_cov"
+        self.create_subscription(PointWithCovarianceArrayStamped, "/lidar/cone_detection_cov", self.lidarCallback, 10)
+        self.create_subscription(PointWithCovarianceArrayStamped, "/vision/cone_detection_cov", self.visionCallback, 10)
 
         self.filtered_cones_pub: Publisher = self.create_publisher(ConeDetectionStamped, "/cone_pipe/cone_detection", 1)
         self.filtered_cones_pub_cov: Publisher = self.create_publisher(PointWithCovarianceArrayStamped, "/cone_pipe/cone_detection_cov", 1)
-
-        # self.create_subscription(Odometry, "/testing_only/odom", self.odom_callback, 1)
 
         self.lidar_markers: Publisher = self.create_publisher(MarkerArray, "/cone_pipe/lidar_marker", 1)
         self.vision_markers: Publisher = self.create_publisher(MarkerArray, "/cone_pipe/vision_marker", 1)
         self.filtered_markers: Publisher = self.create_publisher(MarkerArray, "/cone_pipe/filtered_marker", 1)
 
-        odom_sub = message_filters.Subscriber(self, Odometry, "/odometry/global") # "/testing_only/odom"
+        odom_sub = message_filters.Subscriber(self, Odometry, "/odometry/global")
         self.actualodom = message_filters.Cache(odom_sub, 1000) # needs to be the more than the max latency of perception in ms
 
         self.printmarkers: bool = True
-
         self.conesKDTree: KDNode = None
-
         self.bufferKDTree: KDNode = None
 
         # this is really the wrong way to do this but I just need a solution for now
@@ -94,15 +90,10 @@ class ConePipeline(Node):
     def odom_callback(self):#, msg: Odometry):
         t = TransformStamped()
         t.header.stamp = self.get_clock().now().to_msg()
-        t.header.frame_id = 'car'
-        t.child_frame_id = 'fsds/FSCar'
-        t.transform.translation.x = 0.0
-        t.transform.translation.y = 0.0
-        t.transform.translation.z = 0.0
-        t.transform.rotation.x = 0.0
-        t.transform.rotation.y = 0.0
-        t.transform.rotation.z = 0.0
-        t.transform.rotation.w = 1.0
+        t.header.frame_id = 'ekf/map'
+        t.child_frame_id = 'map'
+        t.transform.translation.x, t.transform.translation.y, t.transform.translation.z = 0.0, 0.0, 0.0
+        t.transform.rotation.x, t.transform.rotation.y, t.transform.rotation.z, t.transform.rotation.w = 0.0, 0.0, 0.0, 1.0
         self._tf_publisher.sendTransform(t)
 
 
@@ -112,7 +103,6 @@ class ConePipeline(Node):
         #cov = np.identity(6) * 0.0025 # standin covariance for ekf assuming the variance is sigma = 5cm with no covariance
         # if the nearest Odom in the cache is more than 0.05 sec off then just throw it away
         if locodom is not None:
-            #print(Time.from_msg(stamp) - Time.from_msg(locodom.header.stamp))
             if Time.from_msg(stamp) - Time.from_msg(locodom.header.stamp) > Duration(nanoseconds=0.05*(10**9)):
                 return None
         return locodom
@@ -223,12 +213,12 @@ class ConePipeline(Node):
             coneListPub.cones = conelist
             # idk what makes sense for setting the header on this detection, this is probably wrong but idc atm
             coneListPub.header = header
-            coneListPub.header.frame_id = 'odom'
+            coneListPub.header.frame_id = 'ekf/map'
             # create a PointWithCovarianceStampedArray message
             coneListPubCov = PointWithCovarianceArrayStamped()
             coneListPubCov.points = conelist_cov
             coneListPubCov.header = header
-            coneListPubCov.header.frame_id = 'odom'
+            coneListPubCov.header.frame_id = 'ekf/map'
             # publish the messages
             self.filtered_cones_pub.publish(coneListPub)
             self.filtered_cones_pub_cov.publish(coneListPubCov)
@@ -276,10 +266,9 @@ class ConePipeline(Node):
         if len(points.points) > 0:
             msgs = self.printmarkers and self.lidar_markers.get_subscription_count() > 0
             header = points.header
-            header.frame_id = "fsds/FSCar"
             header1 = Header()
             header1.stamp = header.stamp
-            header1.frame_id = header.frame_id#'ekf/odom'
+            header1.frame_id = "fsds/FSCar"#'ekf/odom'
             odomloc = self.getNearestOdom(header.stamp)
             
             if odomloc is None:
@@ -313,10 +302,9 @@ class ConePipeline(Node):
         if len(points.points) > 0:
             msgs = self.printmarkers and self.vision_markers.get_subscription_count() > 0
             header = points.header
-            header.frame_id = "fsds/FSCar"
             header1 = Header()
             header1.stamp = header.stamp
-            header1.frame_id = header.frame_id#'ekf/odom'
+            header1.frame_id = "fsds/FSCar"#'ekf/odom'
             odomloc= self.getNearestOdom(header.stamp)
             if odomloc is None:
                 return None
