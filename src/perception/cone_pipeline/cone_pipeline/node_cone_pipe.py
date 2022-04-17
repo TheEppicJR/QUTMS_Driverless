@@ -92,7 +92,7 @@ class ConePipeline(Node):
         t.header.stamp = self.get_clock().now().to_msg()
         t.header.frame_id = 'ekf/map'
         t.child_frame_id = 'map'
-        t.transform.translation.x, t.transform.translation.y, t.transform.translation.z = 0.0, 0.0, 0.0
+        t.transform.translation.x, t.transform.translation.y, t.transform.translation.z = 0.0, 0.0, 0.3
         t.transform.rotation.x, t.transform.rotation.y, t.transform.rotation.z, t.transform.rotation.w = 0.0, 0.0, 0.0, 1.0
         self._tf_publisher.sendTransform(t)
 
@@ -200,8 +200,8 @@ class ConePipeline(Node):
                     conelist_cov.append(pubpt_cov)
 
                     if msgs:
-                        markers.append(cone.getCov(msgid, False, self.z_datum, header1))
-                        markers.append(cone.getMarker(msgid+1, self.z_datum, header1))
+                        markers.append(cone.getCov(msgid, False, header1))
+                        markers.append(cone.getMarker(msgid+1, header1))
                     msgid += 2
             if msgs:
                 mkr = MarkerArray()
@@ -219,6 +219,7 @@ class ConePipeline(Node):
             coneListPubCov.points = conelist_cov
             coneListPubCov.header = header
             coneListPubCov.header.frame_id = 'ekf/map'
+            # coneListPubCov.ns = ""
             # publish the messages
             self.filtered_cones_pub.publish(coneListPub)
             self.filtered_cones_pub_cov.publish(coneListPubCov)
@@ -250,25 +251,37 @@ class ConePipeline(Node):
         # create a list of points to be transformed
         to_frame_rel = self.target_frame
         from_frame_rel = header.frame_id
+        # beacuse reasons for fetting the sim to work for now
+        if from_frame_rel == 'map':
+            from_frame_rel = 'ekf/map'
         try:
             now = Time.from_msg(header.stamp)
             trans = self.tf_buffer.lookup_transform(
                 to_frame_rel,
                 from_frame_rel,
-                now)
+                now,
+                Duration(nanoseconds=40000000))
             return trans
         except TransformException as ex:
             self.get_logger().info(
                 f'Could not transform {to_frame_rel} to {from_frame_rel}: {ex}')
             return None
-        
+
+    def gen_headers(self, header: Header):
+        # create a header for the cone messages
+        header1 = Header()
+        header1.stamp = header.stamp
+        header1.frame_id = "fsds/FSCar"
+        header2 = Header()
+        header2.frame_id = 'ekf/map'
+        header2.stamp = header.stamp
+        return header1, header2
+
     def lidarCallback(self, points: PointWithCovarianceArrayStamped):
         if len(points.points) > 0:
             msgs = self.printmarkers and self.lidar_markers.get_subscription_count() > 0
             header = points.header
-            header1 = Header()
-            header1.stamp = header.stamp
-            header1.frame_id = "fsds/FSCar"#'ekf/odom'
+            header1, header2 = self.gen_headers(header)
             odomloc = self.getNearestOdom(header.stamp)
             
             if odomloc is None:
@@ -289,9 +302,9 @@ class ConePipeline(Node):
                 if tpnt.z < 0.45 and tpnt.z > 0.15:
                     conelist.append(p)
                     if msgs:
-                        markers.append(p.getCov(msgid, True, self.z_datum, header1))
-                        markers.append(p.getMarker(msgid+1, self.z_datum, header1))
-                    msgid += 2
+                        markers.append(p.getCov(msgid, True, header2))
+                        markers.append(p.getMarker(msgid+1, header2))
+                        msgid += 2
             if msgs:
                 mkr = MarkerArray()
                 mkr.markers = markers
@@ -302,10 +315,9 @@ class ConePipeline(Node):
         if len(points.points) > 0:
             msgs = self.printmarkers and self.vision_markers.get_subscription_count() > 0
             header = points.header
-            header1 = Header()
-            header1.stamp = header.stamp
-            header1.frame_id = "fsds/FSCar"#'ekf/odom'
+            header1, header2 = self.gen_headers(header)
             odomloc= self.getNearestOdom(header.stamp)
+
             if odomloc is None:
                 return None
 
@@ -324,9 +336,9 @@ class ConePipeline(Node):
                     p.translate(odomloc)
                     conelist.append(p)
                     if msgs:
-                        markers.append(p.getCov(msgid, True, self.z_datum, header1))
-                        markers.append(p.getMarker(msgid + 1, self.z_datum, header1))
-                    msgid += 2
+                        markers.append(p.getCov(msgid, True, header2))
+                        markers.append(p.getMarker(msgid + 1, header2))
+                        msgid += 2
             if msgs:
                 mkr = MarkerArray()
                 mkr.markers = markers

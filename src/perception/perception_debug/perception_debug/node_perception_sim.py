@@ -37,7 +37,7 @@ import time
 LOGGER = logging.getLogger(__name__)
 
 # import custom message libraries
-from driverless_msgs.msg import Cone, ConeDetectionStamped, Waypoint, WaypointsArray, PointWithCovarianceStamped, PointWithCovarianceStampedArray
+from driverless_msgs.msg import Cone, ConeDetectionStamped, Waypoint, WaypointsArray, PointWithCovariance, PointWithCovarianceArrayStamped
 from fs_msgs.msg import ControlCommand, Track
 
 
@@ -65,8 +65,8 @@ class SimNode(Node):
         sub = message_filters.Subscriber(self, Odometry, "/testing_only/odom")
         self.cache = message_filters.Cache(sub, 100)
 
-        self.lidar_publisher_cov: Publisher = self.create_publisher(PointWithCovarianceStampedArray, "/lidar/cone_detection_cov", 1)
-        self.vision_publisher_cov: Publisher = self.create_publisher(PointWithCovarianceStampedArray, "/vision/cone_detection_cov", 1)
+        self.lidar_publisher_cov: Publisher = self.create_publisher(PointWithCovarianceArrayStamped, "/lidar/cone_detection_cov", 1)
+        self.vision_publisher_cov: Publisher = self.create_publisher(PointWithCovarianceArrayStamped, "/vision/cone_detection_cov", 1)
         self.lidar_publisher: Publisher = self.create_publisher(ConeDetectionStamped, "/lidar/cone_detection", 1)
         self.vision_publisher: Publisher = self.create_publisher(ConeDetectionStamped, "/vision/cone_detection", 1)
 
@@ -97,9 +97,11 @@ class SimNode(Node):
             self.lidartime = time.time() + self.genRandomTime(self.lidarfreq, self.lidardelayvar/3)
             oldodom = self.cache.getElemBeforeTime(self.get_clock().now() - Duration(nanoseconds=self.genRandomTime(self.lidardelay, self.lidardelayvar)*10**9))
             frontCones = self.getFrontConeObstacles(self.map, 30, oldodom)
-            returnobj = PointWithCovarianceStampedArray()
+            returnobj = PointWithCovarianceArrayStamped()
             returnobjcone = ConeDetectionStamped()
             if oldodom is not None:
+                returnobj.header = oldodom.header
+                returnobj.header.frame_id = "map"
                 returnobj.points, returnobjcone.cones = self.randomiseConePos(frontCones, self.lidarcov, oldodom)
                 self.lidar_publisher_cov.publish(returnobj)
                 returnobjcone.header = oldodom.header
@@ -109,16 +111,18 @@ class SimNode(Node):
             self.visiontime = time.time() + self.genRandomTime(self.visionfreq, self.visiondelayvar/3)
             oldodom = self.cache.getElemBeforeTime(self.get_clock().now() - Duration(nanoseconds=self.genRandomTime(self.visiondelay, self.visiondelayvar)*10**9))
             frontCones = self.getFrontConeObstacles(self.map, 30, oldodom)
-            returnobj = PointWithCovarianceStampedArray()
+            returnobj = PointWithCovarianceArrayStamped()
             returnobjcone = ConeDetectionStamped()
             if oldodom is not None:
+                returnobj.header = oldodom.header
+                returnobj.header.frame_id = "map"
                 returnobj.points, returnobjcone.cones = self.randomiseConePos(frontCones, self.visioncov, oldodom)
                 self.vision_publisher_cov.publish(returnobj)
                 returnobjcone.header = oldodom.header
                 self.vision_publisher.publish(returnobjcone)
 
     def randomiseConePos(self, cones, cov: np.array, odom):
-        pointswithcov: List[PointWithCovarianceStamped] = []
+        pointswithcov: List[PointWithCovariance] = []
         conesout: List[Cone] = []
         orientation_q = odom.pose.pose.orientation
         orientation_list = [orientation_q.w, orientation_q.x, orientation_q.y, orientation_q.z]
@@ -146,9 +150,7 @@ class SimNode(Node):
             coneout.location = thepoint
             coneout.color = cone.color
             conesout.append(coneout)
-            pwcs = PointWithCovarianceStamped()
-            pwcs.header = odom.header
-            pwcs.header.frame_id = "map"
+            pwcs = PointWithCovariance()
             pwcs.position = thepoint
             pwcs.covariance = cov.flatten()
             pwcs.color = cone.color
