@@ -30,6 +30,7 @@ def generate_launch_description():
         Node(
             package='sr_can',
             executable='sr_cam',
+            parameters=["fragment_timeout: 5"],
         ),
         Node(
             package='sr_can',
