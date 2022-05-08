@@ -3,12 +3,9 @@ launch with `ros2 launch sr_can sr_can.launch.py`
 """
 from launch_ros.actions import Node
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, ExecuteProcess
-from launch.actions import LogInfo, DeclareLaunchArgument
-from launch.launch_description_sources import PythonLaunchDescriptionSource, AnyLaunchDescriptionSource
+from launch.actions import ExecuteProcess
+from launch.actions import LogInfo
 from launch.substitutions import ThisLaunchFileDir
-import os
-from ament_index_python.packages import get_package_share_directory
 
 def generate_launch_description():
     return LaunchDescription([
@@ -22,7 +19,15 @@ def generate_launch_description():
         # DeclareLaunchArgument(
 
         # ),
-        ExecuteProcess(cmd=['ros2', 'launch', 'rosbridge_server', 'rosbridge_websocket_launch.xml']),
+        #ExecuteProcess(cmd=['ros2', 'launch', 'rosbridge_server', 'rosbridge_websocket_launch.xml']),
+        Node(
+            package='rosbridge_server',
+            executable='rosbridge_websocket',
+        ),
+        Node(
+            package='rosapi',
+            executable='rosapi_node',
+        ),
         Node(
             package='rosboard',
             executable='rosboard_node',
@@ -30,7 +35,6 @@ def generate_launch_description():
         Node(
             package='sr_can',
             executable='sr_cam',
-            parameters=["fragment_timeout: 5"],
         ),
         Node(
             package='sr_can',
