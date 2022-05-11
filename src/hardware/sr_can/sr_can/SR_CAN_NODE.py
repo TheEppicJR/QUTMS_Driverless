@@ -120,8 +120,6 @@ class SR_CAN(Node):
     def __init__(self):
         super().__init__("sr_can")
 
-        bus = Bus(interface='socketcan', channel='can1', receive_own_messages=False)
-
         channel_descripts, self.addys, rate, self.msgdats = gcp()
 
         self.channels: Dict[int, Dict[int, Channel_Pub]] = {}
@@ -139,7 +137,12 @@ class SR_CAN(Node):
 
         self.logger.debug("---Cone Pipeline Node Initalised---")
 
-        notifier = can.Notifier(bus, [can.Logger("recorded.log"), self.read_mesages]) # , can.Printer()
+        try:
+            bus = Bus(interface='socketcan', channel='can1', receive_own_messages=False)
+
+            notifier = can.Notifier(bus, [can.Logger("recorded.log"), self.read_mesages]) # , can.Printer()
+        except:
+            print("Could not start CAN bus")
 
         print("SR_CAN Constructor has been called")
 

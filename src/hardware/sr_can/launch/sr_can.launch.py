@@ -12,14 +12,6 @@ def generate_launch_description():
         LogInfo(msg=[
             'Including launch file located at: ', ThisLaunchFileDir(), '/sr_can.launch.py'
         ]),
-        # IncludeLaunchDescription(
-        #     AnyLaunchDescriptionSource([ThisLaunchFileDir(), '/example.launch.py']),
-        #     launch_arguments=['rosbridge_websocket_launch.xml'],
-        # ),
-        # DeclareLaunchArgument(
-
-        # ),
-        #ExecuteProcess(cmd=['ros2', 'launch', 'rosbridge_server', 'rosbridge_websocket_launch.xml']),
         Node(
             package='rosbridge_server',
             executable='rosbridge_websocket',
