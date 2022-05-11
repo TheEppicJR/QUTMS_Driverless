@@ -17,6 +17,8 @@
   <depend>rosboard</depend>
   <depend>rosbridge_server</depend>
   <depend>cv_bridge</depend>
+  <depend>driverless_msgs</depend>
+  <depend>fsds_msgs</depend>
 
   <export>
     <build_type>ament_python</build_type>

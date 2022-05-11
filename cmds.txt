@@ -6,6 +6,8 @@ rm -rf build log install
 
 colcon build --symlink-install
 
+colcon build --symlink-install --packages-up-to sr_can
+
 ros2 service call /reset fs_msgs/srv/Reset
 
 ros2 launch fsds_ros2_bridge fsds_ros2_bridge.launch.py host:=192.168.86.23 rviz:=true
